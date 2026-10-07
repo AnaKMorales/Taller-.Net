@@ -1,6 +1,6 @@
 # UltimaMilla
 
-Este repositorio está organizado siguiendo la estructura base indicada en la documentación del proyecto.
+Este repositorio está organizado siguiendo la estructura indicada en la documentación del proyecto.
 
 ## Estructura
 
@@ -16,7 +16,7 @@ Este repositorio está organizado siguiendo la estructura base indicada en la do
   - `Integration/`
   - `Architecture/`
   - `Tenancy/`
-- `deploy/` - docker compose y Terraform.
+- `deploy/` - Docker Compose y Terraform.
 - `docs/`
   - `adr/` - registros de decisión de arquitectura.
 - `scripts/` - scripts de automatización y soporte.
