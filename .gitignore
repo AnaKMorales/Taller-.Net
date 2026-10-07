@@ -1,0 +1,31 @@
+## .NET / Visual Studio
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.cache
+*.pdb
+*.log
+*.dll
+*.exe
+*.db
+*.sqlite
+
+## Build output
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+coverage/
+
+## Packages
+packages/
+*.nupkg
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Git
+*.orig
