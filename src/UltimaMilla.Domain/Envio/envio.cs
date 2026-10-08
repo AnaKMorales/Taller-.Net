@@ -24,7 +24,7 @@ public class Envio
         DestinatarioNombre = nombre;
         DestinatarioTelefono = telefono;
         DireccionCalle = direccion;
-        FechaAdmision = DateTime.Now;
+        FechaAdmision = DateTime.UtcNow;
     }
 
     private string GenerarCodigo()

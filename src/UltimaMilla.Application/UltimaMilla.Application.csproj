@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UltimaMilla.Domain\UltimaMilla.Domain.csproj" />
+    <ProjectReference Include="..\UltimaMilla.Infrastructure\UltimaMilla.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

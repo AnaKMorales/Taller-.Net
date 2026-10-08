@@ -3,5 +3,6 @@
     <Project Path="src/UltimaMilla.Application/UltimaMilla.Application.csproj" />
     <Project Path="src/UltimaMilla.Domain/UltimaMilla.Domain.csproj" />
     <Project Path="src/UltimaMilla.Infrastructure/UltimaMilla.Infrastructure.csproj" />
+    <Project Path="src/UltimaMilla.Web/UltimaMilla.Web.csproj" />
   </Folder>
 </Solution>
