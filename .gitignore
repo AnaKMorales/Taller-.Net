@@ -29,3 +29,6 @@ Thumbs.db
 
 ## Git
 *.orig
+
+## Credenciales locales de PostgreSQL
+deploy/.env.postgres

@@ -1,0 +1,9 @@
+global using UltimaMilla.Domain.Common;
+global using UltimaMilla.Domain.Operadores;
+global using UltimaMilla.Domain.Comercios;
+global using UltimaMilla.Domain.Usuarios;
+global using UltimaMilla.Domain.Configuracion;
+global using UltimaMilla.Domain.Envios;
+global using UltimaMilla.Domain.Despacho;
+global using UltimaMilla.Domain.Deposito;
+global using UltimaMilla.Domain.Notificaciones;

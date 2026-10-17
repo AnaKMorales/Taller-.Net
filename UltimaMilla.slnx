@@ -4,4 +4,12 @@
     <Project Path="src/UltimaMilla.Domain/UltimaMilla.Domain.csproj" />
     <Project Path="src/UltimaMilla.Infrastructure/UltimaMilla.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Integration/">
+    <Project Path="tests/Integration/UltimaMilla.Infrastructure.IntegrationTests/UltimaMilla.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Unit/">
+    <Project Path="tests/Unit/UltimaMilla.Domain.Tests/UltimaMilla.Domain.Tests.csproj" />
+    <Project Path="tests/Unit/UltimaMilla.Infrastructure.Tests/UltimaMilla.Infrastructure.Tests.csproj" />
+  </Folder>
 </Solution>
