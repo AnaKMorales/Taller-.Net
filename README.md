@@ -34,16 +34,17 @@ En Rider se abre `UltimaMilla.slnx`; las pruebas se pueden ejecutar desde su exp
 - `RecibirEnDeposito` confirma el ingreso después de escanear todos los bultos.
 
 Estos comportamientos se prueban en memoria. Infrastructure ya contiene los mapeos de
-EF Core y la migración inicial para PostgreSQL. La migración y siete pruebas de integración
-se validaron contra PostgreSQL local en Docker. La concurrencia y los filtros automáticos
-de tenant siguen pendientes.
+EF Core y las migraciones para PostgreSQL. Se validaron pruebas de integración contra
+PostgreSQL local, incluidas las de aislamiento automático por operador. La concurrencia
+de negocio, la conexión del login con estos componentes y el outbox siguen pendientes.
 
 ## Persistencia
 
 Se configuraron EF Core 10, Npgsql y los mapeos de las 31 entidades. Se conservan los setters
 privados de Domain; los constructores de rehidratación permiten recuperar objetos sin volver
 a ejecutar sus reglas de alta. La migración `InitialCreate` está generada y se aplicó a la
-instancia local de desarrollo; cada integrante debe aplicarla en su propia base.
+instancia local de desarrollo. La migración posterior `OperatorIsolation` incorpora el tenant
+y sus restricciones; cada integrante debe aplicar las migraciones pendientes en su propia base.
 
 Estos comandos funcionan sin PostgreSQL ejecutándose:
 
@@ -58,7 +59,27 @@ El manifiesto `dotnet-tools.json` fija la versión de `dotnet-ef`. La fábrica d
 una base local, sin contraseña. Generar migraciones o SQL no abre una conexión.
 
 El detalle de relaciones, índices, tipos y límites está en [Persistencia](docs/persistence.md).
-También se conserva el [SQL inicial para revisión](docs/database-initial.sql).
+También se conserva el [SQL de instalación desde cero para revisión](docs/database-initial.sql),
+que incluye ambas migraciones.
+
+## Multitenancy por operador y cuenta comercial
+
+Se sigue la estrategia por fila de la sección 11 y el ADR-002 del documento inicial.
+Cada AppDbContext captura un TenantContext inmutable mediante ITenantActual: operador,
+usuario/rol y cuenta activa para el perfil Comercio. Las consultas se filtran por operador
+más cuenta; los usuarios internos mantienen su ámbito de operador según los permisos de API.
+Sin contexto no se leen datos y el guardado se bloquea.
+
+TenantSaveChangesInterceptor valida altas, modificaciones, bajas y referencias en ambos
+niveles. TenantResolver resuelve y verifica claims autenticados y contextos de mensajes Worker.
+ISeguimientoPublico resuelve un token aleatorio y devuelve un DTO limitado, en contexto de solo
+lectura. TenantCacheKey separa las claves por operador/cuenta y perfil. Estos componentes no
+implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos deben conectarlos.
+
+Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
+Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
+y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
+Se validaron 106 pruebas: 58 de Domain, 22 unitarias de Infrastructure y 26 contra PostgreSQL.
 
 ## PostgreSQL local para desarrollo
 
@@ -71,12 +92,12 @@ Con Docker Desktop ejecutándose, desde la raíz del repositorio:
 
 El primer script levanta PostgreSQL 17 en `127.0.0.1:55432`, crea credenciales aleatorias
 en `deploy/.env.postgres` (excluido de Git) y espera a que esté listo. El segundo aplica
-las migraciones y ejecuta las siete pruebas de integración en bases temporales separadas.
+las migraciones y ejecuta las pruebas de integración en bases temporales separadas.
 La base de desarrollo conserva sus datos en un volumen de Docker.
 
 Este Compose es el apoyo local para probar persistencia. El despliegue completo con los
 demás servicios sigue pendiente. Ver [comandos y conexión desde Rider](docs/postgres-local.md).
-`dotnet test UltimaMilla.slnx` sigue funcionando sin Docker: omite las siete pruebas de
+`dotnet test UltimaMilla.slnx` sigue funcionando sin Docker: omite las pruebas de
 integración cuando no se configura su conexión; el segundo script sí las ejecuta.
 
 ## Estructura

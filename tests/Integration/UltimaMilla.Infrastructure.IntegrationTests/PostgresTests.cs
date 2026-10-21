@@ -1,12 +1,14 @@
+using UltimaMilla.Application.Tenancy;
 namespace UltimaMilla.Infrastructure.IntegrationTests;
 
 // Cada prueba crea una base local temporal, migra desde cero y elimina solo esa base al terminar.
-public sealed class PostgresTests : IAsyncLifetime
+public sealed partial class PostgresTests : IAsyncLifetime
 {
     private readonly string _databaseName = "ultimamilla_test_" + Guid.NewGuid().ToString("N");
     private string _adminConnection = "";
     private string _testConnection = "";
     private bool _created;
+    private Guid _operatorId = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
@@ -47,14 +49,22 @@ public sealed class PostgresTests : IAsyncLifetime
         _created = false;
     }
 
-    private AppDbContext Context() => new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_testConnection).Options);
+    private AppDbContext Context(Guid? operatorId = null) => new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_testConnection).Options,
+        UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(operatorId ?? _operatorId));
+
+    private EscenarioPersistencia Escenario(bool reintentable = false)
+    {
+        var scenario = new EscenarioPersistencia(reintentable);
+        _operatorId = scenario.Operador.Id;
+        return scenario;
+    }
 
     [PostgresFact]
     public async Task MigraDesdeCeroYReconoceElHistorial()
     {
         await using var db = Context();
         Assert.True(await db.Database.CanConnectAsync());
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         await using var connection = new NpgsqlConnection(_testConnection);
         await connection.OpenAsync();
@@ -66,7 +76,7 @@ public sealed class PostgresTests : IAsyncLifetime
     [PostgresFact]
     public async Task GuardaYRecuperaGrafoTiposYRelacionesReales()
     {
-        var escenario = new EscenarioPersistencia();
+        var escenario = Escenario();
         await using (var writer = Context())
         {
             writer.Add(escenario.Envio);
@@ -92,7 +102,7 @@ public sealed class PostgresTests : IAsyncLifetime
     [PostgresFact]
     public async Task PersisteAsignacionIntentoDevolucionRendicionYAvisos()
     {
-        var e = new EscenarioPersistencia();
+        var e = Escenario();
         await using (var db = Context())
         {
             db.Add(e.Envio);
@@ -143,7 +153,7 @@ public sealed class PostgresTests : IAsyncLifetime
     [PostgresFact]
     public async Task ReprogramaYReasignaConservandoLasInstantaneas()
     {
-        var e = new EscenarioPersistencia(reintentable: true);
+        var e = Escenario(reintentable: true);
         var fecha = EscenarioPersistencia.Fecha;
         var nueva = ProgramacionEntrega.Crear(e.Zona.Franjas.Single(), DateOnly.FromDateTime(fecha.AddDays(1)), TimeSpan.FromHours(-3));
         await using (var db = Context())
@@ -180,7 +190,7 @@ public sealed class PostgresTests : IAsyncLifetime
     [PostgresFact]
     public async Task BaseRechazaDuplicadosAunqueNoSeCarguenLasColeccionesDeDomain()
     {
-        var e = new EscenarioPersistencia();
+        var e = Escenario();
         await using (var db = Context())
         {
             db.Add(e.Envio);
@@ -213,7 +223,7 @@ public sealed class PostgresTests : IAsyncLifetime
     [PostgresFact]
     public async Task BaseProtegeReferenciasYBorradoRestringido()
     {
-        var e = new EscenarioPersistencia();
+        var e = Escenario();
         await using (var db = Context())
         {
             db.Add(e.Envio);
@@ -226,20 +236,22 @@ public sealed class PostgresTests : IAsyncLifetime
         }
         await using (var db = Context())
         {
-            var bulto = new Bulto("Sin dueño real", 1, 10, 10, 10);
-            db.Add(bulto);
-            db.Entry(bulto).Property("EnvioKey").CurrentValue = Guid.NewGuid();
-            await FallaPostgres(db.SaveChangesAsync, PostgresErrorCodes.ForeignKeyViolation);
+            var id = Guid.NewGuid();
+            var absent = Guid.NewGuid();
+            var error = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT INTO \"Bultos\" (\"Id\", \"Codigo\", \"Peso\", \"Alto\", \"Ancho\", \"Largo\", \"EnvioId\", \"TenantId\") VALUES ({id}, 'Sin dueño real', 1, 10, 10, 10, {absent}, {_operatorId})"));
+            Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, error.SqlState);
         }
     }
 
     [PostgresFact]
     public async Task RollbackRevierteTodoElAlta()
     {
+        var e = Escenario();
         await using (var db = Context())
         {
             await using var transaction = await db.Database.BeginTransactionAsync();
-            db.Add(new EscenarioPersistencia().Envio);
+            db.Add(e.Envio);
             await db.SaveChangesAsync();
             Assert.Equal(1, await db.Envios.CountAsync());
             await transaction.RollbackAsync();

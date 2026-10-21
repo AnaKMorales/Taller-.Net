@@ -11,11 +11,11 @@ internal sealed class EscenarioPersistencia
     internal Vehiculo Vehiculo { get; }
     internal Envio Envio { get; }
 
-    internal EscenarioPersistencia(bool reintentable = false)
+    internal EscenarioPersistencia(bool reintentable = false, Comercio? comercio = null)
     {
         Admin = new Usuario(Operador, "admin@example.com", RolUsuario.Administrador);
         Repartidor = new Repartidor(Operador, "repartidor@example.com");
-        var cuenta = new CuentaComercial(Operador, new Comercio("Comercio", "099000001", "comercio@example.com"));
+        var cuenta = new CuentaComercial(Operador, comercio ?? new Comercio("Comercio", "099000001", "comercio@example.com"));
         var usuarioComercio = new Usuario(Operador, "usuario@example.com", RolUsuario.Comercio);
         usuarioComercio.AsignarCuentaComercial(cuenta);
         Zona = new ZonaCobertura(Operador, "Centro", "11000", [new FranjaHoraria("Día", new(8, 0), new(18, 0))]);

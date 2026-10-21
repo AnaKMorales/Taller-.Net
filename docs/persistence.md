@@ -4,8 +4,8 @@
 
 Se preparó EF Core 10.0.12 con Npgsql 10.0.3 y `dotnet-ef` local 10.0.12. Se generó
 `InitialCreate`, su snapshot y `database-initial.sql`. Su generación funciona sin servidor.
-Después se aplicó la migración a PostgreSQL local en Docker y se validaron siete pruebas
-de integración contra el servidor real. Ver [entorno local](postgres-local.md).
+Después se aplicaron las migraciones InitialCreate y OperatorIsolation a PostgreSQL local
+en Docker y se validaron pruebas de integración contra el servidor real. Ver [entorno local](postgres-local.md).
 
 Los mapeos están en `src/UltimaMilla.Infrastructure/Persistence/Configurations`, agrupados
 por áreas. `AppDbContext` los aplica y establece borrado `Restrict` en las relaciones para
@@ -83,8 +83,9 @@ y asignación: insertar juntos un envío nuevo y su parada activa forma un ciclo
 | Entrega de aviso | Suscripcion, Evento |
 
 Los índices respaldan unicidad. Las reglas de capacidad, motivos/evidencia, rangos tarifarios
-no superpuestos y coherencia del grafo siguen verificándose en Domain. Las FK actuales no
-sustituyen una validación de pertenencia al mismo operador al guardar.
+no superpuestos y coherencia del grafo siguen verificándose en Domain. OperatorIsolation
+agrega TenantId y FK compuestas, con validación adicional de pertenencia al guardar.
+Ver [aislamiento por operador](multitenancy.md).
 
 ## Uso desde Rider o terminal
 
@@ -114,13 +115,13 @@ todavía no está implementado, especialmente para las FK y claves shadow.
 
 ## Verificación y pendientes
 
-Hay 58 pruebas de Domain y 15 pruebas nuevas de Infrastructure. Estas últimas comprueban el
+Hay 58 pruebas de Domain y 22 de Infrastructure. Estas últimas comprueban el
 modelo y SQL Npgsql, la correspondencia del snapshot con la migración, los conversores y la
 rehidratación entre contextos mediante InMemory usando el modelo Npgsql. Cubren programación,
 reintentos cargados en otro orden, evidencia, devolución, escaneos, discrepancias, rendición,
 usuarios, cuentas y avisos. InMemory es una dependencia exclusiva del proyecto de pruebas.
 
-También existen siete pruebas en `tests/Integration/UltimaMilla.Infrastructure.IntegrationTests`,
+También existen pruebas en `tests/Integration/UltimaMilla.Infrastructure.IntegrationTests`,
 ejecutadas satisfactoriamente contra PostgreSQL 17.11 local. Cada prueba crea una base temporal
 con nombre aleatorio, aplica las migraciones desde cero y elimina exclusivamente esa base
 al terminar. Cubren esquema e historial, datos y tipos reales, asignación/intento/devolución,
@@ -129,12 +130,15 @@ restringido y rollback. No modifican los datos de la base de desarrollo.
 
 Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la configura.
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
-Los tests no demuestran todavía todas las condiciones de concurrencia, idempotencia o aislamiento.
+Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
+claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
+Los tests no demuestran todavía todas las condiciones de concurrencia o idempotencia.
 
-También quedan pendientes los filtros globales de tenant y su contexto, la validación de
-escrituras, tokens de concurrencia, protección persistente del historial y de las versiones
-en uso, outbox transaccional y repositorios/casos de uso. Una consulta filtrada manualmente
-por operador en las pruebas no acredita aislamiento automático.
+Los filtros de operador/cuenta, TenantContext y el interceptor de validación de escrituras
+ya están implementados. Quedan pendientes la integración con identidad/permisos, tokens de concurrencia
+de negocio, protección persistente del historial y de las versiones en uso, outbox y casos de uso.
+TenantId participa en el WHERE de escrituras, pero no reemplaza un token que detecte dos
+actualizaciones simultáneas dentro del mismo operador.
 
 Referencias de implementación: [constructores y materialización de EF Core](https://learn.microsoft.com/en-us/ef/core/modeling/constructors)
 y [creación de DbContext en tiempo de diseño](https://learn.microsoft.com/en-us/ef/core/cli/dbcontext-creation).

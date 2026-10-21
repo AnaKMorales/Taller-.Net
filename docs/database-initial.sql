@@ -490,3 +490,618 @@ VALUES ('20261014230137_InitialCreate', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "AjustesTarifarios" DROP CONSTRAINT "FK_AjustesTarifarios_LineasTarifa_LineaId";
+
+ALTER TABLE "Bultos" DROP CONSTRAINT "FK_Bultos_Envios_EnvioId";
+
+ALTER TABLE "Destinatarios" DROP CONSTRAINT "FK_Destinatarios_Direcciones_DireccionId";
+
+ALTER TABLE "Devoluciones" DROP CONSTRAINT "FK_Devoluciones_Envios_EnvioId";
+
+ALTER TABLE "Discrepancias" DROP CONSTRAINT "FK_Discrepancias_Bultos_BultoId";
+
+ALTER TABLE "Discrepancias" DROP CONSTRAINT "FK_Discrepancias_Envios_EnvioId";
+
+ALTER TABLE "EntregasAviso" DROP CONSTRAINT "FK_EntregasAviso_EventosDeEnvio_EventoId";
+
+ALTER TABLE "EntregasAviso" DROP CONSTRAINT "FK_EntregasAviso_SuscripcionesAviso_SuscripcionId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_CuadrosTarifarios_CuadroTarifarioId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_CuentasComerciales_CuentaComercialId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_Destinatarios_DestinatarioId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_Paradas_ParadaId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_ProgramacionesEntrega_ProgramacionId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_ReglasOperativas_ReglasId";
+
+ALTER TABLE "Envios" DROP CONSTRAINT "FK_Envios_ZonasCobertura_ZonaId";
+
+ALTER TABLE "EscaneosBulto" DROP CONSTRAINT "FK_EscaneosBulto_Bultos_BultoId";
+
+ALTER TABLE "EscaneosBulto" DROP CONSTRAINT "FK_EscaneosBulto_Devoluciones_DevolucionId";
+
+ALTER TABLE "EscaneosBulto" DROP CONSTRAINT "FK_EscaneosBulto_Rutas_RutaId";
+
+ALTER TABLE "EscaneosBulto" DROP CONSTRAINT "FK_EscaneosBulto_Usuarios_ResponsableId";
+
+ALTER TABLE "EventosDeEnvio" DROP CONSTRAINT "FK_EventosDeEnvio_Envios_EnvioId";
+
+ALTER TABLE "EventosDeEnvio" DROP CONSTRAINT "FK_EventosDeEnvio_ProgramacionesEntrega_ProgramacionAnteriorId";
+
+ALTER TABLE "EventosDeEnvio" DROP CONSTRAINT "FK_EventosDeEnvio_ProgramacionesEntrega_ProgramacionNuevaId";
+
+ALTER TABLE "EventosDeEnvio" DROP CONSTRAINT "FK_EventosDeEnvio_Usuarios_ResponsableId";
+
+ALTER TABLE "FranjasHorarias" DROP CONSTRAINT "FK_FranjasHorarias_ZonasCobertura_ZonaId";
+
+ALTER TABLE "IntentosEntrega" DROP CONSTRAINT "FK_IntentosEntrega_Envios_EnvioId";
+
+ALTER TABLE "IntentosEntrega" DROP CONSTRAINT "FK_IntentosEntrega_MotivosNoEntrega_MotivoNoEntregaId";
+
+ALTER TABLE "IntentosEntrega" DROP CONSTRAINT "FK_IntentosEntrega_Paradas_ParadaId";
+
+ALTER TABLE "LineasTarifa" DROP CONSTRAINT "FK_LineasTarifa_CuadrosTarifarios_CuadroId";
+
+ALTER TABLE "LineasTarifa" DROP CONSTRAINT "FK_LineasTarifa_ZonasCobertura_ZonaId";
+
+ALTER TABLE "MotivosNoEntrega" DROP CONSTRAINT "FK_MotivosNoEntrega_ReglasOperativas_ReglasId";
+
+ALTER TABLE "Notificaciones" DROP CONSTRAINT "FK_Notificaciones_Destinatarios_DestinatarioId";
+
+ALTER TABLE "Paradas" DROP CONSTRAINT "FK_Paradas_Envios_EnvioId";
+
+ALTER TABLE "Paradas" DROP CONSTRAINT "FK_Paradas_Rutas_RutaId";
+
+ALTER TABLE "PlazosServicio" DROP CONSTRAINT "FK_PlazosServicio_ReglasOperativas_ReglasId";
+
+ALTER TABLE "ProgramacionesEntrega" DROP CONSTRAINT "FK_ProgramacionesEntrega_FranjasHorarias_FranjaId";
+
+ALTER TABLE "PruebasEntrega" DROP CONSTRAINT "FK_PruebasEntrega_IntentosEntrega_IntentoId";
+
+ALTER TABLE "ReglasOperativas" DROP CONSTRAINT "FK_ReglasOperativas_PoliticasDevolucion_PoliticaDevolucionId";
+
+ALTER TABLE "Rendiciones" DROP CONSTRAINT "FK_Rendiciones_Rutas_RutaId";
+
+ALTER TABLE "Rutas" DROP CONSTRAINT "FK_Rutas_Usuarios_RepartidorId";
+
+ALTER TABLE "Rutas" DROP CONSTRAINT "FK_Rutas_Vehiculos_VehiculoId";
+
+ALTER TABLE "SuscripcionesAviso" DROP CONSTRAINT "FK_SuscripcionesAviso_CuentasComerciales_CuentaComercialId";
+
+ALTER TABLE "UsuariosCuentasComerciales" DROP CONSTRAINT "FK_UsuariosCuentasComerciales_CuentasComerciales_CuentaComerci~";
+
+ALTER TABLE "UsuariosCuentasComerciales" DROP CONSTRAINT "FK_UsuariosCuentasComerciales_Usuarios_UsuarioId";
+
+DROP INDEX "IX_UsuariosCuentasComerciales_CuentaComercialId";
+
+DROP INDEX "IX_SuscripcionesAviso_CuentaComercialId";
+
+DROP INDEX "IX_Rutas_RepartidorId";
+
+DROP INDEX "IX_Rutas_VehiculoId";
+
+DROP INDEX "IX_Rendiciones_RutaId";
+
+DROP INDEX "IX_ReglasOperativas_PoliticaDevolucionId";
+
+DROP INDEX "IX_PruebasEntrega_IntentoId";
+
+DROP INDEX "IX_ProgramacionesEntrega_FranjaId";
+
+DROP INDEX "IX_Notificaciones_DestinatarioId";
+
+DROP INDEX "IX_MotivosNoEntrega_ReglasId";
+
+DROP INDEX "IX_LineasTarifa_CuadroId";
+
+DROP INDEX "IX_LineasTarifa_ZonaId";
+
+DROP INDEX "IX_IntentosEntrega_MotivoNoEntregaId";
+
+DROP INDEX "IX_IntentosEntrega_ParadaId";
+
+DROP INDEX "IX_FranjasHorarias_ZonaId";
+
+DROP INDEX "IX_EventosDeEnvio_ProgramacionAnteriorId";
+
+DROP INDEX "IX_EventosDeEnvio_ProgramacionNuevaId";
+
+DROP INDEX "IX_EventosDeEnvio_ResponsableId";
+
+DROP INDEX "IX_EscaneosBulto_BultoId";
+
+DROP INDEX "IX_EscaneosBulto_DevolucionId";
+
+DROP INDEX "IX_EscaneosBulto_ResponsableId";
+
+DROP INDEX "IX_EscaneosBulto_RutaId";
+
+DROP INDEX "IX_Envios_CuadroTarifarioId";
+
+DROP INDEX "IX_Envios_CuentaComercialId";
+
+DROP INDEX "IX_Envios_DestinatarioId";
+
+DROP INDEX "IX_Envios_ParadaId";
+
+DROP INDEX "IX_Envios_ProgramacionId";
+
+DROP INDEX "IX_Envios_ReglasId";
+
+DROP INDEX "IX_Envios_ZonaId";
+
+DROP INDEX "IX_EntregasAviso_EventoId";
+
+DROP INDEX "IX_Discrepancias_BultoId";
+
+DROP INDEX "IX_Discrepancias_EnvioId";
+
+DROP INDEX "IX_Devoluciones_EnvioId";
+
+DROP INDEX "IX_Destinatarios_DireccionId";
+
+DROP INDEX "IX_AjustesTarifarios_LineaId";
+
+ALTER TABLE "ZonasCobertura" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Vehiculos" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "UsuariosCuentasComerciales" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Usuarios" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "SuscripcionesAviso" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Rutas" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Rendiciones" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "ReglasOperativas" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "PruebasEntrega" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "ProgramacionesEntrega" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "PoliticasDevolucion" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "PlazosServicio" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Paradas" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Notificaciones" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "MotivosNoEntrega" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "LineasTarifa" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "IntentosEntrega" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "FranjasHorarias" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "EventosDeEnvio" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "EscaneosBulto" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Envios" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "EntregasAviso" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Discrepancias" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Direcciones" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Devoluciones" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Destinatarios" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "CuentasComerciales" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "CuadrosTarifarios" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "Bultos" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+ALTER TABLE "AjustesTarifarios" ADD "TenantId" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+UPDATE "CuentasComerciales" SET "TenantId" = "OperadorId";
+UPDATE "Usuarios" SET "TenantId" = "OperadorId";
+UPDATE "Vehiculos" SET "TenantId" = "OperadorId";
+UPDATE "ZonasCobertura" SET "TenantId" = "OperadorId";
+UPDATE "ReglasOperativas" SET "TenantId" = "OperadorId";
+UPDATE "CuadrosTarifarios" SET "TenantId" = "OperadorId";
+UPDATE "FranjasHorarias" AS d SET "TenantId" = p."TenantId" FROM "ZonasCobertura" AS p WHERE d."ZonaId" = p."Id";
+UPDATE "PlazosServicio" AS d SET "TenantId" = p."TenantId" FROM "ReglasOperativas" AS p WHERE d."ReglasId" = p."Id";
+UPDATE "MotivosNoEntrega" AS d SET "TenantId" = p."TenantId" FROM "ReglasOperativas" AS p WHERE d."ReglasId" = p."Id";
+UPDATE "LineasTarifa" AS d SET "TenantId" = p."TenantId" FROM "CuadrosTarifarios" AS p WHERE d."CuadroId" = p."Id";
+UPDATE "AjustesTarifarios" AS d SET "TenantId" = p."TenantId" FROM "LineasTarifa" AS p WHERE d."LineaId" = p."Id";
+UPDATE "Envios" AS d SET "TenantId" = p."TenantId" FROM "CuentasComerciales" AS p WHERE d."CuentaComercialId" = p."Id";
+UPDATE "ProgramacionesEntrega" AS d SET "TenantId" = p."TenantId" FROM "FranjasHorarias" AS p WHERE d."FranjaId" = p."Id";
+UPDATE "Rutas" AS d SET "TenantId" = p."TenantId" FROM "Vehiculos" AS p WHERE d."VehiculoId" = p."Id";
+UPDATE "Paradas" AS d SET "TenantId" = p."TenantId" FROM "Rutas" AS p WHERE d."RutaId" = p."Id";
+UPDATE "IntentosEntrega" AS d SET "TenantId" = p."TenantId" FROM "Envios" AS p WHERE d."EnvioId" = p."Id";
+UPDATE "PruebasEntrega" AS d SET "TenantId" = p."TenantId" FROM "IntentosEntrega" AS p WHERE d."IntentoId" = p."Id";
+UPDATE "Bultos" AS d SET "TenantId" = p."TenantId" FROM "Envios" AS p WHERE d."EnvioId" = p."Id";
+UPDATE "EventosDeEnvio" AS d SET "TenantId" = p."TenantId" FROM "Envios" AS p WHERE d."EnvioId" = p."Id";
+UPDATE "Devoluciones" AS d SET "TenantId" = p."TenantId" FROM "Envios" AS p WHERE d."EnvioId" = p."Id";
+UPDATE "Discrepancias" AS d SET "TenantId" = p."TenantId" FROM "Envios" AS p WHERE d."EnvioId" = p."Id";
+UPDATE "EscaneosBulto" AS d SET "TenantId" = p."TenantId" FROM "Bultos" AS p WHERE d."BultoId" = p."Id";
+UPDATE "Rendiciones" AS d SET "TenantId" = p."TenantId" FROM "Rutas" AS p WHERE d."RutaId" = p."Id";
+UPDATE "SuscripcionesAviso" AS d SET "TenantId" = p."TenantId" FROM "CuentasComerciales" AS p WHERE d."CuentaComercialId" = p."Id";
+UPDATE "EntregasAviso" AS d SET "TenantId" = p."TenantId" FROM "SuscripcionesAviso" AS p WHERE d."SuscripcionId" = p."Id";
+UPDATE "UsuariosCuentasComerciales" AS d SET "TenantId" = p."TenantId" FROM "Usuarios" AS p WHERE d."UsuarioId" = p."Id";
+UPDATE "PoliticasDevolucion" AS d SET "TenantId" = p."TenantId" FROM "ReglasOperativas" AS p WHERE p."PoliticaDevolucionId" = d."Id";
+UPDATE "Destinatarios" AS d SET "TenantId" = p."TenantId" FROM "Envios" AS p WHERE p."DestinatarioId" = d."Id";
+UPDATE "Direcciones" AS d SET "TenantId" = p."TenantId" FROM "Destinatarios" AS p WHERE p."DireccionId" = d."Id";
+UPDATE "Notificaciones" AS d SET "TenantId" = p."TenantId" FROM "Destinatarios" AS p WHERE d."DestinatarioId" = p."Id";
+
+ALTER TABLE "ZonasCobertura" ADD CONSTRAINT "AK_ZonasCobertura_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Vehiculos" ADD CONSTRAINT "AK_Vehiculos_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Usuarios" ADD CONSTRAINT "AK_Usuarios_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "SuscripcionesAviso" ADD CONSTRAINT "AK_SuscripcionesAviso_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Rutas" ADD CONSTRAINT "AK_Rutas_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Rendiciones" ADD CONSTRAINT "AK_Rendiciones_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "ReglasOperativas" ADD CONSTRAINT "AK_ReglasOperativas_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "PruebasEntrega" ADD CONSTRAINT "AK_PruebasEntrega_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "ProgramacionesEntrega" ADD CONSTRAINT "AK_ProgramacionesEntrega_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "PoliticasDevolucion" ADD CONSTRAINT "AK_PoliticasDevolucion_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "PlazosServicio" ADD CONSTRAINT "AK_PlazosServicio_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Paradas" ADD CONSTRAINT "AK_Paradas_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Notificaciones" ADD CONSTRAINT "AK_Notificaciones_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "MotivosNoEntrega" ADD CONSTRAINT "AK_MotivosNoEntrega_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "LineasTarifa" ADD CONSTRAINT "AK_LineasTarifa_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "AK_IntentosEntrega_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "FranjasHorarias" ADD CONSTRAINT "AK_FranjasHorarias_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "AK_EventosDeEnvio_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "EscaneosBulto" ADD CONSTRAINT "AK_EscaneosBulto_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Envios" ADD CONSTRAINT "AK_Envios_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "EntregasAviso" ADD CONSTRAINT "AK_EntregasAviso_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Discrepancias" ADD CONSTRAINT "AK_Discrepancias_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Direcciones" ADD CONSTRAINT "AK_Direcciones_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Devoluciones" ADD CONSTRAINT "AK_Devoluciones_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Destinatarios" ADD CONSTRAINT "AK_Destinatarios_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "CuentasComerciales" ADD CONSTRAINT "AK_CuentasComerciales_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "CuadrosTarifarios" ADD CONSTRAINT "AK_CuadrosTarifarios_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "Bultos" ADD CONSTRAINT "AK_Bultos_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+ALTER TABLE "AjustesTarifarios" ADD CONSTRAINT "AK_AjustesTarifarios_Id_TenantId" UNIQUE ("Id", "TenantId");
+
+CREATE INDEX "IX_ZonasCobertura_TenantId" ON "ZonasCobertura" ("TenantId");
+
+ALTER TABLE "ZonasCobertura" ADD CONSTRAINT "CK_ZonasCobertura_OperadorTenant" CHECK ("OperadorId" = "TenantId");
+
+CREATE INDEX "IX_Vehiculos_TenantId" ON "Vehiculos" ("TenantId");
+
+ALTER TABLE "Vehiculos" ADD CONSTRAINT "CK_Vehiculos_OperadorTenant" CHECK ("OperadorId" = "TenantId");
+
+CREATE INDEX "IX_UsuariosCuentasComerciales_CuentaComercialId_TenantId" ON "UsuariosCuentasComerciales" ("CuentaComercialId", "TenantId");
+
+CREATE INDEX "IX_UsuariosCuentasComerciales_TenantId" ON "UsuariosCuentasComerciales" ("TenantId");
+
+CREATE INDEX "IX_UsuariosCuentasComerciales_UsuarioId_TenantId" ON "UsuariosCuentasComerciales" ("UsuarioId", "TenantId");
+
+CREATE INDEX "IX_Usuarios_TenantId" ON "Usuarios" ("TenantId");
+
+ALTER TABLE "Usuarios" ADD CONSTRAINT "CK_Usuarios_OperadorTenant" CHECK ("OperadorId" = "TenantId");
+
+CREATE INDEX "IX_SuscripcionesAviso_CuentaComercialId_TenantId" ON "SuscripcionesAviso" ("CuentaComercialId", "TenantId");
+
+CREATE INDEX "IX_SuscripcionesAviso_TenantId" ON "SuscripcionesAviso" ("TenantId");
+
+CREATE INDEX "IX_Rutas_RepartidorId_TenantId" ON "Rutas" ("RepartidorId", "TenantId");
+
+CREATE INDEX "IX_Rutas_TenantId" ON "Rutas" ("TenantId");
+
+CREATE INDEX "IX_Rutas_VehiculoId_TenantId" ON "Rutas" ("VehiculoId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_Rendiciones_RutaId_TenantId" ON "Rendiciones" ("RutaId", "TenantId");
+
+CREATE INDEX "IX_Rendiciones_TenantId" ON "Rendiciones" ("TenantId");
+
+CREATE UNIQUE INDEX "IX_ReglasOperativas_PoliticaDevolucionId_TenantId" ON "ReglasOperativas" ("PoliticaDevolucionId", "TenantId");
+
+CREATE INDEX "IX_ReglasOperativas_TenantId" ON "ReglasOperativas" ("TenantId");
+
+ALTER TABLE "ReglasOperativas" ADD CONSTRAINT "CK_ReglasOperativas_OperadorTenant" CHECK ("OperadorId" = "TenantId");
+
+CREATE INDEX "IX_PruebasEntrega_IntentoId_TenantId" ON "PruebasEntrega" ("IntentoId", "TenantId");
+
+CREATE INDEX "IX_PruebasEntrega_TenantId" ON "PruebasEntrega" ("TenantId");
+
+CREATE INDEX "IX_ProgramacionesEntrega_FranjaId_TenantId" ON "ProgramacionesEntrega" ("FranjaId", "TenantId");
+
+CREATE INDEX "IX_ProgramacionesEntrega_TenantId" ON "ProgramacionesEntrega" ("TenantId");
+
+CREATE INDEX "IX_PoliticasDevolucion_TenantId" ON "PoliticasDevolucion" ("TenantId");
+
+CREATE INDEX "IX_PlazosServicio_ReglasId_TenantId" ON "PlazosServicio" ("ReglasId", "TenantId");
+
+CREATE INDEX "IX_PlazosServicio_TenantId" ON "PlazosServicio" ("TenantId");
+
+CREATE INDEX "IX_Paradas_EnvioId_TenantId" ON "Paradas" ("EnvioId", "TenantId");
+
+CREATE INDEX "IX_Paradas_RutaId_TenantId" ON "Paradas" ("RutaId", "TenantId");
+
+CREATE INDEX "IX_Paradas_TenantId" ON "Paradas" ("TenantId");
+
+CREATE INDEX "IX_Notificaciones_DestinatarioId_TenantId" ON "Notificaciones" ("DestinatarioId", "TenantId");
+
+CREATE INDEX "IX_Notificaciones_TenantId" ON "Notificaciones" ("TenantId");
+
+CREATE INDEX "IX_MotivosNoEntrega_ReglasId_TenantId" ON "MotivosNoEntrega" ("ReglasId", "TenantId");
+
+CREATE INDEX "IX_MotivosNoEntrega_TenantId" ON "MotivosNoEntrega" ("TenantId");
+
+CREATE INDEX "IX_LineasTarifa_CuadroId_TenantId" ON "LineasTarifa" ("CuadroId", "TenantId");
+
+CREATE INDEX "IX_LineasTarifa_TenantId" ON "LineasTarifa" ("TenantId");
+
+CREATE INDEX "IX_LineasTarifa_ZonaId_TenantId" ON "LineasTarifa" ("ZonaId", "TenantId");
+
+CREATE INDEX "IX_IntentosEntrega_EnvioId_TenantId" ON "IntentosEntrega" ("EnvioId", "TenantId");
+
+CREATE INDEX "IX_IntentosEntrega_MotivoNoEntregaId_TenantId" ON "IntentosEntrega" ("MotivoNoEntregaId", "TenantId");
+
+CREATE INDEX "IX_IntentosEntrega_ParadaId_TenantId" ON "IntentosEntrega" ("ParadaId", "TenantId");
+
+CREATE INDEX "IX_IntentosEntrega_TenantId" ON "IntentosEntrega" ("TenantId");
+
+CREATE INDEX "IX_FranjasHorarias_TenantId" ON "FranjasHorarias" ("TenantId");
+
+CREATE INDEX "IX_FranjasHorarias_ZonaId_TenantId" ON "FranjasHorarias" ("ZonaId", "TenantId");
+
+CREATE INDEX "IX_EventosDeEnvio_EnvioId_TenantId" ON "EventosDeEnvio" ("EnvioId", "TenantId");
+
+CREATE INDEX "IX_EventosDeEnvio_ProgramacionAnteriorId_TenantId" ON "EventosDeEnvio" ("ProgramacionAnteriorId", "TenantId");
+
+CREATE INDEX "IX_EventosDeEnvio_ProgramacionNuevaId_TenantId" ON "EventosDeEnvio" ("ProgramacionNuevaId", "TenantId");
+
+CREATE INDEX "IX_EventosDeEnvio_ResponsableId_TenantId" ON "EventosDeEnvio" ("ResponsableId", "TenantId");
+
+CREATE INDEX "IX_EventosDeEnvio_TenantId" ON "EventosDeEnvio" ("TenantId");
+
+CREATE INDEX "IX_EscaneosBulto_BultoId_TenantId" ON "EscaneosBulto" ("BultoId", "TenantId");
+
+CREATE INDEX "IX_EscaneosBulto_DevolucionId_TenantId" ON "EscaneosBulto" ("DevolucionId", "TenantId");
+
+CREATE INDEX "IX_EscaneosBulto_ResponsableId_TenantId" ON "EscaneosBulto" ("ResponsableId", "TenantId");
+
+CREATE INDEX "IX_EscaneosBulto_RutaId_TenantId" ON "EscaneosBulto" ("RutaId", "TenantId");
+
+CREATE INDEX "IX_EscaneosBulto_TenantId" ON "EscaneosBulto" ("TenantId");
+
+CREATE INDEX "IX_Envios_CuadroTarifarioId_TenantId" ON "Envios" ("CuadroTarifarioId", "TenantId");
+
+CREATE INDEX "IX_Envios_CuentaComercialId_TenantId" ON "Envios" ("CuentaComercialId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_Envios_DestinatarioId_TenantId" ON "Envios" ("DestinatarioId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_Envios_ParadaId_TenantId" ON "Envios" ("ParadaId", "TenantId");
+
+CREATE INDEX "IX_Envios_ProgramacionId_TenantId" ON "Envios" ("ProgramacionId", "TenantId");
+
+CREATE INDEX "IX_Envios_ReglasId_TenantId" ON "Envios" ("ReglasId", "TenantId");
+
+CREATE INDEX "IX_Envios_TenantId" ON "Envios" ("TenantId");
+
+CREATE INDEX "IX_Envios_ZonaId_TenantId" ON "Envios" ("ZonaId", "TenantId");
+
+CREATE INDEX "IX_EntregasAviso_EventoId_TenantId" ON "EntregasAviso" ("EventoId", "TenantId");
+
+CREATE INDEX "IX_EntregasAviso_SuscripcionId_TenantId" ON "EntregasAviso" ("SuscripcionId", "TenantId");
+
+CREATE INDEX "IX_EntregasAviso_TenantId" ON "EntregasAviso" ("TenantId");
+
+CREATE INDEX "IX_Discrepancias_BultoId_TenantId" ON "Discrepancias" ("BultoId", "TenantId");
+
+CREATE INDEX "IX_Discrepancias_EnvioId_TenantId" ON "Discrepancias" ("EnvioId", "TenantId");
+
+CREATE INDEX "IX_Discrepancias_TenantId" ON "Discrepancias" ("TenantId");
+
+CREATE INDEX "IX_Direcciones_TenantId" ON "Direcciones" ("TenantId");
+
+CREATE UNIQUE INDEX "IX_Devoluciones_EnvioId_TenantId" ON "Devoluciones" ("EnvioId", "TenantId");
+
+CREATE INDEX "IX_Devoluciones_TenantId" ON "Devoluciones" ("TenantId");
+
+CREATE UNIQUE INDEX "IX_Destinatarios_DireccionId_TenantId" ON "Destinatarios" ("DireccionId", "TenantId");
+
+CREATE INDEX "IX_Destinatarios_TenantId" ON "Destinatarios" ("TenantId");
+
+CREATE INDEX "IX_CuentasComerciales_TenantId" ON "CuentasComerciales" ("TenantId");
+
+ALTER TABLE "CuentasComerciales" ADD CONSTRAINT "CK_CuentasComerciales_OperadorTenant" CHECK ("OperadorId" = "TenantId");
+
+CREATE INDEX "IX_CuadrosTarifarios_TenantId" ON "CuadrosTarifarios" ("TenantId");
+
+ALTER TABLE "CuadrosTarifarios" ADD CONSTRAINT "CK_CuadrosTarifarios_OperadorTenant" CHECK ("OperadorId" = "TenantId");
+
+CREATE INDEX "IX_Bultos_EnvioId_TenantId" ON "Bultos" ("EnvioId", "TenantId");
+
+CREATE INDEX "IX_Bultos_TenantId" ON "Bultos" ("TenantId");
+
+CREATE INDEX "IX_AjustesTarifarios_LineaId_TenantId" ON "AjustesTarifarios" ("LineaId", "TenantId");
+
+CREATE INDEX "IX_AjustesTarifarios_TenantId" ON "AjustesTarifarios" ("TenantId");
+
+ALTER TABLE "AjustesTarifarios" ADD CONSTRAINT "FK_AjustesTarifarios_LineasTarifa_LineaId_TenantId" FOREIGN KEY ("LineaId", "TenantId") REFERENCES "LineasTarifa" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "AjustesTarifarios" ADD CONSTRAINT "FK_AjustesTarifarios_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Bultos" ADD CONSTRAINT "FK_Bultos_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Bultos" ADD CONSTRAINT "FK_Bultos_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "CuadrosTarifarios" ADD CONSTRAINT "FK_CuadrosTarifarios_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "CuentasComerciales" ADD CONSTRAINT "FK_CuentasComerciales_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Destinatarios" ADD CONSTRAINT "FK_Destinatarios_Direcciones_DireccionId_TenantId" FOREIGN KEY ("DireccionId", "TenantId") REFERENCES "Direcciones" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Destinatarios" ADD CONSTRAINT "FK_Destinatarios_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Devoluciones" ADD CONSTRAINT "FK_Devoluciones_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Devoluciones" ADD CONSTRAINT "FK_Devoluciones_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Direcciones" ADD CONSTRAINT "FK_Direcciones_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Discrepancias" ADD CONSTRAINT "FK_Discrepancias_Bultos_BultoId_TenantId" FOREIGN KEY ("BultoId", "TenantId") REFERENCES "Bultos" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Discrepancias" ADD CONSTRAINT "FK_Discrepancias_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Discrepancias" ADD CONSTRAINT "FK_Discrepancias_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "EntregasAviso" ADD CONSTRAINT "FK_EntregasAviso_EventosDeEnvio_EventoId_TenantId" FOREIGN KEY ("EventoId", "TenantId") REFERENCES "EventosDeEnvio" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EntregasAviso" ADD CONSTRAINT "FK_EntregasAviso_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "EntregasAviso" ADD CONSTRAINT "FK_EntregasAviso_SuscripcionesAviso_SuscripcionId_TenantId" FOREIGN KEY ("SuscripcionId", "TenantId") REFERENCES "SuscripcionesAviso" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_CuadrosTarifarios_CuadroTarifarioId_TenantId" FOREIGN KEY ("CuadroTarifarioId", "TenantId") REFERENCES "CuadrosTarifarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_CuentasComerciales_CuentaComercialId_TenantId" FOREIGN KEY ("CuentaComercialId", "TenantId") REFERENCES "CuentasComerciales" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_Destinatarios_DestinatarioId_TenantId" FOREIGN KEY ("DestinatarioId", "TenantId") REFERENCES "Destinatarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_Paradas_ParadaId_TenantId" FOREIGN KEY ("ParadaId", "TenantId") REFERENCES "Paradas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_ProgramacionesEntrega_ProgramacionId_TenantId" FOREIGN KEY ("ProgramacionId", "TenantId") REFERENCES "ProgramacionesEntrega" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_ReglasOperativas_ReglasId_TenantId" FOREIGN KEY ("ReglasId", "TenantId") REFERENCES "ReglasOperativas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Envios" ADD CONSTRAINT "FK_Envios_ZonasCobertura_ZonaId_TenantId" FOREIGN KEY ("ZonaId", "TenantId") REFERENCES "ZonasCobertura" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EscaneosBulto" ADD CONSTRAINT "FK_EscaneosBulto_Bultos_BultoId_TenantId" FOREIGN KEY ("BultoId", "TenantId") REFERENCES "Bultos" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EscaneosBulto" ADD CONSTRAINT "FK_EscaneosBulto_Devoluciones_DevolucionId_TenantId" FOREIGN KEY ("DevolucionId", "TenantId") REFERENCES "Devoluciones" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EscaneosBulto" ADD CONSTRAINT "FK_EscaneosBulto_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "EscaneosBulto" ADD CONSTRAINT "FK_EscaneosBulto_Rutas_RutaId_TenantId" FOREIGN KEY ("RutaId", "TenantId") REFERENCES "Rutas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EscaneosBulto" ADD CONSTRAINT "FK_EscaneosBulto_Usuarios_ResponsableId_TenantId" FOREIGN KEY ("ResponsableId", "TenantId") REFERENCES "Usuarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "FK_EventosDeEnvio_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "FK_EventosDeEnvio_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "FK_EventosDeEnvio_ProgramacionesEntrega_ProgramacionAnteriorId~" FOREIGN KEY ("ProgramacionAnteriorId", "TenantId") REFERENCES "ProgramacionesEntrega" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "FK_EventosDeEnvio_ProgramacionesEntrega_ProgramacionNuevaId_Te~" FOREIGN KEY ("ProgramacionNuevaId", "TenantId") REFERENCES "ProgramacionesEntrega" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "FK_EventosDeEnvio_Usuarios_ResponsableId_TenantId" FOREIGN KEY ("ResponsableId", "TenantId") REFERENCES "Usuarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "FranjasHorarias" ADD CONSTRAINT "FK_FranjasHorarias_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "FranjasHorarias" ADD CONSTRAINT "FK_FranjasHorarias_ZonasCobertura_ZonaId_TenantId" FOREIGN KEY ("ZonaId", "TenantId") REFERENCES "ZonasCobertura" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "FK_IntentosEntrega_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "FK_IntentosEntrega_MotivosNoEntrega_MotivoNoEntregaId_TenantId" FOREIGN KEY ("MotivoNoEntregaId", "TenantId") REFERENCES "MotivosNoEntrega" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "FK_IntentosEntrega_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "FK_IntentosEntrega_Paradas_ParadaId_TenantId" FOREIGN KEY ("ParadaId", "TenantId") REFERENCES "Paradas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "LineasTarifa" ADD CONSTRAINT "FK_LineasTarifa_CuadrosTarifarios_CuadroId_TenantId" FOREIGN KEY ("CuadroId", "TenantId") REFERENCES "CuadrosTarifarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "LineasTarifa" ADD CONSTRAINT "FK_LineasTarifa_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "LineasTarifa" ADD CONSTRAINT "FK_LineasTarifa_ZonasCobertura_ZonaId_TenantId" FOREIGN KEY ("ZonaId", "TenantId") REFERENCES "ZonasCobertura" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "MotivosNoEntrega" ADD CONSTRAINT "FK_MotivosNoEntrega_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "MotivosNoEntrega" ADD CONSTRAINT "FK_MotivosNoEntrega_ReglasOperativas_ReglasId_TenantId" FOREIGN KEY ("ReglasId", "TenantId") REFERENCES "ReglasOperativas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Notificaciones" ADD CONSTRAINT "FK_Notificaciones_Destinatarios_DestinatarioId_TenantId" FOREIGN KEY ("DestinatarioId", "TenantId") REFERENCES "Destinatarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Notificaciones" ADD CONSTRAINT "FK_Notificaciones_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Paradas" ADD CONSTRAINT "FK_Paradas_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Paradas" ADD CONSTRAINT "FK_Paradas_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Paradas" ADD CONSTRAINT "FK_Paradas_Rutas_RutaId_TenantId" FOREIGN KEY ("RutaId", "TenantId") REFERENCES "Rutas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "PlazosServicio" ADD CONSTRAINT "FK_PlazosServicio_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "PlazosServicio" ADD CONSTRAINT "FK_PlazosServicio_ReglasOperativas_ReglasId_TenantId" FOREIGN KEY ("ReglasId", "TenantId") REFERENCES "ReglasOperativas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "PoliticasDevolucion" ADD CONSTRAINT "FK_PoliticasDevolucion_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "ProgramacionesEntrega" ADD CONSTRAINT "FK_ProgramacionesEntrega_FranjasHorarias_FranjaId_TenantId" FOREIGN KEY ("FranjaId", "TenantId") REFERENCES "FranjasHorarias" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "ProgramacionesEntrega" ADD CONSTRAINT "FK_ProgramacionesEntrega_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "PruebasEntrega" ADD CONSTRAINT "FK_PruebasEntrega_IntentosEntrega_IntentoId_TenantId" FOREIGN KEY ("IntentoId", "TenantId") REFERENCES "IntentosEntrega" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "PruebasEntrega" ADD CONSTRAINT "FK_PruebasEntrega_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "ReglasOperativas" ADD CONSTRAINT "FK_ReglasOperativas_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "ReglasOperativas" ADD CONSTRAINT "FK_ReglasOperativas_PoliticasDevolucion_PoliticaDevolucionId_T~" FOREIGN KEY ("PoliticaDevolucionId", "TenantId") REFERENCES "PoliticasDevolucion" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Rendiciones" ADD CONSTRAINT "FK_Rendiciones_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Rendiciones" ADD CONSTRAINT "FK_Rendiciones_Rutas_RutaId_TenantId" FOREIGN KEY ("RutaId", "TenantId") REFERENCES "Rutas" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Rutas" ADD CONSTRAINT "FK_Rutas_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Rutas" ADD CONSTRAINT "FK_Rutas_Usuarios_RepartidorId_TenantId" FOREIGN KEY ("RepartidorId", "TenantId") REFERENCES "Usuarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Rutas" ADD CONSTRAINT "FK_Rutas_Vehiculos_VehiculoId_TenantId" FOREIGN KEY ("VehiculoId", "TenantId") REFERENCES "Vehiculos" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "SuscripcionesAviso" ADD CONSTRAINT "FK_SuscripcionesAviso_CuentasComerciales_CuentaComercialId_Ten~" FOREIGN KEY ("CuentaComercialId", "TenantId") REFERENCES "CuentasComerciales" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "SuscripcionesAviso" ADD CONSTRAINT "FK_SuscripcionesAviso_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "Usuarios" ADD CONSTRAINT "FK_Usuarios_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "UsuariosCuentasComerciales" ADD CONSTRAINT "FK_UsuariosCuentasComerciales_CuentasComerciales_CuentaComerci~" FOREIGN KEY ("CuentaComercialId", "TenantId") REFERENCES "CuentasComerciales" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "UsuariosCuentasComerciales" ADD CONSTRAINT "FK_UsuariosCuentasComerciales_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "UsuariosCuentasComerciales" ADD CONSTRAINT "FK_UsuariosCuentasComerciales_Usuarios_UsuarioId_TenantId" FOREIGN KEY ("UsuarioId", "TenantId") REFERENCES "Usuarios" ("Id", "TenantId") ON DELETE RESTRICT;
+
+ALTER TABLE "Vehiculos" ADD CONSTRAINT "FK_Vehiculos_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+ALTER TABLE "ZonasCobertura" ADD CONSTRAINT "FK_ZonasCobertura_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT;
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261017182252_OperatorIsolation', '10.0.12');
+
+COMMIT;
+

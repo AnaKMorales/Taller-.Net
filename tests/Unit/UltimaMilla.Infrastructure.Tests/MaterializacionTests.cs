@@ -1,3 +1,4 @@
+using UltimaMilla.Application.Tenancy;
 namespace UltimaMilla.Infrastructure.Tests;
 
 // InMemory permite comprobar constructores, fixup y colecciones. No valida restricciones SQL.
@@ -17,12 +18,12 @@ public sealed class MaterializacionTests
         var fixture = new Datos();
         var envio = fixture.Envio;
         var options = Options();
-        using (var writer = new AppDbContext(options))
+        using (var writer = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id)))
         {
             writer.Add(envio);
             writer.SaveChanges();
         }
-        using var reader = new AppDbContext(options);
+        using var reader = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id));
         var actual = Cargar(reader);
         Assert.NotSame(envio, actual);
         Assert.Equal(envio.Id, actual.Id);
@@ -51,12 +52,12 @@ public sealed class MaterializacionTests
         var nueva = ProgramacionEntrega.Crear(fixture.Zona.Franjas.Single(), new DateOnly(2026, 10, 15), TimeSpan.FromHours(-3));
         fixture.Envio.Aplazar(nueva, fixture.Admin, Datos.Fecha);
         var options = Options();
-        using (var writer = new AppDbContext(options))
+        using (var writer = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id)))
         {
             writer.Add(fixture.Operador);
             writer.SaveChanges();
         }
-        using var reader = new AppDbContext(options);
+        using var reader = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id));
         var actual = Cargar(reader);
         var cambio = actual.Eventos.Single(e => e.Tipo == TipoEvento.Aplazar);
         Assert.Equal(anterior.InicioLocal, cambio.ProgramacionAnterior!.InicioLocal);
@@ -75,12 +76,12 @@ public sealed class MaterializacionTests
         var usuario = new Usuario(fixture.Operador, "comercio@test.example", RolUsuario.Comercio);
         usuario.AsignarCuentaComercial(fixture.Envio.CuentaComercial);
         var options = Options();
-        using (var writer = new AppDbContext(options))
+        using (var writer = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id)))
         {
             writer.Add(fixture.Operador);
             writer.SaveChanges();
         }
-        using var reader = new AppDbContext(options);
+        using var reader = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id));
         var ruta = reader.Set<Ruta>().Include(r => r.Repartidor).Include(r => r.Vehiculo).Single();
         Assert.IsType<Repartidor>(ruta.Repartidor);
         Assert.Equal(RolUsuario.Repartidor, ruta.Repartidor.Rol);
@@ -103,12 +104,12 @@ public sealed class MaterializacionTests
             Datos.Fecha.AddHours(1), Guid.NewGuid(), new GeoPunto(-34.9m, -56.2m));
         fixture.Envio.IniciarDevolucion(fixture.Admin, Datos.Fecha.AddHours(1));
         var options = Options();
-        using (var writer = new AppDbContext(options))
+        using (var writer = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id)))
         {
             writer.Add(fixture.Operador);
             writer.SaveChanges();
         }
-        using var reader = new AppDbContext(options);
+        using var reader = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id));
         var actual = Cargar(reader);
         var intento = actual.Intentos.Single();
         Assert.Equal(ResultadoIntento.Fallido, intento.Resultado);
@@ -143,12 +144,12 @@ public sealed class MaterializacionTests
         var notificacion = new Notificacion(fixture.Envio.Destinatario, CanalNotificacion.Email, "Envío devuelto");
         notificacion.MarcarEnviada(Datos.Fecha.AddHours(2));
         var options = Options();
-        using (var writer = new AppDbContext(options))
+        using (var writer = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id)))
         {
             writer.Add(fixture.Operador);
             writer.SaveChanges();
         }
-        using var reader = new AppDbContext(options);
+        using var reader = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id));
         var actual = Cargar(reader);
         var cierre = reader.Set<Rendicion>().Include(r => r.Ruta).Single();
         var discrepancia = reader.Set<Discrepancia>().Include(d => d.Bulto).Single();
@@ -184,12 +185,12 @@ public sealed class MaterializacionTests
             fixture.Reglas.MotivosNoEntrega.Single(m => !m.EsReintentable), [], fixture.Repartidor,
             Datos.Fecha.AddHours(2), Guid.NewGuid());
         var options = Options();
-        using (var writer = new AppDbContext(options))
+        using (var writer = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id)))
         {
             writer.Add(fixture.Operador);
             writer.SaveChanges();
         }
-        using var reader = new AppDbContext(options);
+        using var reader = new AppDbContext(options, UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(fixture.Operador.Id));
         reader.Set<IntentoEntrega>().OrderByDescending(i => i.Numero).Load();
         var actual = Cargar(reader);
         Assert.Equal([2, 1], actual.Intentos.Select(i => i.Numero));

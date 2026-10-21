@@ -164,7 +164,7 @@ el escaneo en el bulto o en la ruta. Una validación fallida no agrega relacione
 Infrastructure ya configura todas las entidades, colecciones y relaciones mediante Fluent API.
 La migración inicial y los índices únicos están generados para PostgreSQL.
 En la instancia local de Docker se aplicó la migración y se
-ejecutaron siete pruebas de integración reales. También se comprobó el modelo Npgsql,
+ejecutaron pruebas de integración reales, incluidas las de aislamiento con dos operadores. También se comprobó el modelo Npgsql,
 la generación de SQL y la rehidratación en memoria. El alcance está en [Persistencia](persistence.md).
 
 Las propiedades de identificadores relacionadas siguen derivándose de las navegaciones;
@@ -173,9 +173,12 @@ Infrastructure usa FK shadow para almacenarlas. Los constructores privados de re
 desde su API pública. Las colecciones se rellenan mediante sus campos privados. El último
 intento se identifica por su número, sin depender del orden de carga de las filas.
 
-Todavía faltan tokens de concurrencia, filtros de tenant, validación de escrituras y pruebas
-específicas de aislamiento y concurrencia contra PostgreSQL real. Ya se probaron restricciones
-de unicidad, referencias, borrado restringido, rollback y los principales flujos de persistencia.
+Infrastructure ya aplica filtros por operador, valida escrituras y referencias y respalda
+la pertenencia con FK compuestas. Se probó el aislamiento contra PostgreSQL real, con dos
+operadores y un comercio compartido. El detalle está en [Multitenancy](multitenancy.md).
+TenantContext, los filtros por cuenta y los resolvedores ya están implementados. Siguen
+pendientes la concurrencia de negocio, el login real y los permisos por funcionalidad en API.
+También se probaron unicidad, borrado restringido, rollback y los flujos de persistencia.
 
 También faltan los casos de uso, cálculo de tarifa y fecha comprometida desde la configuración,
 resolución de la zona horaria del operador en Application, autorización por perfil en API, Identity,

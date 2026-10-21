@@ -80,7 +80,8 @@ public sealed class ModeloTests
         var operadorId = Guid.NewGuid();
         var sql = db.Envios.Where(e => e.CuentaComercial.Operador.Id == operadorId)
             .Select(e => new { e.Id, e.Estado }).ToQueryString();
-        Assert.Contains("JOIN \"CuentasComerciales\"", sql);
+        Assert.Contains("\"CuentasComerciales\"", sql);
+        Assert.Contains("TenantId", sql);
         Assert.Contains("WHERE", sql);
         Assert.Contains("OperadorId", sql);
     }
@@ -89,7 +90,7 @@ public sealed class ModeloTests
     public void MigracionInicialCoincideConElModeloActual()
     {
         using var db = Context();
-        Assert.Single(db.Database.GetMigrations());
+        Assert.Equal(2, db.Database.GetMigrations().Count());
         Assert.False(db.Database.HasPendingModelChanges());
     }
 }

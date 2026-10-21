@@ -59,3 +59,44 @@ de integración contra PostgreSQL 17.11. Estas crean y eliminan exclusivamente b
 con nombres aleatorios; prueban esquema, materialización, flujos, restricciones y rollback.
 Se mantienen pendientes aislamiento automático por tenant, concurrencia, protección del
 historial y outbox. Este apoyo local no representa la entrega del despliegue completo.
+
+## 17 de octubre de 2026: multitenancy por operador
+
+Después de subir la base anterior a su rama, el usuario autorizó implementar multitenancy.
+Se agregaron el contrato IOperadorActual, su valor inmutable para procesos internos, una
+excepción de aislamiento y la captura del ámbito al crear AppDbContext. Los filtros globales
+cubren todas las raíces y la asociación de usuarios/cuentas; sin operador no hay lectura
+de datos ni guardado. Se mantuvo Domain sin dependencias de EF.
+
+Infrastructure agrega TenantId shadow en las tablas privadas, FK compuestas, índices y
+validación antes de SaveChanges/SaveChangesAsync. Se comprueba el propietario persistido
+de objetos y referencias, incluso ante tenant falsificado. Comercio sigue compartido y
+su modificación/eliminación global se bloquea desde un contexto de operador.
+
+OperatorIsolation recupera el tenant de las relaciones existentes y se aplicó a la base local.
+Las 16 pruebas de integración contra PostgreSQL pasaron, incluidas nueve nuevas de aislamiento
+y actualización del esquema con datos existentes. También pasaron las 58 pruebas de Domain
+y las 20 unitarias de Infrastructure. La integración con identidad, permisos, concurrencia
+de negocio y outbox queda pendiente. Las decisiones y límites se documentaron en multitenancy.md.
+
+### Completar el ADR-002 y el segundo nivel
+
+El usuario señaló que la estrategia estaba decidida en el Word. Se volvió a leer la sección
+11 y el ADR-002: la decisión por fila coincidía, pero la primera implementación había dejado
+incompleto el contexto y el aislamiento por cuenta comercial. El usuario autorizó completarlos.
+
+Se reemplazó IOperadorActual por ITenantActual y TenantContext inmutable con operador,
+usuario, rol, cuenta activa y origen. Se agregaron filtros por cuenta a datos y referencias,
+validación de escrituras en un SaveChangesInterceptor y protección de catálogos/instantáneas.
+El alta de un envío propio puede congelar sus versiones de reglas/tarifa sin permitir editar
+el resto de su configuración. Domain conserva sus dependencias y relaciones.
+
+Se agregaron el resolvedor de claims con verificación de usuario/rol/estado/membresía,
+resolución de mensajes Worker con ámbito nuevo por mensaje, helper de claves de caché y
+seguimiento por token aleatorio con DTO público y contexto de solo lectura. Son componentes
+reutilizables: no se implementaron el login HTTP, el consumidor RabbitMQ ni el cliente Redis.
+
+Pasaron las 26 pruebas de integración contra PostgreSQL, incluidas cuentas del mismo operador,
+claims inválidos, revocación, cuentas múltiples, escrituras propias/ajenas, Worker y seguimiento.
+El segundo nivel usa relaciones existentes y no requirió una tercera migración. Se actualizó
+la documentación y se registró la decisión ya existente del equipo como ADR-002 en el repo.
