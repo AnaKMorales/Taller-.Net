@@ -90,7 +90,7 @@ public sealed class ModeloTests
     public void MigracionInicialCoincideConElModeloActual()
     {
         using var db = Context();
-        Assert.Equal(2, db.Database.GetMigrations().Count());
+        Assert.Equal(3, db.Database.GetMigrations().Count());
         Assert.False(db.Database.HasPendingModelChanges());
     }
 }

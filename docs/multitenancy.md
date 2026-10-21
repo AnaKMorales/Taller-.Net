@@ -119,7 +119,8 @@ guardado para evitar repetir búsquedas. Los contextos se descartan tras un fall
 PostgreSQL respalda el primer nivel con FK compuestas (Id relacionado, TenantId), claves
 alternativas e índices. En tablas con OperadorId se exige su coincidencia con TenantId.
 El segundo nivel se valida mediante filtros y el interceptor; no se configuró RLS ni nuevas
-FK de cuenta en todas las tablas. La concurrencia optimista de negocio sigue pendiente.
+FK de cuenta en todas las tablas. La concurrencia optimista de envíos y rutas se describe
+por separado en [Concurrencia](concurrency.md); TenantId no reemplaza ese token de versión.
 
 ## Comercio compartido
 
@@ -156,7 +157,8 @@ usar estas claves tanto para leer como para escribir y acotar su invalidación a
 OperatorIsolation conserva los datos anteriores asignando el operador por sus relaciones.
 Se probó pasar del esquema inicial al nuevo con un grafo completo existente y comercio compartido.
 Los filtros de cuenta, el interceptor y los resolvedores no cambian el esquema; no requieren
-una tercera migración. La propiedad shadow TenantId conserva su nombre interno, manteniendo
+una migración propia. OptimisticConcurrency agrega posteriormente las versiones de envío/ruta.
+La propiedad shadow TenantId conserva su nombre interno, manteniendo
 OperadorId como identificador de negocio. No se modifica InitialCreate.
 
 Las pruebas de integración cubren dos operadores y dos comercios de un mismo operador,

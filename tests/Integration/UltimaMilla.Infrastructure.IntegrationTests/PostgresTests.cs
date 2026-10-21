@@ -64,7 +64,7 @@ public sealed partial class PostgresTests : IAsyncLifetime
     {
         await using var db = Context();
         Assert.True(await db.Database.CanConnectAsync());
-        Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         await using var connection = new NpgsqlConnection(_testConnection);
         await connection.OpenAsync();
@@ -213,6 +213,8 @@ public sealed partial class PostgresTests : IAsyncLifetime
         }
         await using (var db = Context())
         {
+            // La escritura de un hijo también comprueba la versión del envío observado.
+            await db.Envios.SingleAsync();
             var bulto = new Bulto("b001", 1, 10, 10, 10);
             db.Add(bulto);
             db.Entry(bulto).Property("EnvioKey").CurrentValue = e.Envio.Id;

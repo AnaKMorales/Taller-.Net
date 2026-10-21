@@ -177,7 +177,8 @@ Infrastructure ya aplica filtros por operador, valida escrituras y referencias y
 la pertenencia con FK compuestas. Se probó el aislamiento contra PostgreSQL real, con dos
 operadores y un comercio compartido. El detalle está en [Multitenancy](multitenancy.md).
 TenantContext, los filtros por cuenta y los resolvedores ya están implementados. Siguen
-pendientes la concurrencia de negocio, el login real y los permisos por funcionalidad en API.
+pendientes el login real y los permisos por funcionalidad en API. Infrastructure implementa
+concurrencia optimista para envíos y rutas sin agregar dependencias a Domain; ver [Concurrencia](concurrency.md).
 También se probaron unicidad, borrado restringido, rollback y los flujos de persistencia.
 
 También faltan los casos de uso, cálculo de tarifa y fecha comprometida desde la configuración,

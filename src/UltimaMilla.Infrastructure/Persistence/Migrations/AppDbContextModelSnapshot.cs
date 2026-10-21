@@ -622,6 +622,11 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("RepartidorId");
 
+                    b.Property<Guid>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<Guid>("TenantId")
                         .IsConcurrencyToken()
                         .HasColumnType("uuid");
@@ -839,6 +844,11 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ReglasKey")
                         .HasColumnType("uuid")
                         .HasColumnName("ReglasId");
+
+                    b.Property<Guid>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<decimal>("TarifaCalculada")
                         .HasColumnType("numeric");

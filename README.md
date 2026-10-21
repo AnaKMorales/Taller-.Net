@@ -35,8 +35,8 @@ En Rider se abre `UltimaMilla.slnx`; las pruebas se pueden ejecutar desde su exp
 
 Estos comportamientos se prueban en memoria. Infrastructure ya contiene los mapeos de
 EF Core y las migraciones para PostgreSQL. Se validaron pruebas de integración contra
-PostgreSQL local, incluidas las de aislamiento automático por operador. La concurrencia
-de negocio, la conexión del login con estos componentes y el outbox siguen pendientes.
+PostgreSQL local, incluidas las de aislamiento automático por operador. Envíos y rutas ya
+cuentan con concurrencia optimista. La conexión del login y el outbox siguen pendientes.
 
 ## Persistencia
 
@@ -60,7 +60,19 @@ una base local, sin contraseña. Generar migraciones o SQL no abre una conexión
 
 El detalle de relaciones, índices, tipos y límites está en [Persistencia](docs/persistence.md).
 También se conserva el [SQL de instalación desde cero para revisión](docs/database-initial.sql),
-que incluye ambas migraciones.
+que incluye las tres migraciones.
+
+## Concurrencia de envíos y rutas
+
+`RowVersion` detecta modificaciones basadas en una versión anterior del envío o la ruta.
+También se comprueban cambios en hijos, como paradas y escaneos. Dos asignaciones que
+compiten por el mismo envío o la capacidad de una ruta no pueden confirmar ambas con
+la misma versión. El intento perdedor se revierte y produce `ConflictoConcurrenciaException`;
+debe consultarse el estado actual y revalidar la operación, sin reintentos automáticos.
+
+La migración `OptimisticConcurrency` agrega las versiones a filas nuevas y existentes.
+Los casos de uso deben cargar los agregados completos con seguimiento y guardar su unidad
+de trabajo de forma atómica. Ver [funcionamiento, integración y límites](docs/concurrency.md).
 
 ## Multitenancy por operador y cuenta comercial
 
@@ -79,7 +91,8 @@ implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos 
 Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
 Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
 y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
-Se validaron 106 pruebas: 58 de Domain, 22 unitarias de Infrastructure y 26 contra PostgreSQL.
+Se validaron 116 pruebas: 58 de Domain, 23 unitarias de Infrastructure y 35 contra PostgreSQL,
+incluidas nueve pruebas de concurrencia y migración de sus versiones.
 
 ## PostgreSQL local para desarrollo
 

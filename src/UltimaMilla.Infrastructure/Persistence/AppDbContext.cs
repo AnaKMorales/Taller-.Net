@@ -4,6 +4,9 @@ using UltimaMilla.Domain.Envios;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 using UltimaMilla.Application.Tenancy;
+using UltimaMilla.Application.Abstractions;
+using UltimaMilla.Infrastructure.Persistence.Concurrency;
+using Npgsql;
 
 namespace UltimaMilla.Infrastructure.Persistence;
 
@@ -23,6 +26,24 @@ public sealed class AppDbContext : DbContext
         => _tenant = tenantActual?.Contexto;
 
     public DbSet<Envio> Envios => Set<Envio>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        try { return base.SaveChanges(acceptAllChangesOnSuccess); }
+        catch (DbUpdateException error) when (IsConcurrencyConflict(error))
+        { throw new ConflictoConcurrenciaException(error); }
+    }
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
+        catch (DbUpdateException error) when (IsConcurrencyConflict(error))
+        { throw new ConflictoConcurrenciaException(error); }
+    }
+
+    private static bool IsConcurrencyConflict(DbUpdateException error) =>
+        error is DbUpdateConcurrencyException || error.InnerException is PostgresException
+        { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: ConcurrencyModel.ActiveAssignmentIndex };
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.AddInterceptors(TenantSaveChangesInterceptor.Instance);
@@ -47,6 +68,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         TenantModel.Configure(modelBuilder, this);
         CuentaModel.Configure(modelBuilder, this);
+        ConcurrencyModel.Configure(modelBuilder);
         foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()))
             relationship.DeleteBehavior = DeleteBehavior.Restrict;
     }

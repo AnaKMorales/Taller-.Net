@@ -1105,3 +1105,13 @@ VALUES ('20261017182252_OperatorIsolation', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "Rutas" ADD "RowVersion" uuid NOT NULL DEFAULT (gen_random_uuid());
+
+ALTER TABLE "Envios" ADD "RowVersion" uuid NOT NULL DEFAULT (gen_random_uuid());
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261021210217_OptimisticConcurrency', '10.0.12');
+
+COMMIT;
+

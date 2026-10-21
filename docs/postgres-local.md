@@ -55,7 +55,7 @@ ejecutar otra vez `Start-LocalPostgres.ps1`.
 
 ## Qué verifican las pruebas
 
-Las 26 pruebas reales crean bases independientes llamadas `ultimamilla_test_<guid>`.
+Las 35 pruebas reales crean bases independientes llamadas `ultimamilla_test_<guid>`.
 Cada una aplica las migraciones desde cero y elimina su propia base al terminar. La base
 `ultimamilla` y sus datos no se limpian ni se usan para esas escrituras. Se requiere que
 el usuario local pueda crear bases; el usuario inicial de la imagen oficial lo permite.
@@ -70,8 +70,8 @@ El 14 de octubre de 2026 se aplicó InitialCreate y pasaron siete pruebas contra
 17.11. El 17 de octubre se aplicó OperatorIsolation y se amplió el contexto para cumplir
 ambos niveles del ADR-002. Pasaron 26 pruebas: operador, cuenta comercial, claims, Worker,
 seguimiento público y persistencia. No se requiere una tercera migración por los filtros
-de cuenta. La conexión con el login y los servicios externos, la concurrencia de negocio
-y el outbox continúan pendientes.
+de cuenta. La tercera migración, OptimisticConcurrency, agrega versiones a envíos y rutas.
+La conexión con el login y los servicios externos y el outbox continúan pendientes.
 
 Referencias: [imagen oficial PostgreSQL](https://hub.docker.com/_/postgres) y
 [healthchecks y espera de disponibilidad en Compose](https://docs.docker.com/compose/how-tos/startup-order/).

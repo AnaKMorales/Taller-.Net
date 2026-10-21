@@ -100,3 +100,19 @@ Pasaron las 26 pruebas de integración contra PostgreSQL, incluidas cuentas del 
 claims inválidos, revocación, cuentas múltiples, escrituras propias/ajenas, Worker y seguimiento.
 El segundo nivel usa relaciones existentes y no requirió una tercera migración. Se actualizó
 la documentación y se registró la decisión ya existente del equipo como ADR-002 en el repo.
+
+### Concurrencia optimista — 21/10/2026
+
+El usuario autorizó implementar concurrencia como siguiente paso. Se contrastó con la
+sección 5.3 y la prueba de asignación simultánea del Word inicial. Se incorporaron versiones
+lógicas UUID shadow a Envio y Ruta, manteniendo Domain libre de dependencias de persistencia.
+El guardado renueva versiones y también incluye raíces afectadas por cambios en hijos.
+Se conservan la unicidad de asignación activa y las validaciones de ambos ámbitos de tenancy.
+
+Los conflictos de versión o del índice de asignación activa se expresan mediante una
+excepción de Application. No se fuerzan escrituras ni se reintentan decisiones antiguas.
+Se generó y aplicó la migración OptimisticConcurrency y se actualizó el SQL de instalación.
+Pasaron 58 pruebas de Domain, 23 unitarias de Infrastructure y 35 contra PostgreSQL, incluidas
+nueve nuevas de concurrencia/migración. Los límites e integración futura se documentan en
+concurrency.md. Siguen pendientes outbox, tratamiento completo de idempotencia, protección
+persistente del historial y la integración de los casos de uso con Web/Worker.
