@@ -116,7 +116,7 @@ todavía no está implementado, especialmente para las FK y claves shadow.
 
 ## Verificación y pendientes
 
-Hay 58 pruebas de Domain y 23 de Infrastructure. Estas últimas comprueban el
+Hay 58 pruebas de Domain y 26 de Infrastructure. Estas últimas comprueban el
 modelo y SQL Npgsql, la correspondencia del snapshot con la migración, los conversores y la
 rehidratación entre contextos mediante InMemory usando el modelo Npgsql. Cubren programación,
 reintentos cargados en otro orden, evidencia, devolución, escaneos, discrepancias, rendición,
@@ -133,7 +133,8 @@ Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la 
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
 Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
 claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
-Las 35 pruebas de integración incluyen conflictos de versión de envíos y rutas, asignaciones
+Las 36 pruebas de integración incluyen el alta mediante el contrato de Application,
+conflictos de versión de envíos y rutas, asignaciones
 simultáneas, capacidad compartida, hijos operativos, rollback y migración de versiones con datos.
 No demuestran todavía todas las condiciones de idempotencia.
 

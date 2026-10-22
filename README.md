@@ -5,8 +5,9 @@ Este repositorio está organizado siguiendo la estructura indicada en la documen
 ## Estado actual
 
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
-Infrastructure, pruebas unitarias y pruebas de integración de persistencia. Web, Repartidor, Worker,
-los otros tipos de pruebas y el despliegue que se enumeran abajo son la estructura prevista.
+Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
+de persistencia. Repartidor, Worker, los otros tipos de pruebas y el despliegue que se enumeran
+abajo son la estructura prevista.
 
 Domain contiene las entidades y relaciones de los cuatro diagramas UML, agrupadas por
 área funcional. El detalle, las convenciones adoptadas y los límites de esta implementación
@@ -91,7 +92,7 @@ implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos 
 Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
 Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
 y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
-Se validaron 116 pruebas: 58 de Domain, 23 unitarias de Infrastructure y 35 contra PostgreSQL,
+Se validaron 120 pruebas: 58 de Domain, 26 unitarias de Infrastructure y 36 contra PostgreSQL,
 incluidas nueve pruebas de concurrencia y migración de sus versiones.
 
 ## PostgreSQL local para desarrollo
@@ -133,6 +134,15 @@ integración cuando no se configura su conexión; el segundo script sí las ejec
 - `scripts/` - scripts de automatización y soporte.
 
 ## Recomendaciones
+
+El alta Web inicial todavía debe completar cuenta, configuración, bultos y preparación de
+tarifa/fechas, y conectarse con el contexto autenticado. `CrearEnvioHandler` usa el contrato
+`IAltaEnvioRepository`, implementado en Infrastructure, para respetar la dirección de dependencias.
+No se utiliza un operador vacío ni se omiten las reglas de Domain para guardar ese formulario.
+
+Las migraciones del prototipo simplificado de Envio se conservaron en
+[`docs/archive/envio-prototype-migrations`](docs/archive/envio-prototype-migrations/README.md).
+EF solo utiliza el historial del modelo completo en `Infrastructure/Persistence/Migrations`.
 
 1. Mantener la capa `Domain` libre de dependencias externas.
 2. Usar `Application` para orquestar casos de uso.

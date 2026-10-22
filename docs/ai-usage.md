@@ -116,3 +116,28 @@ Pasaron 58 pruebas de Domain, 23 unitarias de Infrastructure y 35 contra Postgre
 nueve nuevas de concurrencia/migración. Los límites e integración futura se documentan en
 concurrency.md. Siguen pendientes outbox, tratamiento completo de idempotencia, protección
 persistente del historial y la integración de los casos de uso con Web/Worker.
+
+### Corrección de incompatibilidades del merge
+
+El usuario informó definiciones duplicadas de EstadoEnvio y símbolos de tenancy sin resolver.
+Se retiró la entidad simplificada duplicada y se restauraron las referencias: Application
+depende de Domain e Infrastructure depende de Application y Domain. El handler incorporado
+en el merge pasó a usar un contrato de Application implementado por AltaEnvioRepository,
+sin acceso directo a EF ni operador vacío. Usa el constructor completo y la hora del servidor.
+
+El comando contempla los datos operativos necesarios y una preparación de tarifa/fechas
+que debe resolver el servidor. El formulario inicial aún no completa esa preparación,
+los bultos ni su contexto autenticado; se rechaza el alta incompleta. No se implementó el
+cálculo automático ni el login como parte de esta corrección. Se adaptó el listado a las
+navegaciones de destinatario/dirección y se registraron los servicios requeridos.
+
+También se identificaron una migración y snapshot anteriores del prototipo para el mismo
+contexto. Se conservaron sin cambios en docs/archive/envio-prototype-migrations, fuera del
+ensamblado, para mantener un único historial vigente; no se borraron datos ni se reescribieron
+las tres migraciones del modelo completo. La migración de una base del prototipo requiere
+una revisión independiente de sus datos.
+
+Pasaron 58 pruebas de Domain, 26 unitarias de Infrastructure y 36 contra PostgreSQL.
+Las pruebas nuevas comprueban las dependencias entre ensamblados, rechazo de altas incompletas,
+rechazo sin contexto y alta con el grafo completo. La comprobación de dependencias añadida
+no sustituye todavía la suite de arquitectura con NetArchTest prevista por el equipo.

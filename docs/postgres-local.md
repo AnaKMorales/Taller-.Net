@@ -55,7 +55,7 @@ ejecutar otra vez `Start-LocalPostgres.ps1`.
 
 ## Qué verifican las pruebas
 
-Las 35 pruebas reales crean bases independientes llamadas `ultimamilla_test_<guid>`.
+Las 36 pruebas reales crean bases independientes llamadas `ultimamilla_test_<guid>`.
 Cada una aplica las migraciones desde cero y elimina su propia base al terminar. La base
 `ultimamilla` y sus datos no se limpian ni se usan para esas escrituras. Se requiere que
 el usuario local pueda crear bases; el usuario inicial de la imagen oficial lo permite.

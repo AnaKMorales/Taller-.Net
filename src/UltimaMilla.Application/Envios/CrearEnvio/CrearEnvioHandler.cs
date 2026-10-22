@@ -1,31 +1,34 @@
 using UltimaMilla.Domain.Envios;
-using UltimaMilla.Infrastructure.Persistence;
 
 namespace UltimaMilla.Application.Envios.CrearEnvio;
 
-public class CrearEnvioHandler
+public sealed class CrearEnvioHandler(IAltaEnvioRepository repository, TimeProvider clock)
 {
-    private readonly AppDbContext _db;
-
-    public CrearEnvioHandler(AppDbContext db)
+    public async Task<Envio> Handle(CrearEnvioCommand command, CancellationToken cancellationToken = default)
     {
-        _db = db;
-    }
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.CuentaComercialId == Guid.Empty || command.ZonaId == Guid.Empty ||
+            command.ReglasId == Guid.Empty || command.CuadroTarifarioId == Guid.Empty ||
+            command.FranjaHorariaId == Guid.Empty || command.Preparacion is null ||
+            command.Bultos is null || command.Bultos.Count == 0 || command.Bultos.Any(b => b is null))
+            throw new ArgumentException("Faltan los datos operativos y la programación necesarios para crear el envío.");
 
-    public async Task<Envio> Handle(CrearEnvioCommand command)
-    {
-        // por ahora el operador va fijo, despues sale del usuario logueado
-        var operadorId = Guid.Empty;
-
-        // el telefono es opcional en el formulario, pero la columna no acepta null
-        var telefono = command.DestinatarioTelefono ?? "";
-
-        var envio = new Envio(operadorId, command.ComercioId, command.DestinatarioNombre,
-            telefono, command.DireccionCalle);
-
-        _db.Envios.Add(envio);
-        await _db.SaveChangesAsync();
-
+        var references = await repository.CargarAsync(command, cancellationToken);
+        var preparation = command.Preparacion;
+        if (preparation.FechaComprometida.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("La fecha comprometida debe expresarse en UTC.");
+        var franja = references.Zona.Franjas.SingleOrDefault(f => f.Id == command.FranjaHorariaId)
+            ?? throw new ArgumentException("La franja no pertenece a la zona seleccionada.");
+        var programacion = new ProgramacionEntrega(franja, preparation.FechaEntrega,
+            preparation.InicioLocal, preparation.FinLocal);
+        var destinatario = new Destinatario(command.DestinatarioNombre, command.DestinatarioTelefono,
+            command.DestinatarioEmail, new Direccion(command.DireccionCalle, command.DireccionNumero,
+                command.DireccionLocalidad, command.DireccionCodigoPostal));
+        var bultos = command.Bultos.Select(b => new Bulto(b.Codigo, b.Peso, b.Alto, b.Ancho, b.Largo)).ToArray();
+        var envio = new Envio(references.Cuenta, destinatario, bultos, command.ModalidadServicio,
+            references.Zona, references.Reglas, references.Tarifario, preparation.TarifaCalculada,
+            clock.GetUtcNow().UtcDateTime, preparation.FechaComprometida, programacion, references.Responsable);
+        await repository.GuardarAsync(envio, cancellationToken);
         return envio;
     }
 }

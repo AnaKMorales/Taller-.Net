@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\UltimaMilla.Application\UltimaMilla.Application.csproj" />
     <ProjectReference Include="..\UltimaMilla.Domain\UltimaMilla.Domain.csproj" />
   </ItemGroup>
 

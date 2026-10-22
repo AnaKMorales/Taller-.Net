@@ -48,10 +48,19 @@
             return;
         }
 
-        var envio = await Handler.Handle(comando);
-        codigo = envio.CodigoSeguimiento;
-
-        // limpio el formulario
-        comando = new CrearEnvioCommand();
+        try
+        {
+            var envio = await Handler.Handle(comando);
+            codigo = envio.CodigoSeguimiento;
+            comando = new CrearEnvioCommand();
+        }
+        catch (ArgumentException)
+        {
+            error = "Completa los datos del envío, sus bultos y la programación antes de guardar.";
+        }
+        catch (UltimaMilla.Application.Abstractions.AislamientoOperadorException)
+        {
+            error = "No se pudo validar el acceso para crear el envío.";
+        }
     }
 }

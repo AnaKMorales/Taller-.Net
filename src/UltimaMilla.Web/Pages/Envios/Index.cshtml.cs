@@ -18,6 +18,7 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        Envios = await _db.Envios.OrderByDescending(e => e.FechaAdmision).ToListAsync();
+        Envios = await _db.Envios.AsNoTracking().Include(e => e.Destinatario).ThenInclude(d => d.Direccion)
+            .OrderByDescending(e => e.FechaAdmision).ToListAsync();
     }
 }

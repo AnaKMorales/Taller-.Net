@@ -31,9 +31,9 @@
             {
                 <tr>
                     <td>@envio.CodigoSeguimiento</td>
-                    <td>@envio.DestinatarioNombre</td>
-                    <td>@envio.DestinatarioTelefono</td>
-                    <td>@envio.DireccionCalle</td>
+                    <td>@envio.Destinatario.Nombre</td>
+                    <td>@envio.Destinatario.Telefono</td>
+                    <td>@envio.Destinatario.Direccion.Calle @envio.Destinatario.Direccion.Numero</td>
                     <td>@envio.Estado</td>
                     <td>@envio.FechaAdmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
                 </tr>

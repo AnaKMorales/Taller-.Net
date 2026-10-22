@@ -15,6 +15,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("UltimaMilla")));
 
 builder.Services.AddScoped<CrearEnvioHandler>();
+builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
