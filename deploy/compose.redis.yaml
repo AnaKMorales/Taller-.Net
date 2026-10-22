@@ -1,0 +1,15 @@
+name: ultimamilla-redis
+
+# Redis local para la caché (ADR-004), mientras se integra el compose completo del equipo.
+# Solo escucha en 127.0.0.1. Sin persistencia: la caché se reconstruye sola desde PostgreSQL.
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-56379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
