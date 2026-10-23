@@ -114,6 +114,31 @@ demás servicios sigue pendiente. Ver [comandos y conexión desde Rider](docs/po
 `dotnet test UltimaMilla.slnx` sigue funcionando sin Docker: omite las pruebas de
 integración cuando no se configura su conexión; el segundo script sí las ejecuta.
 
+## Caché con Redis
+
+El tarifario vigente y el seguimiento público se cachean en Redis con dos perfiles distintos;
+la decisión y sus límites están en [ADR-004](docs/adr/004-cache-e-invalidacion.md). Con Postgres
+ya iniciado y Docker Desktop abierto, desde la raíz del repositorio:
+
+```powershell
+./scripts/Start-LocalRedis.ps1
+./scripts/Start-Web.ps1
+```
+
+Redis queda en `127.0.0.1:56379`. `Start-Web.ps1` toma la contraseña de `deploy/.env.postgres`,
+aplica las migraciones pendientes y levanta la Web en `http://localhost:5243`. Sin la cadena
+`ConnectionStrings:Redis`, la Web usa caché en memoria.
+
+Endpoints para probarla (los `/dev` existen solo en Development, porque todavía no hay login):
+
+| Método | Ruta | Para qué |
+| --- | --- | --- |
+| POST | `/dev/datos-demo` | Crea un operador con tarifario y un envío; devuelve el operador y el token |
+| GET | `/api/seguimiento/{token}` | Seguimiento público, cacheado 30 s |
+| GET | `/dev/tarifario/{operadorId}` | Tarifario vigente, cacheado hasta 30 min |
+| POST | `/dev/tarifario/{operadorId}/invalidar` | Invalida el tarifario del operador |
+| GET | `/dev/cache/metricas` | Aciertos, fallos, errores y tasa de aciertos por caché |
+
 ## Estructura
 
 - `src/`
