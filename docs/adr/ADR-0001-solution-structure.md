@@ -14,3 +14,17 @@ Usar una solución organizada por capas con el prefijo `UltimaMilla` y una divis
 - Separa reglas de negocio de integración técnica.
 - Permite crecer con nuevas funcionalidades sin mezclar capas.
 - Alinea la estructura del repositorio con la documentación del proyecto.
+
+## Verificación de la decisión
+
+Se implementó `UltimaMilla.Architecture.Tests`, con xUnit y NetArchTest.Rules, para comprobar
+las dependencias de tipos entre las capas existentes. Domain depende únicamente de sí mismo
+y System; Application admite además Domain. Infrastructure y Web no dependen de otras
+aplicaciones ejecutables. Web puede referenciar Infrastructure para registrar servicios.
+
+También se validan las referencias declaradas en los proyectos, aunque todavía no se
+utilicen en código. Agregar Worker o Repartidor exige incluirlos en la matriz y en el
+análisis de sus ensamblados. La ejecución está integrada en la solución; su conexión al
+pipeline depende de la implementación de CI del equipo.
+
+Ver [detalle y criterios para modificar las reglas](../architecture-tests.md).

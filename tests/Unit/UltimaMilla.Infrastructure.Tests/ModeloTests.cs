@@ -15,7 +15,7 @@ public sealed class ModeloTests
             .Where(t => !t.IsAbstract && typeof(Entidad).IsAssignableFrom(t)).ToArray();
         Assert.Equal(31, domainTypes.Length);
         Assert.All(domainTypes, t => Assert.NotNull(db.Model.FindEntityType(t)));
-        Assert.Equal(32, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        Assert.Equal(33, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
         Assert.DoesNotContain(db.Model.GetEntityTypes(), t => t.ClrType == typeof(GeoPunto) || t.ClrType == typeof(ArchivoRef));
         Assert.All(db.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()), fk =>
         {
@@ -90,7 +90,7 @@ public sealed class ModeloTests
     public void MigracionInicialCoincideConElModeloActual()
     {
         using var db = Context();
-        Assert.Equal(3, db.Database.GetMigrations().Count());
+        Assert.Equal(4, db.Database.GetMigrations().Count());
         Assert.False(db.Database.HasPendingModelChanges());
     }
 }

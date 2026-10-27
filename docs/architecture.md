@@ -33,3 +33,12 @@ Procesos en segundo plano, consumidores de eventos y tareas asíncronas.
 ## Regla general
 
 Las dependencias deben fluir hacia el centro del dominio. Los cambios del negocio deben mantenerse aislados de detalles técnicos de almacenamiento o UI.
+
+## Verificación automática
+
+`UltimaMilla.Architecture.Tests` verifica los ensamblados con NetArchTest.Rules y las
+referencias declaradas en los .csproj. Cubre los cuatro proyectos actuales; Worker y
+Repartidor siguen previstos. Una prueba de inventario exige revisar las reglas cuando
+se agrega un proyecto productivo. Se ejecuta con `dotnet test UltimaMilla.slnx` sin Docker.
+
+Ver [reglas, ejecución y mantenimiento](architecture-tests.md).

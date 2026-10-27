@@ -64,13 +64,13 @@ public sealed partial class PostgresTests : IAsyncLifetime
     {
         await using var db = Context();
         Assert.True(await db.Database.CanConnectAsync());
-        Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         await using var connection = new NpgsqlConnection(_testConnection);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'", connection);
-        Assert.Equal(33L, await command.ExecuteScalarAsync());
+        Assert.Equal(34L, await command.ExecuteScalarAsync());
     }
 
     [PostgresFact]

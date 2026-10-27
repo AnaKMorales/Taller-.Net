@@ -6,16 +6,6 @@ namespace UltimaMilla.Infrastructure.Tests;
 public sealed class IntegracionCapasTests
 {
     [Fact]
-    public void ApplicationNoReferenciaInfraestructuraNiEfEInfrastructureConoceApplication()
-    {
-        var applicationReferences = typeof(CrearEnvioHandler).Assembly.GetReferencedAssemblies().Select(a => a.Name).ToArray();
-        Assert.Contains("UltimaMilla.Domain", applicationReferences);
-        Assert.DoesNotContain("UltimaMilla.Infrastructure", applicationReferences);
-        Assert.DoesNotContain(applicationReferences, name => name!.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal));
-        Assert.Contains(typeof(AppDbContext).Assembly.GetReferencedAssemblies(), a => a.Name == "UltimaMilla.Application");
-    }
-
-    [Fact]
     public async Task FormularioInicialIncompletoNoIntentaPersistirUnEnvioInvalido()
     {
         var handler = new CrearEnvioHandler(new RepositoryNoInvocable(), TimeProvider.System);

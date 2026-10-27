@@ -4,7 +4,7 @@
 
 Se preparó EF Core 10.0.12 con Npgsql 10.0.3 y `dotnet-ef` local 10.0.12. Se generó
 `InitialCreate`, su snapshot y `database-initial.sql`. Su generación funciona sin servidor.
-Después se aplicaron InitialCreate, OperatorIsolation y OptimisticConcurrency a PostgreSQL local
+Después se aplicaron InitialCreate, OperatorIsolation, OptimisticConcurrency y TransactionalOutbox a PostgreSQL local
 en Docker y se validaron pruebas de integración contra el servidor real. Ver [entorno local](postgres-local.md).
 
 Los mapeos están en `src/UltimaMilla.Infrastructure/Persistence/Configurations`, agrupados
@@ -15,7 +15,8 @@ evitar eliminar dependencias e historial por cascada. Las entidades de Domain no
 
 Las 31 entidades del dominio se representan mediante 30 tablas: Usuario y Repartidor comparten
 `Usuarios` con discriminador `TipoUsuario` (TPH). Se agregan `UsuariosCuentasComerciales` para
-la asociación muchos a muchos y `ProgramacionesEntrega` para las instantáneas. Son 32 tablas
+la asociación muchos a muchos, `ProgramacionesEntrega` para las instantáneas y `MensajesOutbox`
+para los mensajes de integración pendientes. Son 33 tablas
 del modelo, además de la tabla de historial que administra EF al aplicar migraciones.
 
 | Elemento | Persistencia |
@@ -116,7 +117,8 @@ todavía no está implementado, especialmente para las FK y claves shadow.
 
 ## Verificación y pendientes
 
-Hay 58 pruebas de Domain y 26 de Infrastructure. Estas últimas comprueban el
+Hay 72 pruebas de Domain, cinco unitarias de Application y 37 unitarias de Infrastructure.
+Las de Infrastructure comprueban el
 modelo y SQL Npgsql, la correspondencia del snapshot con la migración, los conversores y la
 rehidratación entre contextos mediante InMemory usando el modelo Npgsql. Cubren programación,
 reintentos cargados en otro orden, evidencia, devolución, escaneos, discrepancias, rendición,
@@ -133,15 +135,18 @@ Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la 
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
 Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
 claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
-Las 36 pruebas de integración incluyen el alta mediante el contrato de Application,
+Las 54 pruebas de integración incluyen el alta mediante el contrato de Application,
 conflictos de versión de envíos y rutas, asignaciones
-simultáneas, capacidad compartida, hijos operativos, rollback y migración de versiones con datos.
+simultáneas, capacidad compartida, hijos operativos, rollback, migración de versiones con datos,
+caché, siete pruebas del registro transaccional del outbox y nueve de su publicador.
 No demuestran todavía todas las condiciones de idempotencia.
 
 Los filtros de operador/cuenta, TenantContext y el interceptor de validación de escrituras
 ya están implementados. Envíos y rutas incorporan tokens de concurrencia de negocio y promoción
 de sus cambios operativos; ver [Concurrencia](concurrency.md). Quedan pendientes la integración
-con identidad/permisos, protección persistente del historial y de las versiones en uso, outbox y casos de uso.
+con identidad/permisos, protección persistente del historial y de las versiones en uso y casos de uso.
+El [outbox](outbox.md) guarda los mensajes de eventos en la misma transacción y tiene un componente
+que coordina su publicación confirmada. Falta integrar el adaptador real de RabbitMQ y el host.
 TenantId participa en el WHERE de escrituras, pero no reemplaza un token que detecte dos
 actualizaciones simultáneas dentro del mismo operador.
 

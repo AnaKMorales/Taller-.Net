@@ -1261,6 +1261,51 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Outbox.MensajeOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Contenido")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("EventoId");
+
+                    b.Property<DateTime?>("PublicadoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("EventoKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("CreadoEn", "Id")
+                        .HasFilter("\"PublicadoEn\" IS NULL");
+
+                    b.HasIndex("EventoKey", "TenantId");
+
+                    b.ToTable("MensajesOutbox", (string)null);
+                });
+
             modelBuilder.Entity("UsuariosCuentasComerciales", b =>
                 {
                     b.Property<Guid>("UsuarioId")
@@ -1973,6 +2018,24 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Operador");
+                });
+
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Outbox.MensajeOutbox", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.EventoDeEnvio", "Evento")
+                        .WithMany()
+                        .HasForeignKey("EventoKey", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Evento");
                 });
 
             modelBuilder.Entity("UsuariosCuentasComerciales", b =>
