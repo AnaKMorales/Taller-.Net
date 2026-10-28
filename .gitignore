@@ -32,3 +32,5 @@ Thumbs.db
 
 ## Credenciales locales de PostgreSQL
 deploy/.env.postgres
+
+.env
