@@ -1,4 +1,4 @@
-name: ultimamilla-local
+  name: ultimamilla-local
 
   # Entorno local completo: PostgreSQL, Redis (cache, ADR-004) y RabbitMQ.
   # Todo escucha solo en 127.0.0.1.
@@ -51,4 +51,3 @@ name: ultimamilla-local
   volumes:
     postgres_data:
     rabbitmq_data:
-    EOF
