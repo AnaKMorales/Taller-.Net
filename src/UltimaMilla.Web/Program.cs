@@ -20,14 +20,14 @@ using UltimaMilla.Web.Tiempo;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-// Los enums (estado del envío, modalidad) salen como texto en la API: "Admitido" en vez de 0.
+// Enums como texto en la API.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Razor Pages para el Backoffice y Blazor para el Portal
 builder.Services.AddRazorPages();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
-// Sesión con cookie. La crea /login con email y contraseña; con Identity se mantiene la misma cookie y los mismos claims.
+// Sesión con cookie.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>
     {
@@ -44,7 +44,7 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantActual, TenantActualHttp>();
 
-// Cada EventoDeEnvio que se guarda se publica en vivo al tablero de su operador.
+// Tablero en tiempo real (SignalR).
 builder.Services.AgregarBackofficeUltimaMilla();
 builder.Services.AddSingleton<INotificadorTablero, NotificadorTableroSignalR>();
 builder.Services.AddSignalR()
@@ -58,7 +58,7 @@ builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
 
-// Caché del tarifario y del seguimiento público (ADR-004). Sin cadena de Redis usa memoria.
+// Caché del tarifario y del seguimiento (ADR-004).
 builder.Services.AgregarCacheUltimaMilla(builder.Configuration.GetConnectionString("Redis"),
     builder.Configuration.GetSection("Cache").Get<CacheOpciones>());
 
@@ -69,11 +69,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// Sin UseHttpsRedirection: en local se usa HTTP y en AWS el HTTPS lo termina Traefik (sección 3.3).
+// HTTPS lo termina Traefik en AWS.
 app.UseAuthentication();
 
-// Resuelve el operador de la sesión una vez por petición y lo deja para AppDbContext (TenantActualHttp).
-// TenantResolver vuelve a verificar contra la base que el usuario siga activo y con el mismo rol.
+// Resuelve el operador de la sesión en cada petición.
 app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true && !Path.HasExtension(context.Request.Path.Value))
@@ -85,7 +84,7 @@ app.Use(async (context, next) =>
         }
         catch (AislamientoOperadorException)
         {
-            // Usuario desactivado o claims que ya no coinciden: se cierra la sesión.
+            // Usuario desactivado: se cierra la sesión.
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             context.User = new ClaimsPrincipal(new ClaimsIdentity());
         }
@@ -101,13 +100,13 @@ app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
 
-// Seguimiento público: el destinatario no tiene cuenta, el token del envío alcanza.
+// Seguimiento público (sin login).
 app.MapGet("/api/seguimiento/{token}", async (string token, ISeguimientoPublico seguimiento, CancellationToken ct) =>
     await seguimiento.ConsultarAsync(token, ct) is { } envio ? Results.Ok(envio) : Results.NotFound());
 
 if (app.Environment.IsDevelopment())
 {
-    // Endpoints de prueba: existen solo en desarrollo.
+    // Endpoints de prueba (solo desarrollo).
     var dev = app.MapGroup("/dev");
 
     dev.MapPost("/datos-demo", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
@@ -125,7 +124,6 @@ if (app.Environment.IsDevelopment())
 
     dev.MapGet("/cache/metricas", (CacheMetricas metricas) => metricas.Resumen());
 
-    // Simulación para el tablero: actúan sobre el operador del usuario con sesión, nunca sobre otro.
     var simular = dev.MapGroup("/simular").RequireAuthorization(Politicas.Backoffice);
 
     simular.MapPost("/alta", async (ITenantActual tenant, DbContextOptions<AppDbContext> options, CancellationToken ct) =>

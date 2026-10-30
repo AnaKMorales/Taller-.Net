@@ -17,7 +17,6 @@ public sealed class TableroModel(IConsultasBackoffice consultas, IWebHostEnviron
 
     public bool Simulacion => entorno.IsDevelopment();
 
-    // Los nombres para mostrar, para que el JavaScript arme las filas nuevas igual que el servidor.
     public string TextosJson => JsonSerializer.Serialize(new
     {
         estados = Textos.Estados.ToDictionary(p => p.Key.ToString(), p => p.Value),

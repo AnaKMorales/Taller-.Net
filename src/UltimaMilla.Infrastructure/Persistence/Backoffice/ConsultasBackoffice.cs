@@ -3,11 +3,9 @@ using UltimaMilla.Application.Tablero;
 
 namespace UltimaMilla.Infrastructure.Persistence.Backoffice;
 
-// Lecturas del backoffice. Usa el AppDbContext de la petición, cuyos filtros de tenant ya limitan
-// todo al operador del usuario: sin sesión no devuelve nada.
+// Los filtros de tenant del AppDbContext limitan todo al operador del usuario.
 public sealed class ConsultasBackoffice(AppDbContext db) : IConsultasBackoffice
 {
-    // Estados en los que el envío necesita que alguien del operador intervenga.
     public static readonly EstadoEnvio[] EstadosConIncidencia =
         [EstadoEnvio.NoEntregado, EstadoEnvio.Reprogramado, EstadoEnvio.EnDevolucion, EstadoEnvio.Extraviado];
 
@@ -42,7 +40,6 @@ public sealed class ConsultasBackoffice(AppDbContext db) : IConsultasBackoffice
 
     public async Task<IReadOnlyList<AvisoFallidoDto>> AvisosFallidosAsync(CancellationToken cancellationToken = default)
     {
-        // Un aviso sin entregar con al menos un intento falló. Los reintentos los hará el Worker.
         var filas = await db.Set<EntregaAviso>().AsNoTracking()
             .Where(a => !a.Exitoso && a.Intentos > 0)
             .OrderByDescending(a => a.UltimoIntentoEn)
@@ -57,7 +54,7 @@ public sealed class ConsultasBackoffice(AppDbContext db) : IConsultasBackoffice
                 a.UltimoIntentoEn
             })
             .ToListAsync(cancellationToken);
-        // Solo el host: la ruta o los parámetros del webhook pueden llevar datos del comercio.
+        // Solo el host: la URL completa puede tener datos del comercio.
         return filas.Select(f => new AvisoFallidoDto(f.Id, f.EnvioId, f.Comercio, f.UrlDestino.Host, f.Tipo,
             f.Intentos, f.UltimoIntentoEn)).ToList();
     }

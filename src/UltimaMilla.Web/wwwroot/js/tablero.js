@@ -1,4 +1,4 @@
-// Tablero en vivo: escucha "cambiosEnvio" en /hubs/tablero y actualiza contadores y tabla sin recargar.
+// Tablero en vivo por SignalR.
 (() => {
   const textos = JSON.parse(document.getElementById('textos-tablero').textContent);
   const indicador = document.getElementById('conexion');
@@ -29,7 +29,7 @@
       cambio.envioId.replaceAll('-', '').slice(0, 8), cambio.detalle ?? ''];
     for (const texto of columnas) {
       const celda = document.createElement('td');
-      celda.textContent = texto; // textContent, nunca innerHTML: el detalle es texto libre
+      celda.textContent = texto; // textContent evita inyectar HTML
       fila.appendChild(celda);
     }
     fila.classList.add('nuevo');
@@ -57,7 +57,7 @@
   });
 
   conexion.onreconnecting(() => mostrarConexion('Reconectando…', 'aviso'));
-  // Durante el corte se pudieron perder cambios: se recarga para volver a leer los totales.
+  // Se recarga para no perder cambios ocurridos durante el corte.
   conexion.onreconnected(() => location.reload());
   conexion.onclose(() => mostrarConexion('Desconectado: recargá la página', 'error'));
 
@@ -65,7 +65,7 @@
     .then(() => mostrarConexion('En vivo', 'ok'))
     .catch(() => mostrarConexion('No se pudo conectar', 'error'));
 
-  // Botones de simulación (solo existen en desarrollo).
+  // Simulación (solo desarrollo).
   const resultado = document.getElementById('resultado-simulacion');
   for (const boton of document.querySelectorAll('[data-simular]')) {
     boton.addEventListener('click', async () => {

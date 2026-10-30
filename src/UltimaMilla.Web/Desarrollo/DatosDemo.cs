@@ -17,17 +17,13 @@ namespace UltimaMilla.Web.Desarrollo;
 public sealed record DatosDemoCreados(Guid OperadorId, string EmailAdministrador, string EmailComercio,
     string Contrasena, string CodigoSeguimiento);
 
-// Datos para probar sin el alta completa. Cada llamada a CrearAsync crea un operador nuevo,
-// así se puede mostrar que ni la caché ni el tablero mezclan operadores.
+// Datos de prueba, solo para desarrollo. Cada llamada crea un operador nuevo.
 public static class DatosDemo
 {
     private static readonly GeoPunto Montevideo = new(-34.9011m, -56.1645m);
 
-    // Contraseña de todos los usuarios de demo. Solo existe en desarrollo.
     private const string ContrasenaDemo = "Demo1234!";
 
-    // Un operador con su configuración y dos envíos: uno recién admitido y otro con una entrega fallida,
-    // una discrepancia de peso y un aviso al comercio que no se pudo entregar.
     public static async Task<DatosDemoCreados> CrearAsync(DbContextOptions<AppDbContext> options, CancellationToken ct)
     {
         var ahora = DateTime.UtcNow;
@@ -60,7 +56,7 @@ public static class DatosDemo
         _ = new Discrepancia(fallido, bulto, TipoDiscrepancia.PesoNoCoincide, "Peso del bulto", "2.5 kg", "3.1 kg",
             ahora.AddSeconds(1));
         var ruta = new Ruta(repartidor, vehiculo, 10);
-        // La llegada estimada tiene que caer dentro de la ventana de entrega comprometida.
+        // La llegada debe caer dentro de la ventana de entrega.
         ruta.AgregarParada(fallido, 1, fallido.VentanaDesde.AddHours(1), admin, ahora.AddSeconds(2));
         ruta.Despachar(admin, ahora.AddSeconds(3));
         fallido.RegistrarIntento(ResultadoIntento.Fallido, ausente,
@@ -81,11 +77,9 @@ public static class DatosDemo
         return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, ContrasenaDemo, admitido.CodigoSeguimiento);
     }
 
-    // Alta de un envío nuevo con la configuración que ya tiene el operador. Aparece en vivo en el tablero.
     public static async Task SimularAltaAsync(DbContextOptions<AppDbContext> options, Guid operadorId, CancellationToken ct)
     {
         await using var db = new AppDbContext(options, TenantActual.ParaOperador(operadorId));
-        // Se carga el operador primero: EF completa con él las referencias de todo lo que se lee después.
         _ = await db.Set<Operador>().SingleAsync(o => o.Id == operadorId, ct);
         var admin = await Administrador(db, ct);
         var cuenta = await db.Set<CuentaComercial>().Include(c => c.Comercio).FirstAsync(ct);
@@ -99,7 +93,6 @@ public static class DatosDemo
         await db.SaveChangesAsync(ct);
     }
 
-    // Recibe en depósito el envío admitido más antiguo. Devuelve false si no hay ninguno.
     public static async Task<bool> SimularRecepcionAsync(DbContextOptions<AppDbContext> options, Guid operadorId, CancellationToken ct)
     {
         await using var db = new AppDbContext(options, TenantActual.ParaOperador(operadorId));

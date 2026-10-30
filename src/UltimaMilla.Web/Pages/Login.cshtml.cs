@@ -9,8 +9,7 @@ using UltimaMilla.Web.Seguridad;
 
 namespace UltimaMilla.Web.Pages;
 
-// Un solo login para todos los roles; después de ingresar, cada uno va a su aplicación.
-// Emite la misma cookie y los mismos claims que emitirá ASP.NET Identity cuando se integre.
+// Login único: cada rol va a su página de inicio.
 [AllowAnonymous]
 public sealed class LoginModel(IBuscadorUsuariosLogin usuarios, IWebHostEnvironment entorno) : PageModel
 {
@@ -32,7 +31,7 @@ public sealed class LoginModel(IBuscadorUsuariosLogin usuarios, IWebHostEnvironm
         var usuario = await usuarios.ValidarAsync(Email, Contrasena, cancellationToken);
         if (usuario is null)
         {
-            // Mismo mensaje para email inexistente y contraseña incorrecta: no se revela qué emails existen.
+            // Mismo mensaje en los dos casos para no revelar qué emails existen.
             Error = "Email o contraseña incorrectos.";
             return Page();
         }

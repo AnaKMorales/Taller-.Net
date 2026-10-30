@@ -9,8 +9,7 @@ namespace UltimaMilla.Infrastructure.Persistence.Backoffice;
 
 public static class BackofficeServiceCollectionExtensions
 {
-    // El INotificadorTablero lo registra quien publica (la Web con SignalR).
-    // El interceptor se agrega a las opciones del AppDbContext con AddInterceptors.
+    // INotificadorTablero lo registra la Web (SignalR).
     public static IServiceCollection AgregarBackofficeUltimaMilla(this IServiceCollection services)
     {
         services.AddSingleton<PublicarCambiosInterceptor>();

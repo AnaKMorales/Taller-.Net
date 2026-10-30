@@ -2,7 +2,6 @@ using UltimaMilla.Domain.Envios;
 
 namespace UltimaMilla.Web.Backoffice;
 
-// Nombres para mostrar. El tablero los pasa también al JavaScript para las filas que llegan en vivo.
 public static class Textos
 {
     public static readonly IReadOnlyDictionary<EstadoEnvio, string> Estados = new Dictionary<EstadoEnvio, string>

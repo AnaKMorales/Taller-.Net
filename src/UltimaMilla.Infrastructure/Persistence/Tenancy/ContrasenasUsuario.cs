@@ -2,9 +2,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
-// La contraseña es un dato de seguridad, no del negocio: vive como propiedad shadow de Usuario
-// (columna en la tabla, sin propiedad en la clase de dominio). Se guarda solo el hash, con el mismo
-// algoritmo que usa ASP.NET Identity (PBKDF2 con sal), así se puede migrar a Identity sin rehacer las claves.
+// Hash de la contraseña (PBKDF2, como ASP.NET Identity) en una columna shadow de Usuario.
 public static class ContrasenasUsuario
 {
     public const string Columna = "ContrasenaHash";
@@ -12,7 +10,6 @@ public static class ContrasenasUsuario
 
     internal static readonly PasswordHasher<Usuario> Hasher = new();
 
-    // El usuario tiene que estar en el contexto (recién agregado o leído con seguimiento).
     public static void Asignar(AppDbContext db, Usuario usuario, string contrasena)
     {
         ArgumentNullException.ThrowIfNull(usuario);

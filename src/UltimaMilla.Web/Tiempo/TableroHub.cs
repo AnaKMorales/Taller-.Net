@@ -7,7 +7,6 @@ using UltimaMilla.Web.Seguridad;
 
 namespace UltimaMilla.Web.Tiempo;
 
-// Canal en vivo del tablero. El cliente no envía nada: solo escucha "cambiosEnvio".
 [Authorize(Policy = Politicas.Backoffice)]
 public sealed class TableroHub(ITenantResolver resolver) : Hub
 {
@@ -20,7 +19,7 @@ public sealed class TableroHub(ITenantResolver resolver) : Hub
     {
         try
         {
-            // El grupo sale de la identidad verificada contra la base, nunca de un dato que mande el cliente.
+            // El grupo sale de la identidad verificada, no de un dato del cliente.
             var tenant = await resolver.DesdeClaimsAsync(Context.User!, Context.ConnectionAborted);
             await Groups.AddToGroupAsync(Context.ConnectionId, Grupo(tenant.OperadorId), Context.ConnectionAborted);
         }
@@ -37,7 +36,6 @@ public sealed class NotificadorTableroSignalR(IHubContext<TableroHub> hub) : INo
 {
     public async Task PublicarAsync(IReadOnlyList<CambioEnvio> cambios, CancellationToken cancellationToken = default)
     {
-        // Un mensaje por operador, solo a su grupo.
         foreach (var delOperador in cambios.GroupBy(c => c.OperadorId))
             await hub.Clients.Group(TableroHub.Grupo(delOperador.Key))
                 .SendAsync(TableroHub.MetodoCambios, delOperador.ToList(), cancellationToken);

@@ -5,9 +5,7 @@ using UltimaMilla.Application.Tablero;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tablero;
 
-// Cada EventoDeEnvio nuevo es un cambio de estado. Se anotan al guardar y se publican al tablero
-// solo si el guardado se confirmó; si falla, se descartan.
-// Limitación: con una transacción explícita se publica antes del commit. El outbox (ADR-006) lo resuelve.
+// Publica los EventoDeEnvio nuevos al tablero, solo si el guardado se confirmó.
 public sealed class PublicarCambiosInterceptor(INotificadorTablero notificador, ILogger<PublicarCambiosInterceptor> logger)
     : SaveChangesInterceptor
 {
@@ -49,7 +47,6 @@ public sealed class PublicarCambiosInterceptor(INotificadorTablero notificador, 
 
     private void Anotar(DbContext? context)
     {
-        // Sin operador no se puede escribir (lo bloquea el interceptor de tenant), así que no hay nada que avisar.
         if (context is not AppDbContext db || db.OperadorIdActual == Guid.Empty) return;
         var cambios = db.ChangeTracker.Entries<EventoDeEnvio>()
             .Where(e => e.State == EntityState.Added)
@@ -76,7 +73,7 @@ public sealed class PublicarCambiosInterceptor(INotificadorTablero notificador, 
         }
         catch (Exception error)
         {
-            // Los datos ya se guardaron: si el aviso en vivo falla, el tablero se pone al día al recargar.
+            // Los datos ya se guardaron: un error al avisar no debe romper el guardado.
             logger.LogWarning(error, "No se pudieron publicar {Cantidad} cambios al tablero.", cambios.Count);
         }
     }
