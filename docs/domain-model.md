@@ -189,6 +189,11 @@ y liquidaciones. No todos esos requisitos corresponden a entidades dibujadas en 
 La política de cálculo de tarifas y su adaptador de Application ya están implementados
 de forma aislada. Sus convenciones y el alcance del volumen están en [Tarifas](tarifas.md).
 
+También está implementada la gestión administrativa de nuevas versiones de tarifas y reglas,
+con consulta de vigencias, permisos y protección de sus hijos persistidos. No se modifica
+el tratamiento de envíos históricos. Su integración a formularios sigue pendiente; ver
+[Configuración versionada](configuracion-versionada.md).
+
 Infrastructure ya genera un mensaje pendiente por cada EventoDeEnvio nuevo y lo guarda
 en la misma transacción, sin agregar una entidad técnica a Domain. Ver [Outbox](outbox.md).
 

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Infrastructure.Persistence.Concurrency;
 using UltimaMilla.Infrastructure.Persistence.Outbox;
+using UltimaMilla.Infrastructure.Persistence.Configuracion;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -29,6 +30,7 @@ internal sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
         OutboxPreparation.Prepare(db);
         await TenantWriteGuard.ValidateAsync(db, db.OperadorIdActual, useAsync, token);
         await CuentaWriteGuard.ValidateAsync(db, db.ContextoTenant!, useAsync, token);
+        ConfiguracionWriteGuard.Validate(db);
         if (AggregateConcurrency.Prepare(db))
         {
             // Las raíces antes intactas pasan a UPDATE; también deben validar ambos ámbitos.

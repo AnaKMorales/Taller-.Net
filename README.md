@@ -92,6 +92,18 @@ Devuelve precio base, recargos, bonificaciones, total redondeado y versión del 
 No consulta datos ni cambia Web, caché o persistencia. Su conexión con el alta sigue pendiente.
 Ver [reglas adoptadas, integración y límite actual del volumen](docs/tarifas.md).
 
+## Configuración versionada de reglas y tarifas
+
+`IConfiguracionVersionada` permite a un administrador activo consultar versiones y zonas,
+obtener detalles y vigentes y guardar nuevas versiones completas. El operador se obtiene
+del contexto autenticado. La versión esperada detecta cambios concurrentes; se permiten
+vigencias inmediatas o futuras en UTC. Las versiones guardadas y sus hijos son inmutables
+en SaveChanges; los envíos anteriores conservan sus referencias y tarifa.
+
+Al confirmar un tarifario se solicita su invalidación mediante el contrato de caché existente.
+La implementación, el registro opcional y los DTO están preparados para las pantallas;
+todavía no se agregaron endpoints o formularios. Ver [contratos y límites](docs/configuracion-versionada.md).
+
 ## Outbox transaccional
 
 Cada evento nuevo de un envío genera automáticamente un mensaje pendiente en
@@ -129,8 +141,8 @@ implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos 
 Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
 Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
 y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
-La solución cuenta con 179 pruebas: 72 de Domain, cinco unitarias de Application,
-37 unitarias de Infrastructure, 11 de arquitectura y 54 contra PostgreSQL,
+La solución cuenta con 193 pruebas: 72 de Domain, cinco unitarias de Application,
+37 unitarias de Infrastructure, 11 de arquitectura y 68 contra PostgreSQL,
 incluidas nueve pruebas de concurrencia/migración, siete del registro transaccional del outbox
 y nueve de integración de su componente publicador.
 

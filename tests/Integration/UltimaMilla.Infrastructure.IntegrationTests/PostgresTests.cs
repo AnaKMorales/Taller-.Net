@@ -64,7 +64,10 @@ public sealed partial class PostgresTests : IAsyncLifetime
     {
         await using var db = Context();
         Assert.True(await db.Database.CanConnectAsync());
-        Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        var esperadas = db.Database.GetMigrations().ToArray();
+        var aplicadas = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
+        Assert.NotEmpty(esperadas);
+        Assert.Equal(esperadas, aplicadas);
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         await using var connection = new NpgsqlConnection(_testConnection);
         await connection.OpenAsync();

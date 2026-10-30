@@ -135,16 +135,19 @@ Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la 
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
 Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
 claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
-Las 54 pruebas de integración incluyen el alta mediante el contrato de Application,
+Las 68 pruebas de integración incluyen el alta mediante el contrato de Application,
 conflictos de versión de envíos y rutas, asignaciones
 simultáneas, capacidad compartida, hijos operativos, rollback, migración de versiones con datos,
-caché, siete pruebas del registro transaccional del outbox y nueve de su publicador.
+caché, siete pruebas del registro transaccional del outbox, nueve de su publicador,
+login/backoffice/portal y diez de configuración versionada.
 No demuestran todavía todas las condiciones de idempotencia.
 
 Los filtros de operador/cuenta, TenantContext y el interceptor de validación de escrituras
 ya están implementados. Envíos y rutas incorporan tokens de concurrencia de negocio y promoción
 de sus cambios operativos; ver [Concurrencia](concurrency.md). Quedan pendientes la integración
-con identidad/permisos, protección persistente del historial y de las versiones en uso y casos de uso.
+con las interfaces, protección persistente general del historial y otros casos de uso.
+Las versiones de reglas/tarifas y sus hijos ya se protegen como inmutables desde SaveChanges;
+ver [configuración versionada](configuracion-versionada.md). No es una protección contra SQL directo.
 El [outbox](outbox.md) guarda los mensajes de eventos en la misma transacción y tiene un componente
 que coordina su publicación confirmada. Falta integrar el adaptador real de RabbitMQ y el host.
 TenantId participa en el WHERE de escrituras, pero no reemplaza un token que detecte dos
