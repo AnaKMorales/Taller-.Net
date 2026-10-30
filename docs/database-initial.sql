@@ -1115,3 +1115,31 @@ VALUES ('20261021210217_OptimisticConcurrency', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+CREATE TABLE "MensajesOutbox" (
+    "Id" uuid NOT NULL,
+    "EventoId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "Tipo" character varying(100) NOT NULL,
+    "Contenido" jsonb NOT NULL,
+    "CreadoEn" timestamp with time zone NOT NULL,
+    "PublicadoEn" timestamp with time zone,
+    CONSTRAINT "PK_MensajesOutbox" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_MensajesOutbox_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "FK_MensajesOutbox_EventosDeEnvio_EventoId_TenantId" FOREIGN KEY ("EventoId", "TenantId") REFERENCES "EventosDeEnvio" ("Id", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_MensajesOutbox_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_MensajesOutbox_CreadoEn_Id" ON "MensajesOutbox" ("CreadoEn", "Id") WHERE "PublicadoEn" IS NULL;
+
+CREATE UNIQUE INDEX "IX_MensajesOutbox_EventoId" ON "MensajesOutbox" ("EventoId");
+
+CREATE INDEX "IX_MensajesOutbox_EventoId_TenantId" ON "MensajesOutbox" ("EventoId", "TenantId");
+
+CREATE INDEX "IX_MensajesOutbox_TenantId" ON "MensajesOutbox" ("TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261027220546_TransactionalOutbox', '10.0.12');
+
+COMMIT;
+

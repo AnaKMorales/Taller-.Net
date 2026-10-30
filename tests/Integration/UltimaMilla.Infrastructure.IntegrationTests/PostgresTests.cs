@@ -70,7 +70,7 @@ public sealed partial class PostgresTests : IAsyncLifetime
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'", connection);
-        Assert.Equal(33L, await command.ExecuteScalarAsync());
+        Assert.Equal(34L, await command.ExecuteScalarAsync());
     }
 
     [PostgresFact]

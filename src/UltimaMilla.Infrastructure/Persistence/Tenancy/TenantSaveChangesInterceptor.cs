@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Infrastructure.Persistence.Concurrency;
+using UltimaMilla.Infrastructure.Persistence.Outbox;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -25,6 +26,7 @@ internal sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
     private static async Task Validate(AppDbContext db, bool useAsync, CancellationToken token = default)
     {
         if (db.EsSeguimientoPublico) throw new AislamientoOperadorException();
+        OutboxPreparation.Prepare(db);
         await TenantWriteGuard.ValidateAsync(db, db.OperadorIdActual, useAsync, token);
         await CuentaWriteGuard.ValidateAsync(db, db.ContextoTenant!, useAsync, token);
         if (AggregateConcurrency.Prepare(db))

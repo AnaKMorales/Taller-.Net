@@ -141,3 +141,79 @@ Pasaron 58 pruebas de Domain, 26 unitarias de Infrastructure y 36 contra Postgre
 Las pruebas nuevas comprueban las dependencias entre ensamblados, rechazo de altas incompletas,
 rechazo sin contexto y alta con el grafo completo. La comprobación de dependencias añadida
 no sustituye todavía la suite de arquitectura con NetArchTest prevista por el equipo.
+
+### 27/10/2026: primera etapa del outbox transaccional
+
+Con autorización del usuario se agregó el registro automático de un mensaje pendiente
+por cada EventoDeEnvio nuevo guardado con EF Core. El contrato versionado está en
+Application y la persistencia en Infrastructure; Domain mantiene sus dependencias.
+El interceptor prepara los mensajes antes de validar tenancy y concurrencia y los guarda
+en la misma transacción del negocio. Se conserva el aislamiento por operador y cuenta.
+
+Se generó y aplicó TransactionalOutbox a PostgreSQL local y se actualizó el SQL de instalación.
+La migración no emite mensajes de eventos históricos. Se documentó el alcance en outbox.md
+y ADR-006. No se implementaron publicador, transporte RabbitMQ, marcado, reintentos ni
+consumidor idempotente en esta etapa.
+
+Se verificaron 58 pruebas de Domain, 33 unitarias de Infrastructure y 45 de integración
+contra PostgreSQL. Las siete nuevas cubren contrato, guardado síncrono, ausencia de duplicados
+en guardados sin cambios, rollback, falla real del insert, concurrencia, aislamiento y migración.
+Una prueba se corrigió para usar una transición válida desde EnDeposito y se volvió a ejecutar.
+
+### 27/10/2026: componente publicador del outbox, limitado a núcleo y datos
+
+El usuario autorizó continuar únicamente con su responsabilidad. Se contrastó el reparto
+con el documento inicial: outbox corresponde a Agustín; Worker, reintentos de procesamiento,
+consumidores y avisos corresponden a Aldana. Se agregaron IPublicadorOutbox e ITransporteMensajes
+en Application y PublicadorOutbox en Infrastructure, sin implementar un adaptador de RabbitMQ,
+un proceso ejecutable, pantallas ni infraestructura de despliegue.
+
+El componente usa un contexto interno dedicado por operador. Selecciona una fila pendiente
+por transacción con FOR UPDATE SKIP LOCKED, llama al contrato de transporte y guarda PublicadoEn
+después de su confirmación. Un fallo o cancelación deja el mensaje pendiente; si el transporte
+ya confirmó y falla el marcado, la siguiente ejecución conserva el identificador. Los mensajes
+anteriores confirmados en el lote no se revierten. No se garantiza orden estricto ni entrega
+exactamente una vez. El adaptador deberá respetar la cancelación y confirmar aceptación y ruta.
+
+Se agregó registro de dependencias opcional y documentación de integración en outbox.md y ADR-006.
+No se modificó el esquema: siguen siendo cuatro migraciones. Pasaron las 58 pruebas de Domain,
+38 unitarias de Infrastructure y las 54 de integración en una ejecución completa contra PostgreSQL.
+Las nuevas son cinco unitarias y nueve de integración del publicador. El transporte controlado
+existe exclusivamente en las pruebas; no se afirma haber probado RabbitMQ real.
+
+### 27/10/2026: pruebas de arquitectura con NetArchTest
+
+Con autorización del usuario se creó UltimaMilla.Architecture.Tests en tests/Architecture
+y se incorporó a la solución. Se usaron xUnit y NetArchTest.Rules 1.3.2 para analizar los
+ensamblados actuales y verificar la separación de Domain, Application, Infrastructure y Web.
+Se complementó con lectura de los .csproj para detectar referencias declaradas sin uso y
+con un inventario que exige revisar las reglas cuando se incorpora un proyecto productivo.
+
+Se verificó la detección de un ejemplo con EF y la aceptación de uno válido, exclusivamente
+en el ensamblado de pruebas. Se reemplazó la comprobación básica de referencias que estaba
+en IntegracionCapasTests, conservando sus pruebas de integración de contratos.
+No se modificó código productivo ni se agregó un pipeline de CI. Se documentó cómo ejecutar
+y actualizar las reglas en architecture-tests.md, README y ADR-001.
+
+Pasaron 11 pruebas de arquitectura. La ejecución de la solución pasó 58 pruebas de Domain,
+37 unitarias de Infrastructure y las 11 de arquitectura, sin fallos; omitió las 54 de PostgreSQL
+porque no se configuró su conexión en esa ejecución. Las 54 se habían verificado antes de este
+cambio de pruebas/documentación y no se repitieron al no haber cambios productivos.
+
+### 27/10/2026: calculador aislado de tarifas
+
+El usuario autorizó una funcionalidad adicional de su área que pudiera servir al resto del
+equipo sin depender de sus implementaciones. Se revisaron la consigna PDF, el documento
+inicial, las convenciones del modelo y los DTO actuales de tarifas. Se agregó la política
+de cálculo en Domain y un contrato/adaptador en Application compatible con TarifarioDto,
+sin modificar las consultas ni la caché de Ana, Web o el esquema de persistencia.
+
+El cálculo suma los bultos, selecciona zona/modalidad/peso y volumen máximo, aplica ajustes
+sobre la base y devuelve el desglose y la versión. Se documentaron las decisiones de
+porcentajes aditivos y redondeo final, que la consigna no fija, y el límite del modelo actual
+sin bandas de precio por volumen. Sigue pendiente la integración al alta y el cálculo de fechas.
+
+Se creó UltimaMilla.Application.Tests y se incorporó a la solución. Pasaron los 14 casos nuevos
+de Domain y cinco de Application. La ejecución local completa pasó 125 pruebas: 72 Domain,
+cinco Application, 37 Infrastructure y 11 de arquitectura. Omitió las 54 de PostgreSQL al no
+configurar su conexión. Las pruebas de metadatos confirman que no hay cambios de modelo pendientes.

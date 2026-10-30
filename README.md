@@ -6,7 +6,7 @@ Este repositorio está organizado siguiendo la estructura indicada en la documen
 
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
 Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
-de persistencia. Repartidor, Worker, los otros tipos de pruebas y el despliegue que se enumeran
+de persistencia y pruebas de arquitectura. Repartidor, Worker y el despliegue que se enumeran
 abajo son la estructura prevista.
 
 Domain contiene las entidades y relaciones de los cuatro diagramas UML, agrupadas por
@@ -21,6 +21,14 @@ dotnet test UltimaMilla.slnx
 ```
 
 En Rider se abre `UltimaMilla.slnx`; las pruebas se pueden ejecutar desde su explorador de tests.
+
+## Pruebas de arquitectura
+
+`UltimaMilla.Architecture.Tests` usa NetArchTest.Rules y xUnit para comprobar la dirección
+de dependencias entre las cuatro capas actuales y las referencias declaradas en sus proyectos.
+Se ejecuta con la solución y no requiere Docker. Las entidades y casos de uso nuevos se
+incluyen automáticamente; al agregar proyectos como Worker o Repartidor hay que ampliar
+las reglas. Ver [ejecución y mantenimiento](docs/architecture-tests.md).
 
 ## Programación y escaneos en Domain
 
@@ -37,7 +45,8 @@ En Rider se abre `UltimaMilla.slnx`; las pruebas se pueden ejecutar desde su exp
 Estos comportamientos se prueban en memoria. Infrastructure ya contiene los mapeos de
 EF Core y las migraciones para PostgreSQL. Se validaron pruebas de integración contra
 PostgreSQL local, incluidas las de aislamiento automático por operador. Envíos y rutas ya
-cuentan con concurrencia optimista. La conexión del login y el outbox siguen pendientes.
+cuentan con concurrencia optimista. El outbox ya registra mensajes de eventos en la misma
+transacción; la publicación y la conexión del login siguen pendientes.
 
 ## Persistencia
 
@@ -61,7 +70,7 @@ una base local, sin contraseña. Generar migraciones o SQL no abre una conexión
 
 El detalle de relaciones, índices, tipos y límites está en [Persistencia](docs/persistence.md).
 También se conserva el [SQL de instalación desde cero para revisión](docs/database-initial.sql),
-que incluye las tres migraciones.
+que incluye las cuatro migraciones.
 
 ## Concurrencia de envíos y rutas
 
@@ -74,6 +83,34 @@ debe consultarse el estado actual y revalidar la operación, sin reintentos auto
 La migración `OptimisticConcurrency` agrega las versiones a filas nuevas y existentes.
 Los casos de uso deben cargar los agregados completos con seguimiento y guardar su unidad
 de trabajo de forma atómica. Ver [funcionamiento, integración y límites](docs/concurrency.md).
+
+## Calculador de tarifas
+
+`ICalculadorTarifa` recibe el TarifarioDto existente, zona, modalidad y bultos. Application
+suma medidas y delega a la política de Domain la selección del tramo y sus ajustes.
+Devuelve precio base, recargos, bonificaciones, total redondeado y versión del cuadro.
+No consulta datos ni cambia Web, caché o persistencia. Su conexión con el alta sigue pendiente.
+Ver [reglas adoptadas, integración y límite actual del volumen](docs/tarifas.md).
+
+## Outbox transaccional
+
+Cada evento nuevo de un envío genera automáticamente un mensaje pendiente en
+`MensajesOutbox`. El cambio de negocio, el evento y el mensaje se guardan en la misma
+transacción de PostgreSQL, tanto con SaveChanges como con SaveChangesAsync. Si falla
+el guardado o hay un conflicto de concurrencia, no queda un mensaje de una operación fallida.
+
+El mensaje usa un contrato JSON versionado con operador y cuenta comercial, sin datos
+del destinatario ni token de seguimiento. Su identificador estable coincide con el evento.
+La migración `TransactionalOutbox` agrega la tabla sin emitir eventos históricos.
+
+`PublicadorOutbox` toma pendientes del operador con bloqueos FOR UPDATE SKIP LOCKED,
+los entrega a `ITransporteMensajes` y completa PublicadoEn cuando ese contrato confirma.
+Un fallo deja el mensaje pendiente; el mismo Id permite reconocer un reenvío. Requiere
+un contexto interno dedicado y no ejecuta bucles ni tareas en segundo plano.
+
+El adaptador real de RabbitMQ, la conexión desde el host, reintentos/backoff y la deduplicación
+en el consumidor siguen pendientes. No se publica a RabbitMQ real en esta etapa.
+Ver [Outbox e integración del publicador](docs/outbox.md) y [ADR-006](docs/adr/006-consistencia-outbox.md).
 
 ## Multitenancy por operador y cuenta comercial
 
@@ -92,8 +129,10 @@ implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos 
 Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
 Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
 y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
-Se validaron 120 pruebas: 58 de Domain, 26 unitarias de Infrastructure y 36 contra PostgreSQL,
-incluidas nueve pruebas de concurrencia y migración de sus versiones.
+La solución cuenta con 179 pruebas: 72 de Domain, cinco unitarias de Application,
+37 unitarias de Infrastructure, 11 de arquitectura y 54 contra PostgreSQL,
+incluidas nueve pruebas de concurrencia/migración, siete del registro transaccional del outbox
+y nueve de integración de su componente publicador.
 
 ## PostgreSQL local para desarrollo
 
@@ -198,8 +237,8 @@ todavía no recibe el contexto del operador dentro del circuito interactivo.
 
 ## Recomendaciones
 
-El alta Web inicial todavía debe completar cuenta, configuración, bultos y preparación de
-tarifa/fechas, y conectarse con el contexto autenticado. `CrearEnvioHandler` usa el contrato
+El alta Web inicial todavía debe completar cuenta, configuración y bultos, conectar el
+calculador de tarifa, preparar fechas y usar el contexto autenticado. `CrearEnvioHandler` usa el contrato
 `IAltaEnvioRepository`, implementado en Infrastructure, para respetar la dirección de dependencias.
 No se utiliza un operador vacío ni se omiten las reglas de Domain para guardar ese formulario.
 

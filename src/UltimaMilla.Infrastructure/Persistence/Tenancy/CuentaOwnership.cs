@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using UltimaMilla.Infrastructure.Persistence.Outbox;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -14,6 +15,7 @@ internal static class CuentaOwnership
         [typeof(Destinatario)] = ["Envio", "CuentaComercialKey"],
         [typeof(Direccion)] = ["Destinatario", "Envio", "CuentaComercialKey"],
         [typeof(EventoDeEnvio)] = ["Envio", "CuentaComercialKey"],
+        [typeof(MensajeOutbox)] = ["Evento", "Envio", "CuentaComercialKey"],
         [typeof(IntentoEntrega)] = ["Envio", "CuentaComercialKey"],
         [typeof(PruebaEntrega)] = ["Intento", "Envio", "CuentaComercialKey"],
         [typeof(Parada)] = ["Envio", "CuentaComercialKey"],

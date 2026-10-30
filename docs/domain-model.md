@@ -181,10 +181,16 @@ pendientes el login real y los permisos por funcionalidad en API. Infrastructure
 concurrencia optimista para envíos y rutas sin agregar dependencias a Domain; ver [Concurrencia](concurrency.md).
 También se probaron unicidad, borrado restringido, rollback y los flujos de persistencia.
 
-También faltan los casos de uso, cálculo de tarifa y fecha comprometida desde la configuración,
+También faltan los casos de uso, conexión del calculador de tarifa al alta y cálculo de fecha comprometida desde la configuración,
 resolución de la zona horaria del operador en Application, autorización por perfil en API, Identity,
-outbox transaccional, sincronización persistente, webhooks, notificaciones reales, reportes
+publicación del outbox, sincronización persistente, webhooks, notificaciones reales, reportes
 y liquidaciones. No todos esos requisitos corresponden a entidades dibujadas en estos UML.
+
+La política de cálculo de tarifas y su adaptador de Application ya están implementados
+de forma aislada. Sus convenciones y el alcance del volumen están en [Tarifas](tarifas.md).
+
+Infrastructure ya genera un mensaje pendiente por cada EventoDeEnvio nuevo y lo guarda
+en la misma transacción, sin agregar una entidad técnica a Domain. Ver [Outbox](outbox.md).
 
 Los eventos son inmutables desde la API de Domain; su inmutabilidad y consistencia en la
 base de datos todavía necesitan protección adicional en Infrastructure. La migración incluye

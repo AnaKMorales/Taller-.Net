@@ -6,10 +6,14 @@
     <Project Path="src/UltimaMilla.Web/UltimaMilla.Web.csproj" />
   </Folder>
   <Folder Name="/tests/" />
+  <Folder Name="/tests/Architecture/">
+    <Project Path="tests/Architecture/UltimaMilla.Architecture.Tests/UltimaMilla.Architecture.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/Integration/">
     <Project Path="tests/Integration/UltimaMilla.Infrastructure.IntegrationTests/UltimaMilla.Infrastructure.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">
+    <Project Path="tests/Unit/UltimaMilla.Application.Tests/UltimaMilla.Application.Tests.csproj" />
     <Project Path="tests/Unit/UltimaMilla.Domain.Tests/UltimaMilla.Domain.Tests.csproj" />
     <Project Path="tests/Unit/UltimaMilla.Infrastructure.Tests/UltimaMilla.Infrastructure.Tests.csproj" />
   </Folder>
