@@ -5,8 +5,6 @@ namespace UltimaMilla.Infrastructure.Cache;
 
 public sealed record ResumenCache(string Cache, long Aciertos, long Fallos, long Errores, double TasaAciertos);
 
-// Cuenta aciertos, fallos y errores por caché. Publica los contadores en el Meter "UltimaMilla.Cache"
-// para que OpenTelemetry/Prometheus los recojan, y guarda un resumen en memoria para consultarlo sin ese stack.
 public sealed class CacheMetricas : IDisposable
 {
     public const string NombreMeter = "UltimaMilla.Cache";
