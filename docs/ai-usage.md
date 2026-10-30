@@ -217,3 +217,44 @@ Se creó UltimaMilla.Application.Tests y se incorporó a la solución. Pasaron l
 de Domain y cinco de Application. La ejecución local completa pasó 125 pruebas: 72 Domain,
 cinco Application, 37 Infrastructure y 11 de arquitectura. Omitió las 54 de PostgreSQL al no
 configurar su conexión. Las pruebas de metadatos confirman que no hay cambios de modelo pendientes.
+
+### 30/10/2026: actualización de las pruebas del historial de migraciones
+
+El usuario autorizó adaptar las pruebas tras incorporar CredencialesLogin, la quinta migración.
+Se retiró la expectativa fija de cuatro: la prueba del modelo exige migraciones registradas
+y conserva la comprobación de que no haya cambios sin migrar en el modelo. La integración
+compara los identificadores de todas las migraciones del proyecto con los realmente aplicados,
+manteniendo las comprobaciones de pendientes y del esquema.
+
+Pasaron las 37 pruebas unitarias de Infrastructure y la prueba específica de migración desde
+cero contra PostgreSQL. Esta última utilizó una base temporal; no se modificó la base de desarrollo
+ni se agregaron migraciones o cambios de código productivo.
+
+### 30/10/2026: gestión administrativa de configuración versionada
+
+El usuario autorizó implementar su backend de reglas y tarifas, conservando para sus
+compañeras la conexión con las pantallas. Application define IConfiguracionVersionada
+y sus DTO. Infrastructure implementa consultas, selección de vigencia, catálogo de zonas
+y creación de nuevas versiones completas reutilizando las validaciones de Domain.
+
+Se verifica administrador activo del operador, vigencia UTC inmediata o futura y última
+versión esperada. Las creaciones se serializan mediante bloqueo de la fila del operador
+en una transacción; un conflicto requiere recargar. Después del commit tarifario se llama
+al contrato de invalidación ya existente. Si este falla, se informa en el resultado sin
+presentar la versión confirmada como un guardado fallido.
+
+ConfiguracionWriteGuard protege versiones completas e hijos ya guardados desde SaveChanges
+síncrono/asíncrono, permitiendo el marcado EnUso ligado al alta. No cambia SQL directo ni
+otros catálogos. No se agregaron tablas, migraciones, pantallas, endpoints o código de Worker.
+El registro de servicios es optativo y la integración se documentó en configuracion-versionada.md.
+
+Pasaron 125 pruebas locales. La primera suite PostgreSQL pasó sus 58 casos existentes y
+detectó dos fallos nuevos por una navegación de zona sin cargar; se corrigió la consulta.
+También se corrigió el escenario de primera versión para no precargar accidentalmente
+la configuración mediante el grafo de prueba. La repetición de los diez casos nuevos pasó
+completa; las once pruebas de arquitectura volvieron a pasar con los contratos finales.
+
+La revisión automática inicialmente rechazó la ejecución con la base de desarrollo como
+conexión de control. Se inspeccionó el aislamiento de la suite y se ejecutó una alternativa
+con una base de control temporal explícita y bases temporales por prueba, eliminadas al
+terminar. La base de desarrollo no se modificó durante estas verificaciones.

@@ -87,10 +87,10 @@ public sealed class ModeloTests
     }
 
     [Fact]
-    public void MigracionInicialCoincideConElModeloActual()
+    public void MigracionesRegistradasCoincidenConElModeloActual()
     {
         using var db = Context();
-        Assert.Equal(4, db.Database.GetMigrations().Count());
+        Assert.NotEmpty(db.Database.GetMigrations());
         Assert.False(db.Database.HasPendingModelChanges());
     }
 }
