@@ -1,0 +1,38 @@
+@page "/backoffice/incidencias"
+@model UltimaMilla.Web.Pages.Backoffice.IncidenciasModel
+@{
+    ViewData["Title"] = "Incidencias";
+    ViewData["Seccion"] = "incidencias";
+    Layout = "_Layout";
+}
+
+<h1>Incidencias</h1>
+<p class="nota">Envíos que necesitan atención: no se entregaron, se reprogramaron, están en devolución,
+    se extraviaron o llegaron distintos a lo declarado. El más reciente primero.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Envío</th><th>Destinatario</th><th>Estado</th><th>Intentos fallidos</th>
+            <th>Último motivo</th><th>Discrepancias</th><th>Último movimiento</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var i in Model.Incidencias)
+        {
+            <tr>
+                <td>@Textos.Corto(i.EnvioId)</td>
+                <td>@i.Destinatario</td>
+                <td>@Textos.Estado(i.Estado)</td>
+                <td>@i.IntentosFallidos</td>
+                <td>@(i.UltimoMotivo ?? "—")</td>
+                <td>@i.Discrepancias</td>
+                <td>@Textos.Fecha(i.UltimoEvento)</td>
+            </tr>
+        }
+        @if (Model.Incidencias.Count == 0)
+        {
+            <tr><td colspan="7" class="vacio">No hay incidencias.</td></tr>
+        }
+    </tbody>
+</table>

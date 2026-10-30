@@ -1,0 +1,77 @@
+@page "/backoffice/tablero"
+@model UltimaMilla.Web.Pages.Backoffice.TableroModel
+@using UltimaMilla.Domain.Envios
+@{
+    ViewData["Title"] = "Tablero";
+    ViewData["Seccion"] = "tablero";
+    Layout = "_Layout";
+}
+
+<style>
+    .encabezado { display: flex; align-items: baseline; gap: 1rem; }
+    #conexion { font-size: .85rem; padding: .15rem .6rem; border-radius: 1rem; background: #e4e7eb; }
+    #conexion.ok { background: #d3f9d8; color: #1b5e20; }
+    #conexion.aviso { background: #fff3c4; color: #7a5a00; }
+    #conexion.error { background: #ffe0e0; color: #b42318; }
+    .estados { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .75rem; margin: 1rem 0 2rem; }
+    .estado { background: #fff; border: 1px solid #d9e2ec; border-radius: .5rem; padding: .75rem; transition: background .4s; }
+    .estado .cantidad { font-size: 1.8rem; font-weight: 600; display: block; }
+    .estado.cambio, tr.nuevo { background: #fff8d6; }
+    .simulacion { margin: 1rem 0; padding: .75rem; border: 1px dashed #9aa5b1; border-radius: .5rem; }
+</style>
+
+<div class="encabezado">
+    <h1>Tablero de operación</h1>
+    <span id="conexion">Conectando…</span>
+</div>
+
+<section class="estados" aria-label="Envíos por estado">
+    @foreach (var (estado, nombre) in Textos.Estados)
+    {
+        <div class="estado">
+            <span class="cantidad" id="estado-@estado">@Model.Cantidad(estado)</span>
+            @nombre
+        </div>
+    }
+</section>
+
+@if (Model.Simulacion)
+{
+    <div class="simulacion">
+        <strong>Simulación (solo desarrollo)</strong>
+        <button type="button" data-simular="/dev/simular/alta">Dar de alta un envío</button>
+        <button type="button" data-simular="/dev/simular/recepcion">Recibir en depósito el más antiguo</button>
+        <span id="resultado-simulacion" class="nota"></span>
+    </div>
+}
+
+<h2>Últimos cambios</h2>
+<table>
+    <thead>
+        <tr><th>Fecha</th><th>Evento</th><th>Estado anterior</th><th>Estado nuevo</th><th>Envío</th><th>Detalle</th></tr>
+    </thead>
+    <tbody id="cambios">
+        @foreach (var c in Model.Resumen.UltimosCambios)
+        {
+            <tr>
+                <td>@Textos.Fecha(c.OcurridoEn)</td>
+                <td>@Textos.Evento(c.Tipo)</td>
+                <td>@Textos.Estado(c.EstadoAnterior)</td>
+                <td>@Textos.Estado(c.EstadoNuevo)</td>
+                <td>@Textos.Corto(c.EnvioId)</td>
+                <td>@c.Detalle</td>
+            </tr>
+        }
+        @if (Model.Resumen.UltimosCambios.Count == 0)
+        {
+            <tr id="sin-cambios"><td colspan="6" class="vacio">Todavía no hay movimientos.</td></tr>
+        }
+    </tbody>
+</table>
+
+<script id="textos-tablero" type="application/json">@Html.Raw(Model.TextosJson)</script>
+
+@section Scripts {
+    <script src="/lib/signalr/signalr.min.js"></script>
+    <script src="/js/tablero.js"></script>
+}

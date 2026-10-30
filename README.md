@@ -133,11 +133,49 @@ Endpoints para probarla (los `/dev` existen solo en Development, porque todavía
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
-| POST | `/dev/datos-demo` | Crea un operador con tarifario y un envío; devuelve el operador y el token |
+| POST | `/dev/datos-demo` | Crea un operador con tarifario, un envío normal y uno con incidencia y aviso fallido; devuelve el operador, el email del administrador y el token |
 | GET | `/api/seguimiento/{token}` | Seguimiento público, cacheado 30 s |
 | GET | `/dev/tarifario/{operadorId}` | Tarifario vigente, cacheado hasta 30 min |
 | POST | `/dev/tarifario/{operadorId}/invalidar` | Invalida el tarifario del operador |
 | GET | `/dev/cache/metricas` | Aciertos, fallos, errores y tasa de aciertos por caché |
+
+## Login, backoffice y portal
+
+Con la Web levantada (`./scripts/Start-Web.ps1`, que también aplica las migraciones), crear datos con
+`POST /dev/datos-demo` e ingresar en `http://localhost:5243/login` con el `emailAdministrador` o el
+`emailComercio` y la `contrasena` que devuelve.
+
+Hay un solo login para todos los roles, con email y contraseña. La contraseña se guarda como hash
+(`PasswordHasher` de ASP.NET Identity, PBKDF2 con sal) en la columna `ContrasenaHash` de `Usuarios`,
+configurada solo en Infrastructure: las clases de dominio no cambian. El login responde lo mismo si el
+email no existe o la contraseña está mal. La sesión es una cookie con los claims que usa `TenantResolver`
+(`operador_id`, rol y `cuenta_comercial_id`). Después del ingreso, cada rol va a su lugar:
+
+| Rol | Destino |
+| --- | --- |
+| Administrador, Despachador, OperarioDeposito | `/backoffice/tablero` |
+| Comercio | `/portal` (envíos de su cuenta comercial) |
+| Repartidor | No ingresa a esta web: usa la aplicación del repartidor |
+
+Pendiente para pasar a ASP.NET Identity completo: alta y cambio de contraseña desde la interfaz, bloqueo por
+intentos fallidos y el token para la aplicación del repartidor.
+
+| Ruta | Qué muestra |
+| --- | --- |
+| `/backoffice/tablero` | Envíos por estado y últimos cambios; se actualiza solo por SignalR (`/hubs/tablero`) |
+| `/backoffice/incidencias` | Envíos no entregados, reprogramados, en devolución, extraviados o con discrepancias |
+| `/backoffice/fallidos` | Avisos a comercios (webhooks) que no se pudieron entregar |
+| `/portal` | Envíos de la cuenta comercial del usuario de comercio |
+
+Cómo funciona el tiempo real: un interceptor de EF (`PublicarCambiosInterceptor`) toma cada `EventoDeEnvio`
+nuevo y, solo si el guardado se confirmó, lo pasa al puerto `INotificadorTablero`. La Web lo envía por SignalR
+únicamente al grupo del operador del envío. Cada conexión entra a su grupo según la identidad verificada con
+`TenantResolver`, nunca por un dato que mande el navegador. En desarrollo, el tablero tiene botones para
+simular un alta y una recepción en depósito y ver los cambios en vivo.
+
+Límites actuales: el reintento manual de avisos fallidos se agrega cuando esté el Worker; con una transacción
+explícita el aviso al tablero sale antes del commit (lo resuelve el outbox); el alta en Blazor (`/envios/nuevo`)
+todavía no recibe el contexto del operador dentro del circuito interactivo.
 
 ## Estructura
 

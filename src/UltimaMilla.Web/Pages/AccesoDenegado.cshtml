@@ -1,0 +1,10 @@
+@page "/acceso-denegado"
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
+@{
+    ViewData["Title"] = "Acceso denegado";
+    Layout = "_Layout";
+}
+
+<h1>No tenés permiso para ver esta página</h1>
+<p>Tu usuario no tiene acceso a esa sección. <a href="/login">Ingresar con otro usuario</a>.</p>

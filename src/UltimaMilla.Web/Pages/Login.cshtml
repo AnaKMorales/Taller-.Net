@@ -1,0 +1,32 @@
+@page "/login"
+@model UltimaMilla.Web.Pages.LoginModel
+@{
+    ViewData["Title"] = "Ingresar";
+    Layout = "_Layout";
+}
+
+<h1>Ingresar</h1>
+
+<form method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
+    <p>
+        <label for="Email">Email</label><br />
+        <input asp-for="Email" type="email" required autofocus size="40" autocomplete="username" />
+    </p>
+    <p>
+        <label for="Contrasena">Contraseña</label><br />
+        <input asp-for="Contrasena" type="password" required size="40" autocomplete="current-password" />
+    </p>
+    <button type="submit">Ingresar</button>
+</form>
+
+@if (Model.Error is not null)
+{
+    <p style="color: #b42318">@Model.Error</p>
+}
+
+@if (Model.Desarrollo)
+{
+    <p class="nota">Desarrollo: <code>POST /dev/datos-demo</code> crea un operador con un administrador
+        y un usuario de comercio, y devuelve sus emails y la contraseña.</p>
+}

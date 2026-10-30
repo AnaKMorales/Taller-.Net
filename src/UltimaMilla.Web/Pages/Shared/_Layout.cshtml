@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - Backoffice UltimaMilla</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; color: #1f2933; background: #f5f7fa; }
+        header { background: #1f3a5f; color: #fff; padding: .75rem 1.5rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+        header a { color: #fff; text-decoration: none; }
+        header a.activo { font-weight: 600; text-decoration: underline; }
+        header .usuario { margin-left: auto; display: flex; gap: .75rem; align-items: center; font-size: .9rem; }
+        main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+        table { border-collapse: collapse; width: 100%; background: #fff; }
+        th, td { border-bottom: 1px solid #d9e2ec; padding: .5rem .6rem; text-align: left; font-size: .9rem; }
+        th { background: #e4e7eb; }
+        .nota { color: #52606d; font-size: .9rem; }
+        .vacio { color: #7b8794; font-style: italic; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header>
+        <strong>UltimaMilla</strong>
+        @if (UltimaMilla.Web.Seguridad.Politicas.RolesBackoffice.Any(User.IsInRole))
+        {
+            <a href="/backoffice/tablero" class="@(ViewData["Seccion"] as string == "tablero" ? "activo" : "")">Tablero</a>
+            <a href="/backoffice/incidencias" class="@(ViewData["Seccion"] as string == "incidencias" ? "activo" : "")">Incidencias</a>
+            <a href="/backoffice/fallidos" class="@(ViewData["Seccion"] as string == "fallidos" ? "activo" : "")">Avisos fallidos</a>
+        }
+        @if (User.IsInRole("Comercio"))
+        {
+            <a href="/portal" class="@(ViewData["Seccion"] as string == "portal" ? "activo" : "")">Mis envíos</a>
+        }
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <span class="usuario">
+                @User.Identity.Name
+                <form method="post" asp-page="/Login" asp-page-handler="Salir"><button type="submit">Salir</button></form>
+            </span>
+        }
+    </header>
+    <main>
+        @RenderBody()
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

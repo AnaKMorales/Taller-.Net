@@ -1,0 +1,34 @@
+@page "/backoffice/fallidos"
+@model UltimaMilla.Web.Pages.Backoffice.FallidosModel
+@{
+    ViewData["Title"] = "Avisos fallidos";
+    ViewData["Seccion"] = "fallidos";
+    Layout = "_Layout";
+}
+
+<h1>Avisos fallidos</h1>
+<p class="nota">Avisos a comercios (webhooks) que todavía no se pudieron entregar. El reenvío lo hará el Worker
+    con reintentos y cola de fallidos; el botón para reintentar a mano se agrega cuando el Worker esté integrado.</p>
+
+<table>
+    <thead>
+        <tr><th>Envío</th><th>Comercio</th><th>Evento</th><th>Destino</th><th>Intentos</th><th>Último intento</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var a in Model.Avisos)
+        {
+            <tr>
+                <td>@Textos.Corto(a.EnvioId)</td>
+                <td>@a.Comercio</td>
+                <td>@Textos.Evento(a.Evento)</td>
+                <td>@a.Destino</td>
+                <td>@a.Intentos</td>
+                <td>@Textos.Fecha(a.UltimoIntentoEn)</td>
+            </tr>
+        }
+        @if (Model.Avisos.Count == 0)
+        {
+            <tr><td colspan="6" class="vacio">No hay avisos fallidos.</td></tr>
+        }
+    </tbody>
+</table>
