@@ -42,12 +42,13 @@ public sealed class Ruta : Entidad
     var activas = _paradas.Where(p => p.Activa).ToList();
     if (activas.Count >= MaxParadas) throw new InvalidOperationException("Se alcanzo el maximo de paradas.");
     envio.VerificarAsignacion(this, responsable, ocurridoEn, horaEstimadaLlegada);
+    var bultos = envio.BultosParaAsignar();
     if (horaEstimadaLlegada < envio.VentanaDesde || horaEstimadaLlegada >= envio.VentanaHasta)
       throw new InvalidOperationException("La llegada no respeta la ventana del envio.");
-    if (activas.Sum(p => p.Envio.PesoTotalKg) + envio.PesoTotalKg > Vehiculo.CapacidadPesoKg ||
-        activas.Sum(p => p.Envio.VolumenTotalM3) + envio.VolumenTotalM3 > Vehiculo.CapacidadVolumenM3)
+    if (activas.Sum(p => p.PesoTotalKg) + bultos.Sum(b => b.Peso) > Vehiculo.CapacidadPesoKg ||
+        activas.Sum(p => p.VolumenTotalM3) + bultos.Sum(b => b.VolumenM3) > Vehiculo.CapacidadVolumenM3)
       throw new InvalidOperationException("Se supera la capacidad del vehiculo.");
-    var parada = new Parada(this, envio, cod, horaEstimadaLlegada);
+    var parada = new Parada(this, envio, cod, horaEstimadaLlegada, bultos);
     envio.Asignar(parada, responsable, ocurridoEn);
     _paradas.Add(parada);
     return parada;

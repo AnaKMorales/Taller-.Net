@@ -15,8 +15,8 @@ como vistas de solo lectura.
 | Usuarios | Usuario, Repartidor |
 | Configuración | ReglasOperativas, PoliticaDevolucion, MotivoNoEntrega, PlazoServicio, CuadroTarifario, LineaTarifa, AjusteTarifario, ZonaCobertura, FranjaHoraria |
 | Envíos | Envio, Bulto, Destinatario, Direccion, EventoDeEnvio, IntentoEntrega, DetalleIntentoBulto, PruebaEntrega, PruebaBulto |
-| Despacho | Vehiculo, Ruta, Parada |
-| Depósito | EscaneoBulto, Discrepancia, Devolucion, Rendicion |
+| Despacho | Vehiculo, Ruta, Parada, BultoParada, RecargoVisita |
+| Depósito | EscaneoBulto, Discrepancia, Devolucion, BultoDevolucion, Rendicion |
 | Notificaciones | SuscripcionAviso, EntregaAviso, Notificacion |
 
 `Common` contiene la base `Entidad`, las validaciones internas y los valores inmutables
@@ -26,15 +26,17 @@ y los extremos concretos de la ventana con sus desplazamientos horarios.
 
 La configuración del requisito 33 del cambio del 30/10 agrega a cada versión de reglas
 el permiso de entrega parcial y la acción para bultos pendientes. AccionBultosPendientes
-distingue nueva visita con/sin recargo y devolución al comercio. Es una preparación de
-configuración: la aplicación de la política sobre pendientes continúa en desarrollo.
+distingue nueva visita con/sin recargo y devolución al comercio. El núcleo aplica las tres
+opciones; la segunda exige un importe fijo positivo capturado desde la versión del envío.
 Ver [seguimiento del cambio](../CAMBIOS-REQUERIMIENTOS.md).
 
 Cada Bulto incorpora EstadoBulto persistido. Envio coordina sus transiciones declarativas
 y calcula su resumen de estado desde ellos en las operaciones existentes. La columna
 Envio.Estado conserva ese resumen para las consultas. RegistrarIntentoPorBulto permite
-resultados distintos y deriva EntregadoParcialmente. La asignación de pendientes a otra
-visita y su devolución parcial todavía están pendientes.
+resultados distintos y deriva EntregadoParcialmente. Se pueden reprogramar los pendientes
+con o sin recargo fijo y asignarlos a otra visita conservando entregados e historial.
+La devolución selecciona solo pendientes. Ver [rutas de pendientes](rutas-pendientes.md)
+y [políticas y recargos](politicas-pendientes.md).
 Ver [ADR-007 en curso](adr/007-entrega-parcial.md).
 
 ## Relaciones
@@ -62,6 +64,7 @@ Ver [ADR-007 en curso](adr/007-entrega-parcial.md).
 | Repartidor y Ruta | Varias rutas por repartidor. |
 | Vehiculo y Ruta | Varias rutas por vehículo. |
 | Ruta y Parada | Varias paradas, con código único dentro de la ruta. Cada parada creada identifica un envío. |
+| Parada y BultoParada y Bulto | Composición de la visita y medidas históricas. Una continuación lleva solo pendientes del mismo envío; la capacidad se calcula con estas medidas. |
 | Envio y Parada | Cero o una asignación activa. Las paradas anteriores permanecen en la ruta como historial. |
 | Envio y EventoDeEnvio | Varios eventos inmutables, con usuario responsable. |
 | Envio y IntentoEntrega | Varios intentos, vinculados también a la parada en la que ocurrieron. |
@@ -71,6 +74,8 @@ Ver [ADR-007 en curso](adr/007-entrega-parcial.md).
 | DetalleIntentoBulto y Bulto | El bulto pertenece al mismo envío que el intento; FK compuesta en persistencia. |
 | DetalleIntentoBulto y PruebaBulto y PruebaEntrega | Asociación explícita para compartir evidencia entre resultados del mismo intento. |
 | Envio y Devolucion | Cero o una devolución. |
+| Devolucion y BultoDevolucion y Bulto | Composición histórica de pendientes; el cierre exige sus escaneos. |
+| Envio y RecargoVisita y Parada | Varios cargos históricos por envío, como máximo uno por parada; importe fijo registrado al despachar, separado de la tarifa original. |
 | Envio y Discrepancia | Varias discrepancias; cada una puede identificar además un bulto del mismo envío. |
 | Bulto y EscaneoBulto | Varios escaneos de recepción, carga o devolución por bulto. |
 | Ruta y EscaneoBulto | Obligatoria para carga, ausente en recepción y opcional como referencia de origen en devolución. |
@@ -137,7 +142,8 @@ pruebas exigidas y límite de intentos. Un `IdOperacion` repetido devuelve el in
 sin duplicar el efecto; reutilizarlo para otro resultado se rechaza.
 
 Las devoluciones usan la política de la versión conservada en el envío. Su cierre exige
-escanear todos los bultos. Se permite registrar un cierre tardío: la fecha límite queda
+escanear todos los bultos de su composición de pendientes, sin incluir los ya entregados.
+Se permite registrar un cierre tardío: la fecha límite queda
 disponible para detectar el incumplimiento, no para impedir cerrar una devolución real.
 
 ## Programación y reprogramación

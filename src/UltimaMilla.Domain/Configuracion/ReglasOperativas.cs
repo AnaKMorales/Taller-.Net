@@ -24,13 +24,15 @@ public sealed class ReglasOperativas : Entidad
   public PoliticaDevolucion PoliticaDevolucion { get; private set; }
   public bool PermiteEntregaParcial { get; private set; }
   public AccionBultosPendientes AccionPendientes { get; private set; }
+  public decimal? ImporteRecargoNuevaVisita { get; private set; }
   public bool EnUso { get; private set; }
   public IReadOnlyCollection<MotivoNoEntrega> MotivosNoEntrega => _motivos.AsReadOnly();
   public IReadOnlyCollection<PlazoServicio> PlazosServicio => _plazos.AsReadOnly();
 
   public ReglasOperativas(Operador operador, int version, DateTime vigenteDesde, int maxIntentosEntrega,
     int plazoEntreIntentosHoras, IEnumerable<TipoPrueba> tiposPrueba, PoliticaDevolucion politicaDevolucion,
-    bool permiteEntregaParcial = false, AccionBultosPendientes accionPendientes = AccionBultosPendientes.NuevaVisitaSinRecargo)
+    bool permiteEntregaParcial = false, AccionBultosPendientes accionPendientes = AccionBultosPendientes.NuevaVisitaSinRecargo,
+    decimal? importeRecargoNuevaVisita = null)
   {
     Operador = Validacion.Requerido(operador, nameof(operador));
     Version = Validacion.Positivo(version, nameof(version));
@@ -45,6 +47,15 @@ public sealed class ReglasOperativas : Entidad
     if (politicaDevolucion.Reglas is not null) throw new InvalidOperationException("La politica ya pertenece a otras reglas.");
     PermiteEntregaParcial = permiteEntregaParcial;
     AccionPendientes = Validacion.Enumeracion(accionPendientes, nameof(accionPendientes));
+    if (accionPendientes == AccionBultosPendientes.NuevaVisitaConRecargo)
+    {
+      if (!importeRecargoNuevaVisita.HasValue || importeRecargoNuevaVisita <= 0 ||
+          decimal.Round(importeRecargoNuevaVisita.Value, 2) != importeRecargoNuevaVisita)
+        throw new ArgumentException("La nueva visita con recargo requiere un importe fijo positivo con hasta dos decimales.");
+    }
+    else if (importeRecargoNuevaVisita is not null)
+      throw new ArgumentException("El importe de recargo solo corresponde a la política de nueva visita con recargo.");
+    ImporteRecargoNuevaVisita = importeRecargoNuevaVisita;
     Operador.Registrar(this);
     politicaDevolucion.Vincular(this);
   }

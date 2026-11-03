@@ -211,9 +211,10 @@ public sealed partial class PostgresTests
         Assert.NotEqual(Guid.Empty, reader.Entry(route).Property<Guid>("RowVersion").CurrentValue);
     }
 
-    private async Task<EscenarioPersistencia> GuardarEscenario(bool recibido = false, bool parcial = false)
+    private async Task<EscenarioPersistencia> GuardarEscenario(bool recibido = false, bool parcial = false, bool reintentable = false,
+        AccionBultosPendientes accion = AccionBultosPendientes.NuevaVisitaSinRecargo, decimal? recargo = null)
     {
-        var e = Escenario(parcial: parcial);
+        var e = Escenario(reintentable: reintentable, parcial: parcial, accion: accion, recargo: recargo);
         if (recibido) e.Recibir();
         await using var db = Context();
         db.Add(e.Envio); await db.SaveChangesAsync();
@@ -228,5 +229,7 @@ public sealed partial class PostgresTests
         .Include(r => r.Repartidor).ThenInclude(u => u.Operador)
         .Include(r => r.Vehiculo).ThenInclude(v => v.Operador)
         .Include(r => r.Paradas).ThenInclude(p => p.Envio).ThenInclude(e => e.Bultos)
+        .Include(r => r.Paradas).ThenInclude(p => p.Bultos).ThenInclude(b => b.Bulto)
+        .Include(r => r.Paradas).ThenInclude(p => p.Recargo)
         .SingleAsync(r => r.Id == id);
 }

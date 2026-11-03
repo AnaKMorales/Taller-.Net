@@ -14,13 +14,16 @@ await db.SaveChangesAsync(cancellationToken);
 El llamador debe cargar el envío completo con seguimiento: bultos, reglas con catálogo y
 tipos de prueba, intentos con detalles/evidencias, parada y ruta/repartidor. El usuario,
 operador y catálogo se resuelven en el servidor; no se aceptan entidades de Domain del cliente.
-La orquestación de Application y el endpoint aún quedan por implementar: esto es el contrato
-de Domain, no una API HTTP ya disponible.
+La orquestación de Application ya está disponible mediante RegistrarIntentoHandler;
+resuelve identidad y catálogo, carga el agregado y valida la versión esperada. El endpoint
+sigue pendiente: esto no es una API HTTP ya disponible.
+Ver [solicitud, respuesta e integración del caso de uso](registro-intento-aplicacion.md).
 
 Cada ResultadoBultoEntrega identifica un bulto, un resultado Entregado/Fallido, el motivo
 de no entrega y su lista de PruebaEntrega. Deben informarse todos y solo los bultos de la
-visita actual, una vez cada uno. En esta etapa la visita abarca todo el envío, antes de la
-primera entrega parcial; una visita futura de solo pendientes corresponde al requisito 34.
+visita actual, una vez cada uno. En la primera visita son todos los del envío; en las
+continuaciones son solo los de Parada.Bultos. No se incluyen los ya entregados de otra visita.
+Ver [asignación y capacidad de pendientes](rutas-pendientes.md).
 
 El identificador de la parada se captura al preparar el trabajo offline. Una operación nueva
 de otra parada se rechaza aunque el repartidor y el estado del envío coincidan. El núcleo
@@ -46,7 +49,9 @@ bultos en los intentos nuevos. Su parámetro de resultado no admite Parcial: se 
 
 Toda validación se realiza antes de vincular pruebas, crear registros o cambiar estados.
 Al confirmar se libera la parada y la ruta puede rendirse; los pendientes quedan NoEntregado.
-No se aplican aún la política de nueva visita/devolución, recargos o nueva asignación parcial.
+Se puede preparar y asignar una nueva visita con o sin recargo fijo para los pendientes,
+o iniciar su devolución según las reglas versionadas. El cargo se registra al despachar,
+separado de la tarifa original; no es un pago. Ver [políticas de pendientes](politicas-pendientes.md).
 
 ## Repetición y conflictos
 
@@ -95,6 +100,9 @@ La firma tradicional mantiene envio.evento.v1. Los intentos del método nuevo ge
 envio.evento.v2 con EventoEnvioV2: versión 2, el ámbito y la transición, más resultado,
 motivo e identificadores de pruebas por bulto. El identificador del mensaje sigue siendo
 el del evento. No se incluyen datos personales, archivos ni tokens públicos.
+Los eventos administrativos de continuación parcial también usan V2: IdOperacion es nullable
+y en estos casos vale null, con Bultos vacío, porque no son nuevos resultados de intento.
+Los eventos de intento conservan identificador y detalles solo de los bultos de esa visita.
 
 Estado, intento, detalles, asociaciones, evento y mensaje se guardan en la misma transacción.
 Un fallo del outbox o conflicto revierte el conjunto. No cambia el transporte abstracto.

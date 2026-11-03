@@ -11,7 +11,8 @@ internal sealed class EscenarioPersistencia
     internal Vehiculo Vehiculo { get; }
     internal Envio Envio { get; }
 
-    internal EscenarioPersistencia(bool reintentable = false, Comercio? comercio = null, bool parcial = false)
+    internal EscenarioPersistencia(bool reintentable = false, Comercio? comercio = null, bool parcial = false,
+        AccionBultosPendientes accion = AccionBultosPendientes.NuevaVisitaSinRecargo, decimal? recargo = null)
     {
         Admin = new Usuario(Operador, "admin@example.com", RolUsuario.Administrador);
         Repartidor = new Repartidor(Operador, "repartidor@example.com");
@@ -20,7 +21,7 @@ internal sealed class EscenarioPersistencia
         usuarioComercio.AsignarCuentaComercial(cuenta);
         Zona = new ZonaCobertura(Operador, "Centro", "11000", [new FranjaHoraria("Día", new(8, 0), new(18, 0))]);
         Reglas = new ReglasOperativas(Operador, 1, Fecha.AddDays(-1), 2, 0,
-            [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), parcial);
+            [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), parcial, accion, recargo);
         _ = new PlazoServicio(Reglas, ModalidadServicio.Estandar, 24, new(16, 0));
         _ = new MotivoNoEntrega(Reglas, "Ausente o rechazo", "Motivo de prueba", Responsable.Destinatario, true, reintentable);
         var cuadro = new CuadroTarifario(Operador, 1, Fecha.AddDays(-1));
@@ -52,7 +53,9 @@ internal sealed class EscenarioPersistencia
     internal PruebaEntrega Foto(DateTime? fecha = null) => new(TipoPrueba.Foto, fecha ?? Fecha.AddHours(1),
         new GeoPunto(-34.9011m, -56.1645m), new ArchivoRef("evidencias/foto.jpg"));
 
-    internal static IQueryable<Envio> Grafo(AppDbContext db) => db.Envios.AsSplitQuery()
+    internal static IQueryable<Envio> Grafo(AppDbContext db, bool incluirDevolucion = true)
+    {
+        var query = db.Envios.AsSplitQuery()
         .Include(e => e.CuentaComercial).ThenInclude(c => c.Operador)
         .Include(e => e.CuentaComercial).ThenInclude(c => c.Comercio)
         .Include(e => e.CuentaComercial).ThenInclude(c => c.Usuarios)
@@ -75,6 +78,11 @@ internal sealed class EscenarioPersistencia
         .Include(e => e.Intentos).ThenInclude(i => i.MotivoNoEntrega)
         .Include(e => e.Intentos).ThenInclude(i => i.Parada).ThenInclude(p => p.Ruta).ThenInclude(r => r.Vehiculo)
         .Include(e => e.Parada).ThenInclude(p => p!.Ruta)
-        .Include(e => e.Devolucion)
+        .Include(e => e.Parada).ThenInclude(p => p!.Bultos).ThenInclude(b => b.Bulto)
+        .Include(e => e.Parada).ThenInclude(p => p!.Recargo)
+        .Include(e => e.Recargos).ThenInclude(r => r.Parada)
+        .Include(e => e.Intentos).ThenInclude(i => i.Parada).ThenInclude(p => p.Bultos).ThenInclude(b => b.Bulto)
         .Include(e => e.Discrepancias);
+        return incluirDevolucion ? query.Include(e => e.Devolucion).ThenInclude(d => d!.Bultos).ThenInclude(b => b.Bulto) : query;
+    }
 }

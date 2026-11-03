@@ -332,6 +332,9 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<bool>("EnUso")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal?>("ImporteRecargoNuevaVisita")
+                        .HasColumnType("numeric");
+
                     b.Property<int>("MaxIntentosEntrega")
                         .HasColumnType("integer");
 
@@ -379,6 +382,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_ReglasOperativas_AccionPendientes", "\"AccionPendientes\" IN (0, 1, 2)");
 
+                            t.HasCheckConstraint("CK_ReglasOperativas_ImporteRecargo", "\"ImporteRecargoNuevaVisita\" IS NULL OR (\"AccionPendientes\" = 1 AND \"ImporteRecargoNuevaVisita\" > 0 AND round(\"ImporteRecargoNuevaVisita\", 2) = \"ImporteRecargoNuevaVisita\")");
+
                             t.HasCheckConstraint("CK_ReglasOperativas_OperadorTenant", "\"OperadorId\" = \"TenantId\"");
                         });
                 });
@@ -416,6 +421,43 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Deposito.BultoDevolucion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BultoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("BultoId");
+
+                    b.Property<Guid>("DevolucionKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("DevolucionId");
+
+                    b.Property<Guid>("EnvioKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("EnvioId");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("DevolucionKey", "BultoKey")
+                        .IsUnique();
+
+                    b.HasIndex("BultoKey", "EnvioKey", "TenantId");
+
+                    b.HasIndex("DevolucionKey", "EnvioKey", "TenantId");
+
+                    b.ToTable("BultosDevolucion", (string)null);
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Deposito.Devolucion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -442,6 +484,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "EnvioKey");
 
                     b.HasIndex("TenantId");
 
@@ -575,6 +619,52 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.ToTable("Rendiciones", (string)null);
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Despacho.BultoParada", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BultoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("BultoId");
+
+                    b.Property<Guid>("EnvioKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("EnvioId");
+
+                    b.Property<Guid>("ParadaKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ParadaId");
+
+                    b.Property<decimal>("PesoKg")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("VolumenM3")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ParadaKey", "BultoKey")
+                        .IsUnique();
+
+                    b.HasIndex("BultoKey", "EnvioKey", "TenantId");
+
+                    b.HasIndex("ParadaKey", "EnvioKey", "TenantId");
+
+                    b.ToTable("BultosParada", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BultosParada_Medidas", "\"PesoKg\" > 0 AND \"VolumenM3\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.Parada", b =>
                 {
                     b.Property<Guid>("Id")
@@ -593,6 +683,9 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("HoraEstimadaLlegada")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("RecargoPrevisto")
+                        .HasColumnType("numeric");
+
                     b.Property<Guid>("RutaKey")
                         .HasColumnType("uuid")
                         .HasColumnName("RutaId");
@@ -602,6 +695,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "EnvioKey");
 
                     b.HasIndex("EnvioKey")
                         .IsUnique()
@@ -616,7 +711,53 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RutaKey", "TenantId");
 
-                    b.ToTable("Paradas", (string)null);
+                    b.ToTable("Paradas", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Paradas_RecargoPrevisto", "\"RecargoPrevisto\" >= 0 AND round(\"RecargoPrevisto\", 2) = \"RecargoPrevisto\"");
+                        });
+                });
+
+            modelBuilder.Entity("UltimaMilla.Domain.Despacho.RecargoVisita", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EnvioKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("EnvioId");
+
+                    b.Property<decimal>("Importe")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ParadaKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ParadaId");
+
+                    b.Property<DateTime>("RegistradoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("ParadaKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("EnvioKey", "TenantId");
+
+                    b.HasIndex("ParadaKey", "EnvioKey", "TenantId")
+                        .IsUnique();
+
+                    b.ToTable("RecargosVisita", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecargosVisita_Importe", "\"Importe\" > 0 AND round(\"Importe\", 2) = \"Importe\"");
+                        });
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.Ruta", b =>
@@ -1656,6 +1797,33 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Operador");
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Deposito.BultoDevolucion", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.Bulto", "Bulto")
+                        .WithMany()
+                        .HasForeignKey("BultoKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Deposito.Devolucion", "Devolucion")
+                        .WithMany("Bultos")
+                        .HasForeignKey("DevolucionKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bulto");
+
+                    b.Navigation("Devolucion");
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Deposito.Devolucion", b =>
                 {
                     b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
@@ -1761,6 +1929,33 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Ruta");
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Despacho.BultoParada", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.Bulto", "Bulto")
+                        .WithMany()
+                        .HasForeignKey("BultoKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Despacho.Parada", "Parada")
+                        .WithMany("Bultos")
+                        .HasForeignKey("ParadaKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bulto");
+
+                    b.Navigation("Parada");
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.Parada", b =>
                 {
                     b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
@@ -1786,6 +1981,33 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Envio");
 
                     b.Navigation("Ruta");
+                });
+
+            modelBuilder.Entity("UltimaMilla.Domain.Despacho.RecargoVisita", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.Envio", "Envio")
+                        .WithMany("Recargos")
+                        .HasForeignKey("EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Despacho.Parada", "Parada")
+                        .WithOne("Recargo")
+                        .HasForeignKey("UltimaMilla.Domain.Despacho.RecargoVisita", "ParadaKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("UltimaMilla.Domain.Despacho.Parada", "Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Envio");
+
+                    b.Navigation("Parada");
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.Ruta", b =>
@@ -2284,9 +2506,18 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Franjas");
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Deposito.Devolucion", b =>
+                {
+                    b.Navigation("Bultos");
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.Parada", b =>
                 {
+                    b.Navigation("Bultos");
+
                     b.Navigation("Intentos");
+
+                    b.Navigation("Recargo");
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.Ruta", b =>
@@ -2338,6 +2569,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Eventos");
 
                     b.Navigation("Intentos");
+
+                    b.Navigation("Recargos");
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Envios.IntentoEntrega", b =>

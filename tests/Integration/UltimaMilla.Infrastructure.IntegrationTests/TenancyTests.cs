@@ -33,8 +33,13 @@ public sealed partial class PostgresTests
                 .MakeGenericMethod(type.ClrType);
             var tenantsA = await (Task<List<Guid>>)method.Invoke(null, [first, type.Name])!;
             var tenantsB = await (Task<List<Guid>>)method.Invoke(null, [second, type.Name])!;
-            Assert.NotEmpty(tenantsA);
-            Assert.NotEmpty(tenantsB);
+            if (type.ClrType != typeof(RecargoVisita))
+            {
+                Assert.NotEmpty(tenantsA);
+                Assert.NotEmpty(tenantsB);
+            }
+            // Las reglas sin recargo del escenario no generan cargos artificiales.
+            else { Assert.Empty(tenantsA); Assert.Empty(tenantsB); }
             Assert.All(tenantsA, id => Assert.Equal(a.Operador.Id, id));
             Assert.All(tenantsB, id => Assert.Equal(b.Operador.Id, id));
         }

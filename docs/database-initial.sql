@@ -1248,3 +1248,110 @@ VALUES ('20261101201848_ResultadosEntregaPorBulto', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "Paradas" ADD CONSTRAINT "AK_Paradas_Id_EnvioId" UNIQUE ("Id", "EnvioId");
+
+ALTER TABLE "Paradas" ADD CONSTRAINT "AK_Paradas_Id_EnvioId_TenantId" UNIQUE ("Id", "EnvioId", "TenantId");
+
+CREATE TABLE "BultosParada" (
+    "Id" uuid NOT NULL,
+    "ParadaId" uuid NOT NULL,
+    "BultoId" uuid NOT NULL,
+    "EnvioId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "PesoKg" numeric NOT NULL,
+    "VolumenM3" numeric NOT NULL,
+    CONSTRAINT "PK_BultosParada" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_BultosParada_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "CK_BultosParada_Medidas" CHECK ("PesoKg" > 0 AND "VolumenM3" > 0),
+    CONSTRAINT "FK_BultosParada_Bultos_BultoId_EnvioId_TenantId" FOREIGN KEY ("BultoId", "EnvioId", "TenantId") REFERENCES "Bultos" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_BultosParada_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_BultosParada_Paradas_ParadaId_EnvioId_TenantId" FOREIGN KEY ("ParadaId", "EnvioId", "TenantId") REFERENCES "Paradas" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT
+);
+
+INSERT INTO "BultosParada" ("Id", "ParadaId", "BultoId", "EnvioId", "TenantId", "PesoKg", "VolumenM3")
+SELECT gen_random_uuid(), p."Id", b."Id", p."EnvioId", p."TenantId", b."Peso",
+       b."Alto" * b."Ancho" * b."Largo" / 1000000
+FROM "Paradas" AS p
+JOIN "Bultos" AS b ON b."EnvioId" = p."EnvioId" AND b."TenantId" = p."TenantId";
+
+CREATE INDEX "IX_BultosParada_BultoId_EnvioId_TenantId" ON "BultosParada" ("BultoId", "EnvioId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_BultosParada_ParadaId_BultoId" ON "BultosParada" ("ParadaId", "BultoId");
+
+CREATE INDEX "IX_BultosParada_ParadaId_EnvioId_TenantId" ON "BultosParada" ("ParadaId", "EnvioId", "TenantId");
+
+CREATE INDEX "IX_BultosParada_TenantId" ON "BultosParada" ("TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261103121131_BultosPorParada', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "ReglasOperativas" ADD "ImporteRecargoNuevaVisita" numeric;
+
+ALTER TABLE "Paradas" ADD "RecargoPrevisto" numeric NOT NULL DEFAULT 0.0;
+
+ALTER TABLE "Devoluciones" ADD CONSTRAINT "AK_Devoluciones_Id_EnvioId" UNIQUE ("Id", "EnvioId");
+
+ALTER TABLE "Devoluciones" ADD CONSTRAINT "AK_Devoluciones_Id_EnvioId_TenantId" UNIQUE ("Id", "EnvioId", "TenantId");
+
+CREATE TABLE "BultosDevolucion" (
+    "Id" uuid NOT NULL,
+    "DevolucionId" uuid NOT NULL,
+    "BultoId" uuid NOT NULL,
+    "EnvioId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    CONSTRAINT "PK_BultosDevolucion" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_BultosDevolucion_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "FK_BultosDevolucion_Bultos_BultoId_EnvioId_TenantId" FOREIGN KEY ("BultoId", "EnvioId", "TenantId") REFERENCES "Bultos" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_BultosDevolucion_Devoluciones_DevolucionId_EnvioId_TenantId" FOREIGN KEY ("DevolucionId", "EnvioId", "TenantId") REFERENCES "Devoluciones" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_BultosDevolucion_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "RecargosVisita" (
+    "Id" uuid NOT NULL,
+    "EnvioId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "ParadaId" uuid NOT NULL,
+    "Importe" numeric NOT NULL,
+    "RegistradoEn" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_RecargosVisita" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_RecargosVisita_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "CK_RecargosVisita_Importe" CHECK ("Importe" > 0 AND round("Importe", 2) = "Importe"),
+    CONSTRAINT "FK_RecargosVisita_Envios_EnvioId_TenantId" FOREIGN KEY ("EnvioId", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_RecargosVisita_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_RecargosVisita_Paradas_ParadaId_EnvioId_TenantId" FOREIGN KEY ("ParadaId", "EnvioId", "TenantId") REFERENCES "Paradas" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT
+);
+
+INSERT INTO "BultosDevolucion" ("Id", "DevolucionId", "BultoId", "EnvioId", "TenantId")
+SELECT gen_random_uuid(), d."Id", b."Id", d."EnvioId", d."TenantId"
+FROM "Devoluciones" AS d
+JOIN "Bultos" AS b ON b."EnvioId" = d."EnvioId" AND b."TenantId" = d."TenantId";
+
+ALTER TABLE "ReglasOperativas" ADD CONSTRAINT "CK_ReglasOperativas_ImporteRecargo" CHECK ("ImporteRecargoNuevaVisita" IS NULL OR ("AccionPendientes" = 1 AND "ImporteRecargoNuevaVisita" > 0 AND round("ImporteRecargoNuevaVisita", 2) = "ImporteRecargoNuevaVisita"));
+
+ALTER TABLE "Paradas" ADD CONSTRAINT "CK_Paradas_RecargoPrevisto" CHECK ("RecargoPrevisto" >= 0 AND round("RecargoPrevisto", 2) = "RecargoPrevisto");
+
+CREATE INDEX "IX_BultosDevolucion_BultoId_EnvioId_TenantId" ON "BultosDevolucion" ("BultoId", "EnvioId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_BultosDevolucion_DevolucionId_BultoId" ON "BultosDevolucion" ("DevolucionId", "BultoId");
+
+CREATE INDEX "IX_BultosDevolucion_DevolucionId_EnvioId_TenantId" ON "BultosDevolucion" ("DevolucionId", "EnvioId", "TenantId");
+
+CREATE INDEX "IX_BultosDevolucion_TenantId" ON "BultosDevolucion" ("TenantId");
+
+CREATE INDEX "IX_RecargosVisita_EnvioId_TenantId" ON "RecargosVisita" ("EnvioId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_RecargosVisita_ParadaId" ON "RecargosVisita" ("ParadaId");
+
+CREATE UNIQUE INDEX "IX_RecargosVisita_ParadaId_EnvioId_TenantId" ON "RecargosVisita" ("ParadaId", "EnvioId", "TenantId");
+
+CREATE INDEX "IX_RecargosVisita_TenantId" ON "RecargosVisita" ("TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261103123758_PoliticasPendientesYRecargoFijo', '10.0.12');
+
+COMMIT;
+

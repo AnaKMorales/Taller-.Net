@@ -19,7 +19,8 @@ public sealed class ConfiguracionTests
     var e = new Escenario();
     var envio = e.CrearEnvio();
     var nuevas = new ReglasOperativas(e.Operador, 2, e.Fecha, 4, 12,
-      [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), true, accion);
+      [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), true, accion,
+      accion == AccionBultosPendientes.NuevaVisitaConRecargo ? 25 : null);
     Assert.True(nuevas.PermiteEntregaParcial);
     Assert.Equal(accion, nuevas.AccionPendientes);
     Assert.Same(e.Reglas, envio.Reglas);

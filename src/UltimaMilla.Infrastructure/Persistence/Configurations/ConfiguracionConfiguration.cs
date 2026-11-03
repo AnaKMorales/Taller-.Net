@@ -27,6 +27,8 @@ internal sealed class ReglasOperativasConfiguration : IEntityTypeConfiguration<R
     {
         Mapping.Entity(b, "ReglasOperativas");
         b.Property(x => x.PermiteEntregaParcial).HasDefaultValue(false);
+        // NULL conserva las versiones previas con recargo aún no definido: no se inventa un precio.
+        b.ToTable(t => t.HasCheckConstraint("CK_ReglasOperativas_ImporteRecargo", "\"ImporteRecargoNuevaVisita\" IS NULL OR (\"AccionPendientes\" = 1 AND \"ImporteRecargoNuevaVisita\" > 0 AND round(\"ImporteRecargoNuevaVisita\", 2) = \"ImporteRecargoNuevaVisita\")"));
         b.Property(x => x.AccionPendientes).HasDefaultValue(AccionBultosPendientes.NuevaVisitaSinRecargo);
         b.ToTable(t => t.HasCheckConstraint("CK_ReglasOperativas_AccionPendientes", "\"AccionPendientes\" IN (0, 1, 2)"));
         Mapping.Key(b, "Operador");

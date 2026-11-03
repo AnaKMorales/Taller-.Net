@@ -34,6 +34,11 @@ escaneos, paradas y rendiciones. Una parada afecta tanto al envío como a su rut
 con ruta también la comprueba. Así, insertar una parada obliga a actualizar la versión de
 la ruta, aunque sus propiedades de negocio no hayan cambiado.
 
+BultoParada vincula la composición con ambos agregados: crear miembros de una parada nueva
+también compite por Envio y Ruta. La composición persistida es histórica e inmutable en
+SaveChanges. En continuaciones parciales el resumen puede seguir EntregadoParcialmente,
+pero los cambios de bultos, paradas/eventos y sus versiones igual detectan la competencia.
+
 Si una raíz antes intacta pasa a UPDATE por este mecanismo, se vuelven a validar los
 ámbitos de operador y cuenta comercial antes de escribir. Un guardado sin cambios no
 renueva versiones y los envíos independientes no comparten un contador global.
@@ -82,6 +87,11 @@ en la misma versión. El tratamiento completo de mensajes repetidos, inmutabilid
 del historial y outbox quedan para los siguientes pasos.
 
 ## Verificación
+
+Los cargos de nueva visita participan de las versiones de Envio y Ruta; la composición
+de devolución participa de Envio. Si dos despachos insertan el mismo cargo antes de
+actualizar la raíz, el índice único también se traduce a ConflictoConcurrenciaException.
+La operación perdedora revierte su cargo, estados y outbox. Ver [política de pendientes](politicas-pendientes.md).
 
 Las pruebas contra PostgreSQL comprueban decisiones sobre el mismo envío, dos despachadores
 con guardados paralelos, capacidad de una ruta compartida, cambios que solo insertan hijos,

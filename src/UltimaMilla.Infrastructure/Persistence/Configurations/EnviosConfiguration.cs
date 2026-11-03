@@ -24,6 +24,7 @@ internal sealed class EnvioConfiguration : IEntityTypeConfiguration<Envio>
         Mapping.Collection(b, "Eventos", "_eventos");
         Mapping.Collection(b, "Intentos", "_intentos");
         Mapping.Collection(b, "Discrepancias", "_discrepancias");
+        Mapping.Collection(b, "Recargos", "_recargos");
     }
 }
 

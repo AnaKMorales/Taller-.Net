@@ -389,3 +389,104 @@ La ejecución final completa pasó 243 pruebas: 107 de Domain, 5 de Application,
 Infrastructure, 11 de arquitectura y 83 de PostgreSQL real, sin omisiones. Release compiló
 con advertencias como errores sin errores ni advertencias, y EF confirmó que no hay cambios
 de modelo pendientes de migración. Se eliminaron las bases temporales; desarrollo no se modificó.
+
+### 03/11/2026: caso de uso Application de registro por bulto
+
+El usuario autorizó conectar identidad, carga del envío, versión esperada y guardado, dentro
+de núcleo/datos. Se agregaron RegistrarIntentoCommand, DTO de respuesta, handler y puertos
+de una operación de repositorio desechable. La solicitud no contiene operador, usuario ni rol;
+define referencias locales de evidencia para construir una prueba compartida sin recibir entidades.
+El handler copia/valida la solicitud, resuelve motivos de la versión del envío y delega en Domain.
+
+RegistroIntentoRepository usa el tenant autenticado capturado y verifica un repartidor real,
+activo y asignado al envío, o autor de la operación histórica que se solicita repetir.
+Cada ejecución usa un DbContext dedicado. La carga dividida tiene un snapshot RepeatableRead
+y termina su transacción de lectura antes del trabajo de Domain. Una operación nueva exige
+la versión esperada; un reenvío exige igual huella y no guarda, aunque su versión sea anterior.
+Se revalida el repartidor antes de SaveChanges. La concurrencia del guardado y el outbox existentes
+se mantienen y no se reintentan decisiones automáticamente. Siempre se dispone el contexto.
+
+El registro de servicios es optativo; no se modificaron Program.cs, endpoints, Web, PWA o Worker.
+No cambió el modelo de base ni se generaron/aplicaron migraciones. Se actualizaron el seguimiento
+compartido, README, ADR-007 y documentos de integración para distinguir el caso de uso del endpoint.
+Se agregaron diez casos unitarios y cinco integraciones: identidad/rol/operador/asignación,
+revocación incluso entre carga y guardado, versiones, reenvíos, colisión de contenido, guardado
+V2, rollback y dos casos de uso que cargan la misma versión y solo uno confirma.
+
+Verificación final: pasaron las 258 pruebas de la solución (107 Domain, 15 Application,
+37 Infrastructure, 11 arquitectura y 88 contra PostgreSQL real), sin omisiones. Release
+compiló con advertencias como errores sin errores ni advertencias. EF confirmó el modelo
+sin cambios pendientes de migración. Las bases temporales fueron eliminadas; desarrollo no se modificó.
+
+### 03/11/2026: asignación y capacidad de pendientes (requisito nuevo 34)
+
+El usuario autorizó asignar solo pendientes a otra ruta y calcular su peso/volumen, dentro
+de núcleo/datos. Se agregó BultoParada como composición histórica con medidas capturadas.
+Ruta.AgregarParada conserva su firma y selecciona todos los pendientes preparados; la
+capacidad suma snapshots de paradas activas. Se conserva una sola asignación activa por envío,
+sin agregar una colección histórica a Envio. Los escaneos de carga exigen pertenencia a la visita.
+
+Reprogramación, asignación, despacho y entrega solo modifican pendientes; los entregados
+anteriores conservan sus resultados y evidencias. El resumen parcial persiste hasta completar
+los restantes. El registro por bulto y su caso de uso admiten la selección actual y una visita
+con otro repartidor. Se soporta la nueva visita sin recargo, respetando intentos, plazos,
+motivos y programación. Recargo/devolución parcial se rechazan hasta implementar su tratamiento.
+
+La migración BultosPorParada crea la tabla, medidas positivas, unicidad y FK compartiendo
+envío/tenant. Se agregaron aislamiento, concurrencia de Envio/Ruta e inmutabilidad del
+contenido persistido. El backfill incluye todos los bultos de cada parada anterior: el modelo
+previo solo permitía visitas completas. Las medidas se inicializan con valores actuales,
+sin pretender reconstruir medidas históricas que no se almacenaban. No se generan eventos.
+
+Los eventos administrativos parciales se guardan en V2 con IdOperacion nullable y Bultos
+vacío; los intentos V2 conservan identificador y detalles de la visita. Así V1 no recibe
+nuevo vocabulario de estados parciales ni se fabrican resultados de intento desde estados posteriores.
+Se actualizaron los loaders del núcleo y sus pruebas. No se modificaron Web, PWA o Worker.
+El contrato y sus límites se documentaron en rutas-pendientes.md, seguimiento compartido y ADR-007.
+
+Diez casos nuevos de Domain y cuatro integraciones verifican capacidad, varias visitas,
+escaneos/resultados ajenos, políticas, históricos, migración, cuenta/FK/inmutabilidad y
+competencia por una asignación. En la primera ejecución faltaba cargar la navegación Envio
+en la comprobación de cuenta de una prueba; se corrigió el escenario. La prueba de recorrido
+se amplió con otro repartidor y reconocimiento de los reenvíos de ambas visitas.
+
+Verificación final: las 272 pruebas pasaron (117 Domain, 15 Application, 37 Infrastructure,
+11 arquitectura y 92 PostgreSQL real), sin omisiones. Release sin errores ni advertencias
+y modelo sin cambios pendientes de migración. Se actualizó el SQL de instalación; no se
+aplicó a desarrollo. Las bases temporales se eliminaron al finalizar.
+
+### 03/11/2026: política de pendientes y recargo fijo (requisito nuevo 33)
+
+El usuario autorizó completar el último punto de la tabla y eligió explícitamente importe
+fijo configurable por nueva visita. Se agregó ImporteRecargoNuevaVisita a reglas y DTO,
+con valor positivo de hasta dos decimales para la política con recargo y null para las otras.
+Se captura en la parada y se registra al despachar, una vez por visita, separado de la
+tarifa original. RecargoVisita representa devengo, no pago ni integración de facturación.
+Planificar, retirar y reasignar antes del despacho no devenga cargos.
+
+La devolución parcial captura pendientes mediante BultoDevolucion y exige sus escaneos.
+El cierre comprueba la composición completa para no aceptar una carga filtrada. Entregados
+previos no cambian y el resumen de entregados más devueltos sigue parcial. La opción de
+devolución impide reprogramar; se conservan las reglas de agotamiento y motivos existentes.
+
+Se extendieron mapeos, filtros de cuenta/operador, FK compartiendo envío/tenant, promoción de
+concurrencia e inmutabilidad de composición/cargos/importe previsto. La migración nueva
+recupera devoluciones anteriores completas, no inventa cargos y deja importe null en reglas
+antiguas. Las políticas antiguas con recargo sin precio bloquean la nueva visita y requieren
+una decisión explícita; no se modifican retroactivamente reglas en uso.
+
+Se agregaron casos de Domain y seis integraciones de configuración, persistencia, aislamiento,
+unicidad, rollback, despacho concurrente, devolución parcial y migración. La primera ejecución
+completa detectó que el índice único de cargo podía fallar antes del UPDATE de la raíz:
+se agregó su traducción al conflicto de concurrencia de Application. Se amplió la devolución
+para verificar que una carga filtrada no permita cerrar bultos sin escanear.
+
+Se actualizaron seguimiento compartido, documentación de integración, README y ADR-007,
+que sigue en curso. No se modificaron Web, PWA ni Worker ni se aplicó la migración a desarrollo.
+
+Verificación final: pasaron 287 pruebas (126 Domain, 15 Application, 37 Infrastructure,
+11 arquitectura y 98 contra PostgreSQL real), sin omisiones. La prueba ampliada confirmó
+el rechazo de una composición de devolución filtrada y el despacho competidor se tradujo
+a conflicto sin duplicar cargos. Release compiló con advertencias como errores sin errores
+ni advertencias, EF confirmó el modelo alineado y se regeneró el SQL de instalación.
+Las bases temporales se eliminaron; desarrollo no se modificó.

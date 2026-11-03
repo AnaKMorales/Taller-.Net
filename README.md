@@ -53,12 +53,20 @@ transacción; la publicación y la conexión del login siguen pendientes.
 
 El núcleo ya registra intentos por bulto con resultados y evidencias, genera el estado
 EntregadoParcialmente y reconoce reenvíos por contenido y parada de origen. La firma
-tradicional conserva eventos V1; el método nuevo registra outbox V2. Falta el endpoint,
-la sincronización PWA y la visita/devolución de pendientes. Ver [contrato y límites](docs/intentos-por-bulto.md).
+tradicional conserva eventos V1; el método nuevo registra outbox V2. Los pendientes pueden
+continuar en otra ruta con o sin recargo fijo, o devolverse al comercio según las reglas
+versionadas. La capacidad y la devolución incluyen solo pendientes. El recargo se registra
+una vez al despachar la visita y se conserva separado de la tarifa original; no representa
+un pago realizado. Ver [políticas e integración](docs/politicas-pendientes.md).
+Faltan endpoints e integración de las aplicaciones. Ver [contrato y límites](docs/intentos-por-bulto.md).
+
+RegistrarIntentoHandler ya orquesta este registro desde Application: identidad autenticada,
+catálogo del envío, versión esperada y guardado atómico. Los reenvíos iguales reconocen
+el intento previo sin duplicar ni guardar de nuevo. Ver [integración del caso de uso](docs/registro-intento-aplicacion.md).
 
 ## Persistencia
 
-Se configuraron EF Core 10, Npgsql y los mapeos de las 33 entidades. Se conservan los setters
+Se configuraron EF Core 10, Npgsql y los mapeos de las 36 entidades. Se conservan los setters
 privados de Domain; los constructores de rehidratación permiten recuperar objetos sin volver
 a ejecutar sus reglas de alta. La migración `InitialCreate` está generada y se aplicó a la
 instancia local de desarrollo. La migración posterior `OperatorIsolation` incorpora el tenant
@@ -78,7 +86,7 @@ una base local, sin contraseña. Generar migraciones o SQL no abre una conexión
 
 El detalle de relaciones, índices, tipos y límites está en [Persistencia](docs/persistence.md).
 También se conserva el [SQL de instalación desde cero para revisión](docs/database-initial.sql),
-que incluye las ocho migraciones actuales.
+que incluye las nueve migraciones actuales.
 
 ## Concurrencia de envíos y rutas
 
@@ -113,8 +121,9 @@ La implementación, el registro opcional y los DTO están preparados para las pa
 todavía no se agregaron endpoints o formularios. Ver [contratos y límites](docs/configuracion-versionada.md).
 
 La migración `ReglasEntregaParcial` agrega el permiso de entrega parcial y la acción para
-bultos pendientes a cada versión de reglas. Es configuración preparada: todavía no cambia
-el flujo de entrega por bulto. El progreso y las indicaciones para integrar están en
+bultos pendientes a cada versión de reglas. PoliticasPendientesYRecargoFijo agrega el importe
+fijo por visita y las relaciones de devolución y cargo. El núcleo aplica las tres políticas;
+las pantallas y demás aplicaciones todavía requieren integración. El progreso está en
 [CAMBIOS-REQUERIMIENTOS.md](CAMBIOS-REQUERIMIENTOS.md).
 
 ## Outbox transaccional
@@ -154,8 +163,8 @@ implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos 
 Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
 Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
 y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
-La solución cuenta con 243 pruebas: 107 de Domain, cinco unitarias de Application,
-37 unitarias de Infrastructure, 11 de arquitectura y 83 contra PostgreSQL,
+La solución cuenta con 272 pruebas: 117 de Domain, 15 unitarias de Application,
+37 unitarias de Infrastructure, 11 de arquitectura y 92 contra PostgreSQL,
 incluidas nueve pruebas de concurrencia/migración, siete del registro transaccional del outbox
 y nueve de integración de su componente publicador.
 

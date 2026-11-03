@@ -216,7 +216,9 @@ public sealed class MaterializacionTests
         .Include(e => e.Intentos).ThenInclude(i => i.Pruebas)
         .Include(e => e.Intentos).ThenInclude(i => i.MotivoNoEntrega)
         .Include(e => e.Intentos).ThenInclude(i => i.Parada)
-        .Include(e => e.Devolucion)
+        .Include(e => e.Parada).ThenInclude(p => p!.Bultos).ThenInclude(b => b.Bulto)
+        .Include(e => e.Intentos).ThenInclude(i => i.Parada).ThenInclude(p => p.Bultos).ThenInclude(b => b.Bulto)
+        .Include(e => e.Devolucion).ThenInclude(d => d!.Bultos).ThenInclude(b => b.Bulto)
         .Single();
 
     private sealed class Datos

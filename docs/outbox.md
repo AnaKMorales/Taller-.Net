@@ -39,6 +39,11 @@ ni datos personales. La firma anterior conserva V1. El Worker deberá enrutar/in
 las versiones y acordar el formato de los receptores; esto no implementa envío de webhooks.
 Ver [contrato, repetición y límites](intentos-por-bulto.md).
 
+Las transiciones administrativas de un envío parcial (reprogramación, asignación, despacho,
+etc.) también van por V2, para conservar el vocabulario anterior de V1. IdOperacion en V2
+es nullable: estos eventos llevan null y Bultos vacío, mientras los intentos llevan IdOperacion
+y resultados de los bultos de su visita. No se reconstruyen resultados desde estados posteriores.
+
 ## Aislamiento e integración
 
 Las filas llevan `TenantId` y filtros por operador y cuenta. La cuenta se resuelve mediante

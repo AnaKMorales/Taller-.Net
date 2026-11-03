@@ -35,11 +35,13 @@ public sealed partial class PostgresTests
         var version = 1;
         foreach (var accion in Enum.GetValues<AccionBultosPendientes>())
         {
-            var datos = DatosReglas() with { PermiteEntregaParcial = true, AccionPendientes = accion };
+            var datos = DatosReglas() with { PermiteEntregaParcial = true, AccionPendientes = accion,
+                ImporteRecargoNuevaVisita = accion == AccionBultosPendientes.NuevaVisitaConRecargo ? 25 : null };
             var nueva = await gestion.CrearReglasAsync(new(version++, null, datos));
             var detalle = await gestion.ObtenerReglasAsync(nueva.Version.Id);
             Assert.True(detalle!.Datos.PermiteEntregaParcial);
             Assert.Equal(accion, detalle.Datos.AccionPendientes);
+            Assert.Equal(datos.ImporteRecargoNuevaVisita, detalle.Datos.ImporteRecargoNuevaVisita);
             Assert.Equal(nueva.Version.Id, (await gestion.ReglasVigentesAsync())!.Version.Id);
             Assert.Null(await Gestion(b).ObtenerReglasAsync(nueva.Version.Id));
 

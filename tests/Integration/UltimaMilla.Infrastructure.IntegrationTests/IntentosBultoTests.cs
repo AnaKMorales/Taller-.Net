@@ -10,9 +10,10 @@ namespace UltimaMilla.Infrastructure.IntegrationTests;
 
 public sealed partial class PostgresTests
 {
-    private async Task<EscenarioPersistencia> PrepararVisitaParcial()
+    private async Task<EscenarioPersistencia> PrepararVisitaParcial(bool reintentable = false,
+        AccionBultosPendientes accion = AccionBultosPendientes.NuevaVisitaSinRecargo, decimal? recargo = null)
     {
-        var e = await GuardarEscenario(recibido: true, parcial: true);
+        var e = await GuardarEscenario(recibido: true, parcial: true, reintentable: reintentable, accion: accion, recargo: recargo);
         await using var db = Context();
         var envio = await EscenarioPersistencia.Grafo(db).SingleAsync();
         var ruta = await NuevaRuta(db);

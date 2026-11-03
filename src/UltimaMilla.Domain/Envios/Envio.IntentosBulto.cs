@@ -31,13 +31,15 @@ public sealed partial class Envio
       return anterior;
     }
 
-    if (Estado != EstadoEnvio.EnTransito || Parada is null || Parada.Id != paradaId || responsable.Id != Parada.Ruta.RepartidorId)
+    if (Estado is not (EstadoEnvio.EnTransito or EstadoEnvio.EntregadoParcialmente) || Parada is null ||
+        Parada.Id != paradaId || responsable.Id != Parada.Ruta.RepartidorId)
       throw new InvalidOperationException("El intento requiere el repartidor asignado y un envío en tránsito.");
     if (_intentos.Count >= Reglas.MaxIntentosEntrega || (_intentos.Count > 0 &&
         ocurridoEn < UltimoIntento!.OcurridoEn.AddHours(Reglas.PlazoEntreIntentosHoras)))
       throw new InvalidOperationException("No corresponde registrar otro intento en este momento.");
-    if (!datos.Select(r => r.BultoId).ToHashSet().SetEquals(_bultos.Select(b => b.Id)) ||
-        _bultos.Any(b => b.Estado != EstadoBulto.EnTransito))
+    var visitados = BultosOperacion();
+    if (!datos.Select(r => r.BultoId).ToHashSet().SetEquals(visitados.Select(b => b.Id)) ||
+        visitados.Any(b => b.Estado != EstadoBulto.EnTransito))
       throw new InvalidOperationException("El intento debe incluir todos y solo los bultos en tránsito de la visita actual.");
 
     var entregados = datos.Count(r => r.Resultado == ResultadoIntento.Entregado);
@@ -71,10 +73,10 @@ public sealed partial class Envio
     var resultado = parcial ? ResultadoIntento.Parcial : entregados == datos.Length ? ResultadoIntento.Entregado : ResultadoIntento.Fallido;
     var tipo = parcial ? TipoEvento.EntregaParcial : entregados == datos.Length ? TipoEvento.EntregaExitosa : TipoEvento.FalloEntrega;
     var esperado = TransicionesEnvio.Resolver(Estado, tipo);
-    var cambios = datos.Select(d => (Bulto: _bultos.Single(b => b.Id == d.BultoId), Dato: d,
+    var cambios = datos.Select(d => (Bulto: visitados.Single(b => b.Id == d.BultoId), Dato: d,
       Estado: TransicionesBulto.Resolver(EstadoBulto.EnTransito,
         d.Resultado == ResultadoIntento.Entregado ? TipoEvento.EntregaExitosa : TipoEvento.FalloEntrega))).ToArray();
-    var nuevo = EstadoConjuntoEnvio.Calcular(cambios.Select(c => c.Estado));
+    var nuevo = ResumenConCambios(cambios.Select(c => (c.Bulto, c.Estado)).ToArray());
     if (nuevo != esperado) throw new InvalidOperationException("El resumen no coincide con los resultados.");
     var motivoComun = entregados == 0 && datos.Select(d => d.Motivo!.Id).Distinct().Count() == 1 ? datos[0].Motivo : null;
     var intento = new IntentoEntrega(this, Parada, _intentos.Count + 1, resultado, motivoComun, pruebas, idOperacion, ocurridoEn);

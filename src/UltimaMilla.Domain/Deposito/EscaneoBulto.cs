@@ -41,19 +41,22 @@ public sealed class EscaneoBulto : Entidad
         ArgumentNullException.ThrowIfNull(ruta);
         Validacion.MismoOperador(envio.OperadorId, ruta.OperadorId);
         if (ruta.DespachadaEn is not null || ruta.Rendicion is not null ||
-            envio.Parada is not { Activa: true } || envio.Parada.RutaId != ruta.Id)
+            envio.Parada is not { Activa: true } || envio.Parada.RutaId != ruta.Id ||
+            !envio.Parada.Bultos.Any(b => b.Bulto.Id == bulto.Id) || bulto.Estado != EstadoBulto.AsignadoARuta)
           throw new InvalidOperationException("La carga requiere la asignacion activa a una ruta sin despachar.");
         break;
       case TipoEscaneo.Devolucion:
         ArgumentNullException.ThrowIfNull(devolucion);
         if (devolucion.EnvioId != envio.Id || !ReferenceEquals(envio.Devolucion, devolucion) ||
-            devolucion.Estado != EstadoDevolucion.EnProceso || envio.Estado != EstadoEnvio.EnDevolucion)
+            devolucion.Estado != EstadoDevolucion.EnProceso ||
+            envio.Estado is not (EstadoEnvio.EnDevolucion or EstadoEnvio.EntregadoParcialmente) ||
+            bulto.Estado != EstadoBulto.EnDevolucion || !devolucion.Bultos.Any(b => b.Bulto.Id == bulto.Id))
           throw new InvalidOperationException("El bulto debe pertenecer a la devolucion activa.");
         if (fechaHora < devolucion.FechaInicio) throw new ArgumentOutOfRangeException(nameof(fechaHora));
         if (ruta is not null)
         {
           Validacion.MismoOperador(envio.OperadorId, ruta.OperadorId);
-          if (!ruta.Paradas.Any(p => p.EnvioId == envio.Id))
+          if (!ruta.Paradas.Any(p => p.EnvioId == envio.Id && p.Bultos.Any(b => b.Bulto.Id == bulto.Id)))
             throw new InvalidOperationException("La ruta de origen no contiene el envio.");
         }
         break;

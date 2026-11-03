@@ -53,12 +53,13 @@ public sealed class AppDbContext : DbContext
         { throw new ConflictoConcurrenciaException(error); }
     }
 
-    // Un intento concurrente puede chocar con su índice único antes del UPDATE de la raíz.
+    // Una operación concurrente puede chocar con su índice único antes del UPDATE de la raíz.
     private static bool IsConcurrencyConflict(DbUpdateException error) =>
         error is DbUpdateConcurrencyException || error.InnerException is PostgresException
         { SqlState: PostgresErrorCodes.UniqueViolation } postgres && postgres.ConstraintName is
             ConcurrencyModel.ActiveAssignmentIndex or "IX_IntentosEntrega_EnvioId_Numero" or
-            "IX_IntentosEntrega_EnvioId_IdOperacion" or "IX_EventosDeEnvio_EnvioId_IdOperacion";
+            "IX_IntentosEntrega_EnvioId_IdOperacion" or "IX_EventosDeEnvio_EnvioId_IdOperacion" or
+            "IX_RecargosVisita_ParadaId" or "IX_RecargosVisita_ParadaId_EnvioId_TenantId";
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.AddInterceptors(TenantSaveChangesInterceptor.Instance);
@@ -83,6 +84,9 @@ public sealed class AppDbContext : DbContext
         // Las claves compuestas se referencian desde configuraciones de otros tipos;
         // declarar sus tipos evita depender del orden de aplicación de los mapeos.
         modelBuilder.Entity<IntentoEntrega>().Property<Guid>("EnvioKey");
+        modelBuilder.Entity<Parada>().Property<Guid>("EnvioKey");
+        modelBuilder.Entity<UltimaMilla.Domain.Deposito.Devolucion>().Property<Guid>("EnvioKey");
+        modelBuilder.Entity<Bulto>().Property<Guid>("EnvioKey");
         modelBuilder.Entity<PruebaEntrega>().Property<Guid>("IntentoKey");
         modelBuilder.Entity<DetalleIntentoBulto>().Property<Guid>("IntentoKey");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

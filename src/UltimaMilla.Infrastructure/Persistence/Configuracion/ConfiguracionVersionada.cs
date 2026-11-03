@@ -54,7 +54,7 @@ public sealed class ConfiguracionVersionada(DbContextOptions<AppDbContext> opcio
             new(r.PoliticaDevolucion.DiasEnDeposito, r.PoliticaDevolucion.PlazoMaximoDevolucionDias, r.PoliticaDevolucion.DevolverAlAgotarIntentos),
             r.PlazosServicio.OrderBy(p => p.ModalidadServicio).Select(p => new PlazoServicioDto(p.ModalidadServicio, p.PlazoComprometidoHoras, p.HoraCorte)).ToArray(),
             r.MotivosNoEntrega.OrderBy(m => m.Nombre).Select(m => new MotivoNoEntregaDto(m.Nombre, m.Descripcion, m.Responsable, m.RequiereEvidencia, m.EsReintentable, m.Activo)).ToArray(),
-            r.PermiteEntregaParcial, r.AccionPendientes));
+            r.PermiteEntregaParcial, r.AccionPendientes, r.ImporteRecargoNuevaVisita));
     private static DetalleTarifarioDto Detalle(CuadroTarifario r) => new(new(r.Id, r.Version, r.VigenteDesde, r.EnUso),
         r.Lineas.Select(l => new LineaTarifaDto(l.ZonaId, l.ModalidadServicio, l.PesoDesde, l.PesoHasta, l.VolumenHasta, l.Precio,
             l.Ajustes.Select(a => new AjusteTarifaDto(a.Tipo, a.ValorPorcentaje)).ToArray())).ToArray());
@@ -121,7 +121,7 @@ public sealed class ConfiguracionVersionada(DbContextOptions<AppDbContext> opcio
         var politica = datos.Devolucion;
         var reglas = new ReglasOperativas(operador, checked(ultima + 1), fecha, datos.MaxIntentosEntrega,
             datos.PlazoEntreIntentosHoras, datos.TiposPrueba, new(politica.DiasEnDeposito, politica.PlazoMaximoDevolucionDias, politica.DevolverAlAgotarIntentos),
-            datos.PermiteEntregaParcial, datos.AccionPendientes);
+            datos.PermiteEntregaParcial, datos.AccionPendientes, datos.ImporteRecargoNuevaVisita);
         foreach (var p in datos.Plazos)
         {
             ArgumentNullException.ThrowIfNull(p);

@@ -56,10 +56,41 @@ fusionan decisiones competidoras: se conserva la concurrencia del envío y el ro
 El nuevo contrato de outbox V2 incluye resultados por bulto; la firma tradicional conserva V1.
 La negociación/enrutamiento de avisos para receptores existentes continúa pendiente en Worker.
 
+El 03/11 se conectó el registro con Application: una solicitud sin identidad en el body,
+catálogo resuelto desde las reglas del envío y verificación de versión esperada. El repositorio
+abre un contexto dedicado y carga el grafo con una lectura RepeatableRead, que termina antes
+de ejecutar Domain. Una operación nueva con versión vieja se rechaza; un reenvío exacto se
+reconoce sin guardar aunque lleve la versión original. El guardado conserva los tokens de EF
+para detectar carreras posteriores a la lectura y no reintenta decisiones automáticamente.
+La respuesta es un DTO y el contexto se dispone también al fallar. No se agregó endpoint.
+
+Se agregó BultoParada para conservar la composición y medidas de cada visita. La capacidad
+de la ruta usa las medidas de paradas activas, no el peso total de envíos con bultos ya
+entregados. Se conserva una sola asignación activa por envío y se eligen todos los pendientes
+preparados; no se distribuye simultáneamente el mismo envío entre varias rutas.
+Las transiciones del envío parcial mantienen el resumen mientras cambian solo sus pendientes;
+el último entregado lleva el conjunto a Entregado. Se admiten visitas con o sin recargo fijo
+y la devolución de pendientes según la versión de reglas.
+
+El equipo eligió importe fijo por nueva visita. Se captura en la parada y se devenga al
+despachar, evitando cargos por planificaciones retiradas antes de salir. RecargoVisita es
+histórico y único por parada; no modifica la tarifa original ni representa un pago realizado.
+El guardado atómico incluye cargo, estados, versiones y outbox. Devolucion.Bultos captura
+solo pendientes y su cierre exige sus escaneos. Los entregados permanecen cerrados.
+Las migraciones no fabrican recargos previos ni un importe para reglas antiguas con recargo;
+esas reglas sin importe bloquean nuevas visitas y requieren una decisión explícita.
+Ver [políticas e integración](../politicas-pendientes.md).
+
+La migración inicializa las paradas anteriores con todos los bultos de su envío, como exigía
+el modelo previo. Sus medidas se toman de los valores actuales porque no se registraba una
+medición histórica por visita. Las asignaciones nuevas sí conservan su captura exacta.
+Los eventos administrativos parciales usan V2 con IdOperacion nullable y sin resultados de
+intento; los V2 de intento conservan su detalle. V1 no incorpora ese vocabulario nuevo.
+
 ## Pendientes para completar el cambio
 
-- Orquestación y endpoint para el registro por bulto implementado en Domain.
-- Ejecución de reglas de pendientes, recargos, devolución y nueva asignación.
+- Endpoint autenticado para el caso de uso RegistrarIntentoHandler ya implementado.
+- API/hoja de ruta de la nueva asignación de pendientes e integración del despacho/devolución.
 - Integrar los eventos V2 con el enrutamiento y compatibilidad de receptores existentes.
 - Adaptaciones de Web, seguimiento, PWA y Worker por sus responsables.
 - Demostración offline/sincronización del 12/11 y evaluación final de dificultades y pruebas.

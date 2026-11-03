@@ -52,9 +52,10 @@ public sealed partial class PostgresTests : IAsyncLifetime
     private AppDbContext Context(Guid? operatorId = null) => new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_testConnection).Options,
         UltimaMilla.Application.Tenancy.TenantActual.ParaOperador(operatorId ?? _operatorId));
 
-    private EscenarioPersistencia Escenario(bool reintentable = false, bool parcial = false)
+    private EscenarioPersistencia Escenario(bool reintentable = false, bool parcial = false,
+        AccionBultosPendientes accion = AccionBultosPendientes.NuevaVisitaSinRecargo, decimal? recargo = null)
     {
-        var scenario = new EscenarioPersistencia(reintentable, parcial: parcial);
+        var scenario = new EscenarioPersistencia(reintentable, parcial: parcial, accion: accion, recargo: recargo);
         _operatorId = scenario.Operador.Id;
         return scenario;
     }
@@ -73,7 +74,7 @@ public sealed partial class PostgresTests : IAsyncLifetime
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'", connection);
-        Assert.Equal(36L, await command.ExecuteScalarAsync());
+        Assert.Equal(39L, await command.ExecuteScalarAsync());
     }
 
     [PostgresFact]

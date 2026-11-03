@@ -1,6 +1,6 @@
 # Seguimiento del cambio de requerimientos
 
-Actualizado: 01/11/2026. Equipo de tres integrantes, Grupo 8.
+Actualizado: 03/11/2026. Equipo de tres integrantes, Grupo 8.
 
 ## Alcance y fuentes
 
@@ -19,10 +19,10 @@ También se exige un ADR que explique los componentes modificados y las dificult
 
 | Requisito | Cambio necesario | Estado |
 | --- | --- | --- |
-| 31 | Estado por bulto, estado del envío derivado y entrega parcial; transiciones declarativas en ambos niveles | El núcleo ya registra entregas mixtas y deriva el estado parcial. Falta continuar con nuevas visitas/devolución de pendientes e integrar las aplicaciones |
-| 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | Núcleo y persistencia implementados para la visita actual: resultados, motivos, evidencias, reenvíos y rechazo de otra parada. Pendientes orquestación/endpoint y captura/sincronización PWA |
-| 33 | Reglas versionadas para permitir parciales y decidir nueva visita con/sin recargo o devolución al comercio | Configuración de backend implementada: permiso y acción de pendientes. Falta aplicarla al flujo por bulto y resolver el cálculo del recargo |
-| 34 | Asignar bultos pendientes a una nueva hoja de ruta | Pendiente. La asignación actual considera el envío completo |
+| 31 | Estado por bulto, estado del envío derivado y entrega parcial; transiciones declarativas en ambos niveles | El núcleo registra entregas mixtas, visitas sucesivas y devolución de pendientes. Continúa integración de aplicaciones |
+| 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | Domain, persistencia y caso de uso Application implementados para la visita actual, con identidad, versión esperada y reenvíos. Pendientes endpoint y captura/sincronización PWA |
+| 33 | Reglas versionadas para permitir parciales y decidir nueva visita con/sin recargo o devolución al comercio | Núcleo, configuración y persistencia aplican las tres opciones; recargo fijo registrado al despacho, separado de la tarifa original. Continúan interfaces e integración |
+| 34 | Asignar bultos pendientes a una nueva hoja de ruta | Domain y persistencia asignan solo pendientes, con composición y capacidad por parada; continúan API/hoja de ruta e integración con aplicaciones |
 | 35 | Seguimiento con cantidades entregadas y totales, sin identificadores internos | Pendiente adaptar consulta, contrato y presentación |
 | 36 | Eventos de bulto y avisos versionados compatibles con receptores anteriores | Outbox V2 con resultados por bulto para el método nuevo; V1 se mantiene en la firma tradicional. Pendientes Worker, enrutamiento/compatibilidad de webhooks y recepción real |
 
@@ -63,16 +63,17 @@ Este reparto no autoriza implementar las tareas de otra integrante.
 
 Las fases 1 y 2 pueden avanzar en paralelo. No dejar todo el diseño del cambio para después del 05/11.
 
-## Decisiones aún abiertas
+## Decisiones del núcleo y coordinación pendiente
 
-- Estados exactos de los bultos y derivación del estado del envío en casos mixtos.
-- Estructura del resultado por bulto y asociación de una evidencia a varios bultos.
-- Selección de bultos por parada y capacidad real de cada visita.
-- Aplicación, cálculo y registro del recargo de una nueva visita.
-- Tratamiento de datos históricos: no inventar resultados o evidencias que no se registraron.
-- Versionado de contratos y resolución de conflictos al sincronizar bultos.
+- Estados y resumen mixto: implementados; ver avances y ADR-007.
+- Resultado/evidencia por bulto y selección/capacidad por parada: implementados en el núcleo.
+- Recargo fijo configurable por visita, capturado al asignar y registrado al despachar:
+  implementado; no es un cobro efectivo. Devolución limitada a pendientes implementada.
+- Históricos: se conservan sin inventar resultados, evidencias, precios o cargos anteriores.
+- Pendientes de coordinación: exposición de contratos, presentación de casos mixtos,
+  sincronización PWA y negociación de webhooks V2 con receptores existentes.
 
-Estas son propuestas pendientes de cerrar, no decisiones ya implementadas.
+El ADR sigue en curso hasta integrar y demostrar el recorrido completo.
 
 ## Aclaraciones adicionales del PDF
 
@@ -198,3 +199,86 @@ y exposición, además de las integraciones que corresponden a las otras áreas.
 Verificación final de este avance: 243 pruebas aprobadas, incluidas 83 contra PostgreSQL
 real sin omisiones. Release sin errores ni advertencias; modelo alineado con la migración.
 Las bases temporales de prueba se eliminaron al finalizar.
+
+### 03/11: caso de uso para registrar intentos (requisito 32 y flujo original)
+
+- RegistrarIntentoHandler conecta la solicitud con Domain y guarda la unidad completa.
+  No recibe usuario/operador/rol: el repositorio usa el contexto autenticado y comprueba
+  en la base un repartidor activo del operador y su asignación o su operación histórica.
+- La solicitud lleva envío, parada, versión esperada, identificador estable, instante UTC,
+  resultados por bulto y definiciones/referencias de evidencia. Los motivos se resuelven
+  desde el catálogo de la versión del envío y las evidencias compartidas se construyen una vez.
+- Una operación nueva con versión vieja se rechaza antes de modificar el núcleo. Un reenvío
+  idéntico reconoce el intento anterior incluso con la versión original y no vuelve a guardar.
+  Otro contenido con el mismo identificador se rechaza. Las carreras durante el guardado
+  siguen protegidas por la concurrencia y el rollback existentes.
+- Cada ejecución carga un contexto dedicado con una lectura coherente del grafo y lo dispone
+  al terminar, también si falla. La respuesta es un DTO con el intento y la versión resultante.
+- Hay registro optativo de servicios; no se modificaron Web, PWA, Worker o sus endpoints.
+  No requiere otra migración ni modifica el contrato de outbox de la etapa anterior.
+- Las pruebas nuevas invocan el caso de uso con PostgreSQL real para comprobar identidad,
+  permisos, versiones, repetición, guardado, rollback y decisiones simultáneas.
+
+Para integrar: [Caso de uso de registro de intentos](docs/registro-intento-aplicacion.md).
+
+Verificación: 258 pruebas aprobadas, incluidas 88 contra PostgreSQL real sin omisiones.
+Release sin errores ni advertencias y modelo sin cambios pendientes de migración.
+Las bases temporales se eliminaron al terminar; desarrollo no se modificó.
+
+### 03/11: rutas de pendientes y capacidad por visita (requisito 34)
+
+- Cada Parada conserva sus bultos y medidas mediante BultoParada. La nueva visita solo
+  lleva pendientes; peso y volumen se calculan con esa selección y la carga de otras
+  paradas activas. Las paradas anteriores mantienen su composición.
+- Se puede reprogramar, asignar, cargar, despachar y entregar el pendiente, incluso con
+  otro repartidor, hasta completar el envío. Los entregados previos no se cambian ni
+  aparecen en los resultados/evidencias de la visita siguiente. Se conservan la fecha
+  comprometida, los límites de intentos y una sola asignación activa por envío.
+- La política admitida en esta etapa es nueva visita sin recargo. Si las reglas indican
+  recargo o devolución se rechaza la reprogramación: falta implementar esos tratamientos.
+- RegistrarIntentoHandler ya carga la composición y acepta los resultados de la parada
+  actual. Su contrato de solicitud no cambia; el body incluye solo los bultos de esa visita.
+- **Integración V2:** IdOperacion es ahora nullable. Los eventos administrativos de
+  continuación parcial van por V2 con IdOperacion null y Bultos vacío; los intentos
+  mantienen identificador y detalle. No se incorporan estados parciales nuevos a V1.
+- La migración 20261103121131_BultosPorParada agrega composición, medidas y restricciones.
+  Para las paradas previas se infieren todos los bultos de su envío, como funcionaba antes;
+  las medidas se inicializan con los valores actuales, no se reconstruyen medidas históricas.
+  No se generan eventos ni se modifica la tarifa. No se aplicó a desarrollo.
+- Se mantienen filtros de operador/cuenta y concurrencia de envío/ruta, con FK del mismo
+  envío y composición histórica protegida en SaveChanges. No se modificaron Web, PWA o Worker.
+
+Para integrar y cargar las relaciones: [Rutas de pendientes](docs/rutas-pendientes.md).
+
+Verificación: 272 pruebas aprobadas, incluidas 92 contra PostgreSQL real sin omisiones.
+Release sin errores ni advertencias; EF confirma el modelo alineado con las migraciones.
+
+### 03/11: política de pendientes, devolución parcial y recargo fijo (requisito 33)
+
+- Las tres opciones de la versión de reglas ya tienen tratamiento en el núcleo: nueva
+  visita sin recargo, nueva visita con recargo fijo y devolución al comercio.
+- Se eligió un importe fijo configurable por visita. DatosReglasDto agrega
+  ImporteRecargoNuevaVisita (decimal nullable): positivo con hasta dos decimales para la
+  opción con recargo y null para las otras. El backend administrativo lo recibe y devuelve.
+  Los formularios deberán conservar y enviar el campo al integrar su parte.
+- La parada captura el importe al asignarse. Al despachar se registra RecargoVisita una
+  sola vez; retirar/reasignar antes de salir no genera cargos. Se mantienen separados de
+  TarifaCalculada. Es un cargo devengado, no un pago efectivo ni facturación implementada.
+- La devolución conserva sus pendientes en BultoDevolucion; solo exige los escaneos de
+  esos bultos. Entregados y devueltos permanecen cerrados. Entregado + Devuelto conserva
+  el resumen EntregadoParcialmente, con el detalle individual disponible.
+- Se mantiene aislamiento por operador/cuenta, FK del mismo envío, historial protegido
+  en SaveChanges y concurrencia de los agregados. Un fallo del outbox o un conflicto
+  revierte cargo, despacho y estados; la base impide duplicar el cargo de una parada.
+- La migración PoliticasPendientesYRecargoFijo recupera la composición de devoluciones
+  anteriores completas, sin inventar cargos ni precios. Las reglas antiguas con recargo
+  quedan con importe null y bloquean nuevas visitas: requieren una decisión explícita,
+  no se les asigna un precio arbitrario ni se cambia su versión en uso.
+- No se aplicó a desarrollo. No se modificaron Web, PWA ni Worker. Continúan pendientes
+  endpoints, formularios e integraciones de sus responsables y la demostración del 12/11.
+
+Detalle para integrar: [políticas de pendientes y recargo fijo](docs/politicas-pendientes.md).
+
+Verificación final: 287 pruebas aprobadas, incluidas 98 contra PostgreSQL real, sin omisiones.
+Release sin errores ni advertencias y modelo alineado con las migraciones. Se actualizó el
+SQL de instalación y se eliminaron las bases temporales; desarrollo no se modificó.

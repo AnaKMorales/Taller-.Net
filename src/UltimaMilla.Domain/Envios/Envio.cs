@@ -18,6 +18,8 @@ public sealed partial class Envio : Entidad
   private readonly List<EventoDeEnvio> _eventos = [];
   private readonly List<IntentoEntrega> _intentos = [];
   private readonly List<Discrepancia> _discrepancias = [];
+  private readonly List<RecargoVisita> _recargos = [];
+  public IReadOnlyCollection<RecargoVisita> Recargos => _recargos.AsReadOnly();
 
   public CuentaComercial CuentaComercial { get; private set; }
   public Guid CuentaComercialId => CuentaComercial.Id;
@@ -115,7 +117,8 @@ public sealed partial class Envio : Entidad
   {
     Validacion.MismoOperador(OperadorId, ruta.OperadorId);
     if (Parada is not null) throw new InvalidOperationException("El envio ya tiene una asignacion activa.");
-    var tipo = Estado == EstadoEnvio.Reprogramado ? TipoEvento.Reasignar : TipoEvento.Asignar;
+    if (Estado == EstadoEnvio.EntregadoParcialmente) ValidarPoliticaNuevaVisita();
+    var tipo = TipoAsignacion();
     VerificarEvento(tipo, responsable, ocurridoEn);
     if (horaEstimadaLlegada < ocurridoEn)
       throw new InvalidOperationException("La llegada no puede ser anterior a la asignacion.");
@@ -125,7 +128,7 @@ public sealed partial class Envio : Entidad
 
   internal void Asignar(Parada parada, Usuario responsable, DateTime ocurridoEn)
   {
-    var tipo = Estado == EstadoEnvio.Reprogramado ? TipoEvento.Reasignar : TipoEvento.Asignar;
+    var tipo = TipoAsignacion();
     Parada = parada;
     Aplicar(tipo, responsable, ocurridoEn, OrigenEvento.Sistema);
   }
@@ -148,11 +151,20 @@ public sealed partial class Envio : Entidad
       programacionAnterior: anterior, programacionNueva: nuevaProgramacion);
   }
 
-  internal void VerificarInicio(Usuario responsable, DateTime ocurridoEn) =>
+  internal void VerificarInicio(Usuario responsable, DateTime ocurridoEn)
+  {
     VerificarEvento(TipoEvento.IniciarEntrega, responsable, ocurridoEn);
+    if (Parada is null || Parada.Recargo is not null)
+      throw new InvalidOperationException("La parada debe estar pendiente de despacho y sin recargo previo.");
+  }
 
-  internal void IniciarEntrega(Usuario responsable, DateTime ocurridoEn) =>
+  internal void IniciarEntrega(Usuario responsable, DateTime ocurridoEn)
+  {
+    VerificarInicio(responsable, ocurridoEn);
+    var recargo = Parada!.RecargoPrevisto > 0 ? new RecargoVisita(this, Parada, ocurridoEn) : null;
     Aplicar(TipoEvento.IniciarEntrega, responsable, ocurridoEn, OrigenEvento.Sistema);
+    if (recargo is not null) { _recargos.Add(recargo); Parada.ConfirmarRecargo(recargo); }
+  }
 
   public IntentoEntrega RegistrarIntento(ResultadoIntento resultado, MotivoNoEntrega? motivo,
     IEnumerable<PruebaEntrega> pruebas, Usuario responsable, DateTime ocurridoEn,
@@ -170,6 +182,9 @@ public sealed partial class Envio : Entidad
         throw new InvalidOperationException("El identificador ya se uso para otro resultado.");
       return anterior;
     }
+
+    if (_bultos.Any(b => b.Estado == EstadoBulto.Entregado))
+      throw new InvalidOperationException("Las visitas de pendientes se registran mediante resultados por bulto.");
 
     var tipo = resultado == ResultadoIntento.Entregado ? TipoEvento.EntregaExitosa : TipoEvento.FalloEntrega;
     VerificarEvento(tipo, responsable, ocurridoEn);
@@ -212,6 +227,7 @@ public sealed partial class Envio : Entidad
   public void Reprogramar(ProgramacionEntrega nuevaProgramacion, Usuario responsable, DateTime ocurridoEn)
   {
     VerificarEvento(TipoEvento.Reintentar, responsable, ocurridoEn);
+    if (Estado == EstadoEnvio.EntregadoParcialmente) ValidarPoliticaNuevaVisita();
     if (_intentos.Count == 0 || !UltimoIntento!.EsReintentable ||
         _intentos.Count >= Reglas.MaxIntentosEntrega)
       throw new InvalidOperationException("El envio no admite otro intento.");
@@ -224,16 +240,19 @@ public sealed partial class Envio : Entidad
 
   public Devolucion IniciarDevolucion(Usuario responsable, DateTime ocurridoEn)
   {
-    var tipo = Estado == EstadoEnvio.Reprogramado ? TipoEvento.Cancelar : TipoEvento.Devolver;
+    var pendientes = Pendientes();
+    var tipo = pendientes.Length > 0 && pendientes.All(b => b.Estado == EstadoBulto.Reprogramado)
+      ? TipoEvento.Cancelar : TipoEvento.Devolver;
     VerificarEvento(tipo, responsable, ocurridoEn);
     if (Devolucion is not null) throw new InvalidOperationException("El envio ya tiene una devolucion.");
-    if (Estado == EstadoEnvio.NoEntregado)
+    if (Estado == EstadoEnvio.NoEntregado || Estado == EstadoEnvio.EntregadoParcialmente && tipo == TipoEvento.Devolver)
     {
       var noReintentable = UltimoIntento!.TieneMotivoNoReintentable;
       var agotados = _intentos.Count >= Reglas.MaxIntentosEntrega && Reglas.PoliticaDevolucion.DevolverAlAgotarIntentos;
-      if (!noReintentable && !agotados) throw new InvalidOperationException("Corresponde reintentar antes de devolver.");
+      var politicaParcial = Estado == EstadoEnvio.EntregadoParcialmente && Reglas.AccionPendientes == AccionBultosPendientes.DevolverAlComercio;
+      if (!noReintentable && !agotados && !politicaParcial) throw new InvalidOperationException("Corresponde reintentar antes de devolver.");
     }
-    var devolucion = new Devolucion(this, ocurridoEn, ocurridoEn.AddDays(Reglas.PoliticaDevolucion.PlazoMaximoDevolucionDias));
+    var devolucion = new Devolucion(this, ocurridoEn, ocurridoEn.AddDays(Reglas.PoliticaDevolucion.PlazoMaximoDevolucionDias), pendientes);
     Devolucion = devolucion;
     Aplicar(tipo, responsable, ocurridoEn, OrigenEvento.Sistema);
     return devolucion;
@@ -243,6 +262,8 @@ public sealed partial class Envio : Entidad
   {
     VerificarEvento(TipoEvento.DevolucionExitosa, responsable, ocurridoEn);
     if (!ReferenceEquals(Devolucion, devolucion)) throw new InvalidOperationException("La devolucion no corresponde al envio.");
+    if (!devolucion.Bultos.Select(b => b.Bulto.Id).ToHashSet().SetEquals(Pendientes().Select(b => b.Id)))
+      throw new InvalidOperationException("Carga la composición completa de pendientes antes de cerrar la devolución.");
     Aplicar(TipoEvento.DevolucionExitosa, responsable, ocurridoEn, OrigenEvento.Deposito);
   }
 
@@ -304,7 +325,7 @@ public sealed partial class Envio : Entidad
     ProgramacionEntrega? programacionAnterior = null, ProgramacionEntrega? programacionNueva = null)
   {
     var estados = PrepararEstados(tipo);
-    var nuevo = EstadoConjuntoEnvio.Calcular(estados.Select(x => x.Estado));
+    var nuevo = ResumenConCambios(estados);
     var evento = new EventoDeEnvio(this, tipo, origen, Estado, nuevo, responsable, ocurridoEn, posicion, detalle, idOperacion,
       programacionAnterior, programacionNueva);
     foreach (var cambio in estados) cambio.Bulto.ActualizarEstado(cambio.Estado);
@@ -317,9 +338,54 @@ public sealed partial class Envio : Entidad
     if (_bultos.Count == 0 || EstadoConjuntoEnvio.Calcular(_bultos.Select(b => b.Estado)) != Estado)
       throw new InvalidOperationException("Carga todos los bultos y sus estados coherentes antes de operar sobre el envio.");
     var esperado = TransicionesEnvio.Resolver(Estado, tipo);
-    var cambios = _bultos.Select(b => (Bulto: b, Estado: TransicionesBulto.Resolver(b.Estado, tipo))).ToArray();
-    if (EstadoConjuntoEnvio.Calcular(cambios.Select(x => x.Estado)) != esperado)
+    var afectados = BultosOperacion();
+    var cambios = afectados.Select(b => (Bulto: b, Estado: TransicionesBulto.Resolver(b.Estado, tipo))).ToArray();
+    if (ResumenConCambios(cambios) != esperado)
       throw new InvalidOperationException("La transicion de los bultos no coincide con la del envio.");
     return cambios;
   }
+
+  private EstadoEnvio ResumenConCambios((Bulto Bulto, EstadoBulto Estado)[] cambios)
+  {
+    var estados = cambios.ToDictionary(c => c.Bulto.Id, c => c.Estado);
+    return EstadoConjuntoEnvio.Calcular(_bultos.Select(b => estados.GetValueOrDefault(b.Id, b.Estado)));
+  }
+
+  private Bulto[] Pendientes() => _bultos.Where(b => b.Estado is not
+    (EstadoBulto.Entregado or EstadoBulto.Devuelto or EstadoBulto.Extraviado)).ToArray();
+
+  internal Bulto[] BultosParaAsignar()
+  {
+    var pendientes = Pendientes();
+    if (pendientes.Length == 0 || pendientes.Any(b => b.Estado is not (EstadoBulto.EnDeposito or EstadoBulto.Reprogramado)))
+      throw new InvalidOperationException("La asignación requiere bultos pendientes preparados en depósito o reprogramados.");
+    return pendientes;
+  }
+
+  private TipoEvento TipoAsignacion() => Pendientes().All(b => b.Estado == EstadoBulto.Reprogramado)
+    ? TipoEvento.Reasignar : TipoEvento.Asignar;
+
+  private Bulto[] BultosOperacion()
+  {
+    var pendientes = Pendientes();
+    if (Parada is null) return pendientes.Length > 0 ? pendientes :
+      throw new InvalidOperationException("No quedan bultos pendientes para esta operación.");
+    var asignados = Parada.Bultos.Select(b => b.Bulto).ToArray();
+    if (asignados.Length == 0 || !asignados.Select(b => b.Id).ToHashSet().SetEquals(pendientes.Select(b => b.Id)))
+      throw new InvalidOperationException("Carga todos los bultos asignados a la parada y pendientes del envío.");
+    return asignados;
+  }
+
+  private void ValidarPoliticaNuevaVisita()
+  {
+    if (!Reglas.PermiteEntregaParcial || Reglas.AccionPendientes == AccionBultosPendientes.DevolverAlComercio)
+      throw new InvalidOperationException("Las reglas del envío no permiten una nueva visita de pendientes.");
+    if (Reglas.AccionPendientes == AccionBultosPendientes.NuevaVisitaConRecargo &&
+        Reglas.ImporteRecargoNuevaVisita is not > 0)
+      throw new InvalidOperationException("La versión de reglas no tiene un importe fijo de recargo configurado.");
+  }
+
+  internal decimal RecargoParaNuevaVisita() => Estado == EstadoEnvio.EntregadoParcialmente &&
+    Reglas.AccionPendientes == AccionBultosPendientes.NuevaVisitaConRecargo
+      ? Reglas.ImporteRecargoNuevaVisita ?? throw new InvalidOperationException("Falta el importe de recargo en la versión de reglas.") : 0;
 }

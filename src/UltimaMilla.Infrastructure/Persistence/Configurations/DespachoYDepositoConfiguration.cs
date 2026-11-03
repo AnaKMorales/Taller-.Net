@@ -39,6 +39,8 @@ internal sealed class ParadaConfiguration : IEntityTypeConfiguration<Parada>
         b.HasIndex("RutaKey", nameof(Parada.Cod)).IsUnique();
         b.HasIndex("EnvioKey").IsUnique().HasFilter("\"Activa\" = TRUE");
         Mapping.Collection(b, "Intentos", "_intentos");
+        b.ToTable(t => t.HasCheckConstraint("CK_Paradas_RecargoPrevisto", "\"RecargoPrevisto\" >= 0 AND round(\"RecargoPrevisto\", 2) = \"RecargoPrevisto\""));
+        Mapping.Collection(b, "Bultos", "_bultos");
     }
 }
 
@@ -75,6 +77,7 @@ internal sealed class DevolucionConfiguration : IEntityTypeConfiguration<Devoluc
     public void Configure(EntityTypeBuilder<Devolucion> b)
     {
         Mapping.Entity(b, "Devoluciones");
+        Mapping.Collection(b, "Bultos", "_bultos");
         Mapping.Key(b, "Envio");
         b.HasOne(x => x.Envio).WithOne(x => x.Devolucion).HasForeignKey<Devolucion>("EnvioKey");
     }

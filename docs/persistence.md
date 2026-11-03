@@ -13,10 +13,10 @@ evitar eliminar dependencias e historial por cascada. Las entidades de Domain no
 
 ## Representación del modelo
 
-Las 33 entidades del dominio se representan mediante 32 tablas: Usuario y Repartidor comparten
+Las 36 entidades del dominio se representan mediante 35 tablas: Usuario y Repartidor comparten
 `Usuarios` con discriminador `TipoUsuario` (TPH). Se agregan `UsuariosCuentasComerciales` para
 la asociación muchos a muchos, `ProgramacionesEntrega` para las instantáneas y `MensajesOutbox`
-para los mensajes de integración pendientes. Son 35 tablas
+para los mensajes de integración pendientes. Son 38 tablas
 del modelo, además de la tabla de historial que administra EF al aplicar migraciones.
 
 | Elemento | Persistencia |
@@ -26,7 +26,7 @@ del modelo, además de la tabla de historial que administra EF al aplicar migrac
 | Colecciones de solo lectura | Navegaciones sobre los campos privados; EF no llama a los métodos de registro de Domain. |
 | Fechas de operación | `timestamp with time zone`; los casos de uso deben proporcionar DateTime UTC. |
 | Fecha de entrega y horas de franja | `date` y `time without time zone`. |
-| Decimales | `numeric`, sin imponer redondeo monetario ni límites de precisión adicionales en este paso. |
+| Decimales | `numeric`; los recargos de visita exigen hasta dos decimales y no se redondean silenciosamente. |
 | Enumeraciones | Enteros. No reordenar valores existentes sin una migración de datos. |
 | Conjuntos de pruebas/eventos | `integer[]` con conversión a conjuntos inmutables y comparador por contenido. |
 | GeoPunto opcional | `jsonb` mediante conversor, conservando latitud y longitud. |
@@ -117,7 +117,8 @@ todavía no está implementado, especialmente para las FK y claves shadow.
 
 ## Verificación y pendientes
 
-Hay 72 pruebas de Domain, cinco unitarias de Application y 37 unitarias de Infrastructure.
+Hay 126 pruebas de Domain, 15 unitarias de Application y 37 unitarias de Infrastructure,
+además de 11 pruebas de arquitectura.
 Las de Infrastructure comprueban el
 modelo y SQL Npgsql, la correspondencia del snapshot con la migración, los conversores y la
 rehidratación entre contextos mediante InMemory usando el modelo Npgsql. Cubren programación,
@@ -135,7 +136,7 @@ Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la 
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
 Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
 claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
-Las 83 pruebas de integración incluyen el alta mediante el contrato de Application,
+Las 98 pruebas de integración incluyen el alta mediante el contrato de Application,
 conflictos de versión de envíos y rutas, asignaciones
 simultáneas, capacidad compartida, hijos operativos, rollback, migración de versiones con datos,
 caché, siete pruebas del registro transaccional del outbox, nueve de su publicador,
@@ -149,6 +150,13 @@ concurrencia sin estados perdedores y restricción SQL de valores. El flujo comp
 también los estados de los bultos después de recargar cada etapa.
 Seis casos adicionales cubren la entrega por bulto, repetición, outbox V2, concurrencia,
 rollback, aislamiento de cuenta, referencias compuestas, histórico y migración sin inventar asociaciones.
+Cinco casos adicionales verifican RegistrarIntentoHandler con identidad resuelta, versión
+esperada, repetición, permisos, rollback y dos ejecuciones que compiten por el mismo envío.
+Cuatro casos adicionales verifican visitas de pendientes con vehículo menor y otro repartidor,
+migración de composición, aislamiento/inmutabilidad y dos rutas que compiten por el mismo pendiente.
+Seis casos verifican recargo fijo, configuración y reglas históricas sin importe,
+unicidad/inmutabilidad/aislamiento, rollback completo, despacho concurrente y devolución
+parcial recargada desde PostgreSQL, además del backfill de devoluciones anteriores.
 No demuestran todavía todas las condiciones de idempotencia.
 
 Los filtros de operador/cuenta, TenantContext y el interceptor de validación de escrituras
