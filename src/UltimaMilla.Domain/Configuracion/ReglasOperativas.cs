@@ -22,12 +22,15 @@ public sealed class ReglasOperativas : Entidad
   public int PlazoEntreIntentosHoras { get; private set; }
   public IReadOnlySet<TipoPrueba> TiposPrueba { get; private set; }
   public PoliticaDevolucion PoliticaDevolucion { get; private set; }
+  public bool PermiteEntregaParcial { get; private set; }
+  public AccionBultosPendientes AccionPendientes { get; private set; }
   public bool EnUso { get; private set; }
   public IReadOnlyCollection<MotivoNoEntrega> MotivosNoEntrega => _motivos.AsReadOnly();
   public IReadOnlyCollection<PlazoServicio> PlazosServicio => _plazos.AsReadOnly();
 
   public ReglasOperativas(Operador operador, int version, DateTime vigenteDesde, int maxIntentosEntrega,
-    int plazoEntreIntentosHoras, IEnumerable<TipoPrueba> tiposPrueba, PoliticaDevolucion politicaDevolucion)
+    int plazoEntreIntentosHoras, IEnumerable<TipoPrueba> tiposPrueba, PoliticaDevolucion politicaDevolucion,
+    bool permiteEntregaParcial = false, AccionBultosPendientes accionPendientes = AccionBultosPendientes.NuevaVisitaSinRecargo)
   {
     Operador = Validacion.Requerido(operador, nameof(operador));
     Version = Validacion.Positivo(version, nameof(version));
@@ -40,6 +43,8 @@ public sealed class ReglasOperativas : Entidad
     TiposPrueba = tiposPrueba.Select(t => Validacion.Enumeracion(t, nameof(tiposPrueba))).ToFrozenSet();
     PoliticaDevolucion = Validacion.Requerido(politicaDevolucion, nameof(politicaDevolucion));
     if (politicaDevolucion.Reglas is not null) throw new InvalidOperationException("La politica ya pertenece a otras reglas.");
+    PermiteEntregaParcial = permiteEntregaParcial;
+    AccionPendientes = Validacion.Enumeracion(accionPendientes, nameof(accionPendientes));
     Operador.Registrar(this);
     politicaDevolucion.Vincular(this);
   }

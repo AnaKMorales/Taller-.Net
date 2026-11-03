@@ -12,7 +12,9 @@ public sealed record MotivoNoEntregaDto(string Nombre, string Descripcion, Respo
     bool RequiereEvidencia, bool EsReintentable, bool Activo);
 public sealed record DatosReglasDto(int MaxIntentosEntrega, int PlazoEntreIntentosHoras,
     IReadOnlyList<TipoPrueba> TiposPrueba, PoliticaDevolucionDto Devolucion,
-    IReadOnlyList<PlazoServicioDto> Plazos, IReadOnlyList<MotivoNoEntregaDto> Motivos);
+    IReadOnlyList<PlazoServicioDto> Plazos, IReadOnlyList<MotivoNoEntregaDto> Motivos,
+    bool PermiteEntregaParcial = false,
+    AccionBultosPendientes AccionPendientes = AccionBultosPendientes.NuevaVisitaSinRecargo);
 public sealed record DetalleReglasDto(VersionConfiguracionDto Version, DatosReglasDto Datos);
 public sealed record DetalleTarifarioDto(VersionConfiguracionDto Version, IReadOnlyList<LineaTarifaDto> Lineas);
 // La versión esperada es la última creada, incluyendo las programadas a futuro; cero si no hay ninguna.

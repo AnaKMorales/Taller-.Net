@@ -14,7 +14,7 @@ como vistas de solo lectura.
 | Comercios | Comercio, CuentaComercial |
 | Usuarios | Usuario, Repartidor |
 | Configuración | ReglasOperativas, PoliticaDevolucion, MotivoNoEntrega, PlazoServicio, CuadroTarifario, LineaTarifa, AjusteTarifario, ZonaCobertura, FranjaHoraria |
-| Envíos | Envio, Bulto, Destinatario, Direccion, EventoDeEnvio, IntentoEntrega, PruebaEntrega |
+| Envíos | Envio, Bulto, Destinatario, Direccion, EventoDeEnvio, IntentoEntrega, DetalleIntentoBulto, PruebaEntrega, PruebaBulto |
 | Despacho | Vehiculo, Ruta, Parada |
 | Depósito | EscaneoBulto, Discrepancia, Devolucion, Rendicion |
 | Notificaciones | SuscripcionAviso, EntregaAviso, Notificacion |
@@ -23,6 +23,19 @@ como vistas de solo lectura.
 `GeoPunto` y `ArchivoRef`. Las enumeraciones viven junto a las entidades que las usan.
 `Envios/ProgramacionEntrega` es un valor inmutable que conserva la franja, la fecha de entrega
 y los extremos concretos de la ventana con sus desplazamientos horarios.
+
+La configuración del requisito 33 del cambio del 30/10 agrega a cada versión de reglas
+el permiso de entrega parcial y la acción para bultos pendientes. AccionBultosPendientes
+distingue nueva visita con/sin recargo y devolución al comercio. Es una preparación de
+configuración: la aplicación de la política sobre pendientes continúa en desarrollo.
+Ver [seguimiento del cambio](../CAMBIOS-REQUERIMIENTOS.md).
+
+Cada Bulto incorpora EstadoBulto persistido. Envio coordina sus transiciones declarativas
+y calcula su resumen de estado desde ellos en las operaciones existentes. La columna
+Envio.Estado conserva ese resumen para las consultas. RegistrarIntentoPorBulto permite
+resultados distintos y deriva EntregadoParcialmente. La asignación de pendientes a otra
+visita y su devolución parcial todavía están pendientes.
+Ver [ADR-007 en curso](adr/007-entrega-parcial.md).
 
 ## Relaciones
 
@@ -54,6 +67,9 @@ y los extremos concretos de la ventana con sus desplazamientos horarios.
 | Envio y IntentoEntrega | Varios intentos, vinculados también a la parada en la que ocurrieron. |
 | IntentoEntrega y MotivoNoEntrega | Motivo obligatorio en un fallo y ausente en una entrega exitosa. |
 | IntentoEntrega y PruebaEntrega | Varias pruebas exclusivas del intento. |
+| IntentoEntrega y DetalleIntentoBulto | Un resultado por bulto de la visita, con motivo para cada fallo. |
+| DetalleIntentoBulto y Bulto | El bulto pertenece al mismo envío que el intento; FK compuesta en persistencia. |
+| DetalleIntentoBulto y PruebaBulto y PruebaEntrega | Asociación explícita para compartir evidencia entre resultados del mismo intento. |
 | Envio y Devolucion | Cero o una devolución. |
 | Envio y Discrepancia | Varias discrepancias; cada una puede identificar además un bulto del mismo envío. |
 | Bulto y EscaneoBulto | Varios escaneos de recepción, carga o devolución por bulto. |

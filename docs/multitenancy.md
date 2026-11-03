@@ -73,7 +73,7 @@ La conexión del consumidor RabbitMQ pertenece al Worker y todavía no existe en
 ## Filtros de lectura
 
 TenantModel agrega el filtro nombrado AislamientoOperador a todas las raíces del modelo.
-Las 30 tablas privadas almacenan una propiedad shadow TenantId, equivalente al operador
+Las tablas privadas almacenan una propiedad shadow TenantId, equivalente al operador
 propietario, sin dependencias de EF en Domain. Operador se filtra por su Id; Comercio por
 una CuentaComercial del operador. Repartidor hereda los filtros de Usuario.
 
@@ -96,6 +96,15 @@ los DTO de comercio deben seleccionar sus campos necesarios y no cargar un grafo
 completo con usuarios responsables, rutas o vehículos. Domain no usa carga diferida.
 
 ## Escrituras e integridad
+
+AppDbContext asigna el operador capturado a las entidades nuevas al entrar al ChangeTracker,
+si TenantId está vacío. Esto sucede antes de detectar cambios en las relaciones: una ruta y
+un vehículo nuevos pueden vincularse con un envío existente en un solo guardado sin que
+EF intente propagar un operador vacío a la clave compuesta de ese envío.
+No se sobrescriben valores explícitos, filas consultadas ni objetos adjuntados como existentes.
+Este sellado inicial no autoriza una escritura: las validaciones de propietario persistido,
+cuenta y referencias siguen ejecutándose al guardar. Tampoco habilita cambiar el operador
+de una entidad existente. La corrección no cambia tablas ni requiere una migración.
 
 AppDbContext registra automáticamente TenantSaveChangesInterceptor, sin estado de petición.
 El interceptor se ejecuta tanto en SaveChanges como en SaveChangesAsync y llama a:

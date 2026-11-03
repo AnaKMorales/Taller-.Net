@@ -13,10 +13,10 @@ evitar eliminar dependencias e historial por cascada. Las entidades de Domain no
 
 ## Representación del modelo
 
-Las 31 entidades del dominio se representan mediante 30 tablas: Usuario y Repartidor comparten
+Las 33 entidades del dominio se representan mediante 32 tablas: Usuario y Repartidor comparten
 `Usuarios` con discriminador `TipoUsuario` (TPH). Se agregan `UsuariosCuentasComerciales` para
 la asociación muchos a muchos, `ProgramacionesEntrega` para las instantáneas y `MensajesOutbox`
-para los mensajes de integración pendientes. Son 33 tablas
+para los mensajes de integración pendientes. Son 35 tablas
 del modelo, además de la tabla de historial que administra EF al aplicar migraciones.
 
 | Elemento | Persistencia |
@@ -135,11 +135,20 @@ Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la 
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
 Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
 claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
-Las 68 pruebas de integración incluyen el alta mediante el contrato de Application,
+Las 83 pruebas de integración incluyen el alta mediante el contrato de Application,
 conflictos de versión de envíos y rutas, asignaciones
 simultáneas, capacidad compartida, hijos operativos, rollback, migración de versiones con datos,
 caché, siete pruebas del registro transaccional del outbox, nueve de su publicador,
 login/backoffice/portal y diez de configuración versionada.
+Incluyen además el flujo de entrega con contextos independientes y dos regresiones de
+creación de vehículo y asignación de un envío existente en un solo guardado, síncrono y asíncrono.
+Tres casos adicionales verifican la configuración de parciales: migración de reglas existentes,
+versionado/aislamiento/inmutabilidad y rechazo de acciones inválidas en Domain y PostgreSQL.
+Tres casos de estados por bulto comprueban migración de estados anteriores por operador,
+concurrencia sin estados perdedores y restricción SQL de valores. El flujo completo verifica
+también los estados de los bultos después de recargar cada etapa.
+Seis casos adicionales cubren la entrega por bulto, repetición, outbox V2, concurrencia,
+rollback, aislamiento de cuenta, referencias compuestas, histórico y migración sin inventar asociaciones.
 No demuestran todavía todas las condiciones de idempotencia.
 
 Los filtros de operador/cuenta, TenantContext y el interceptor de validación de escrituras

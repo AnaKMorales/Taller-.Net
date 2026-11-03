@@ -3,6 +3,39 @@ namespace UltimaMilla.Domain.Tests;
 public sealed class ConfiguracionTests
 {
   [Fact]
+  public void ReglasSinOpcionesNuevasMantienenEntregaCompleta()
+  {
+    var e = new Escenario();
+    Assert.False(e.Reglas.PermiteEntregaParcial);
+    Assert.Equal(AccionBultosPendientes.NuevaVisitaSinRecargo, e.Reglas.AccionPendientes);
+  }
+
+  [Theory]
+  [InlineData(AccionBultosPendientes.NuevaVisitaSinRecargo)]
+  [InlineData(AccionBultosPendientes.NuevaVisitaConRecargo)]
+  [InlineData(AccionBultosPendientes.DevolverAlComercio)]
+  public void PoliticaParcialPerteneceALaVersionSinCambiarElEnvioAnterior(AccionBultosPendientes accion)
+  {
+    var e = new Escenario();
+    var envio = e.CrearEnvio();
+    var nuevas = new ReglasOperativas(e.Operador, 2, e.Fecha, 4, 12,
+      [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), true, accion);
+    Assert.True(nuevas.PermiteEntregaParcial);
+    Assert.Equal(accion, nuevas.AccionPendientes);
+    Assert.Same(e.Reglas, envio.Reglas);
+    Assert.False(envio.Reglas.PermiteEntregaParcial);
+  }
+
+  [Fact]
+  public void PoliticaDePendientesDesconocidaSeRechaza()
+  {
+    var e = new Escenario();
+    Assert.Throws<ArgumentOutOfRangeException>(() => new ReglasOperativas(e.Operador, 2, e.Fecha,
+      2, 0, [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), true, (AccionBultosPendientes)999));
+    Assert.Single(e.Operador.VersionesReglas);
+  }
+
+  [Fact]
   public void PlazoPorModalidadEsUnicoDentroDeLaVersion()
   {
     var e = new Escenario();

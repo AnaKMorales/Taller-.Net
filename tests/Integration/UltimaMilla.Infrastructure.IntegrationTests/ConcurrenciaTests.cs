@@ -211,9 +211,9 @@ public sealed partial class PostgresTests
         Assert.NotEqual(Guid.Empty, reader.Entry(route).Property<Guid>("RowVersion").CurrentValue);
     }
 
-    private async Task<EscenarioPersistencia> GuardarEscenario(bool recibido = false)
+    private async Task<EscenarioPersistencia> GuardarEscenario(bool recibido = false, bool parcial = false)
     {
-        var e = Escenario();
+        var e = Escenario(parcial: parcial);
         if (recibido) e.Recibir();
         await using var db = Context();
         db.Add(e.Envio); await db.SaveChangesAsync();

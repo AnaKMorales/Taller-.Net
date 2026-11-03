@@ -2,6 +2,9 @@
 
 Este repositorio está organizado siguiendo la estructura indicada en la documentación del proyecto.
 
+El alcance, los pendientes y el orden de integración de la entrega parcial para el equipo
+de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIENTOS.md).
+
 ## Estado actual
 
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
@@ -48,9 +51,14 @@ PostgreSQL local, incluidas las de aislamiento automático por operador. Envíos
 cuentan con concurrencia optimista. El outbox ya registra mensajes de eventos en la misma
 transacción; la publicación y la conexión del login siguen pendientes.
 
+El núcleo ya registra intentos por bulto con resultados y evidencias, genera el estado
+EntregadoParcialmente y reconoce reenvíos por contenido y parada de origen. La firma
+tradicional conserva eventos V1; el método nuevo registra outbox V2. Falta el endpoint,
+la sincronización PWA y la visita/devolución de pendientes. Ver [contrato y límites](docs/intentos-por-bulto.md).
+
 ## Persistencia
 
-Se configuraron EF Core 10, Npgsql y los mapeos de las 31 entidades. Se conservan los setters
+Se configuraron EF Core 10, Npgsql y los mapeos de las 33 entidades. Se conservan los setters
 privados de Domain; los constructores de rehidratación permiten recuperar objetos sin volver
 a ejecutar sus reglas de alta. La migración `InitialCreate` está generada y se aplicó a la
 instancia local de desarrollo. La migración posterior `OperatorIsolation` incorpora el tenant
@@ -70,7 +78,7 @@ una base local, sin contraseña. Generar migraciones o SQL no abre una conexión
 
 El detalle de relaciones, índices, tipos y límites está en [Persistencia](docs/persistence.md).
 También se conserva el [SQL de instalación desde cero para revisión](docs/database-initial.sql),
-que incluye las cuatro migraciones.
+que incluye las ocho migraciones actuales.
 
 ## Concurrencia de envíos y rutas
 
@@ -103,6 +111,11 @@ en SaveChanges; los envíos anteriores conservan sus referencias y tarifa.
 Al confirmar un tarifario se solicita su invalidación mediante el contrato de caché existente.
 La implementación, el registro opcional y los DTO están preparados para las pantallas;
 todavía no se agregaron endpoints o formularios. Ver [contratos y límites](docs/configuracion-versionada.md).
+
+La migración `ReglasEntregaParcial` agrega el permiso de entrega parcial y la acción para
+bultos pendientes a cada versión de reglas. Es configuración preparada: todavía no cambia
+el flujo de entrega por bulto. El progreso y las indicaciones para integrar están en
+[CAMBIOS-REQUERIMIENTOS.md](CAMBIOS-REQUERIMIENTOS.md).
 
 ## Outbox transaccional
 
@@ -141,8 +154,8 @@ implementan el login, el consumidor RabbitMQ ni el cliente Redis: sus proyectos 
 Comercio conserva su identidad compartida y las cuentas delimitan sus operaciones.
 Los detalles, ejemplos de integración y límites están en [Multitenancy](docs/multitenancy.md)
 y [ADR-002](docs/adr/002-multitenancy-por-fila.md).
-La solución cuenta con 193 pruebas: 72 de Domain, cinco unitarias de Application,
-37 unitarias de Infrastructure, 11 de arquitectura y 68 contra PostgreSQL,
+La solución cuenta con 243 pruebas: 107 de Domain, cinco unitarias de Application,
+37 unitarias de Infrastructure, 11 de arquitectura y 83 contra PostgreSQL,
 incluidas nueve pruebas de concurrencia/migración, siete del registro transaccional del outbox
 y nueve de integración de su componente publicador.
 

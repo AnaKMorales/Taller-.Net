@@ -15,6 +15,7 @@ internal static class TransicionesEnvio
       [(EstadoEnvio.AsignadoARuta, TipoEvento.IniciarEntrega)] = EstadoEnvio.EnTransito,
       [(EstadoEnvio.EnTransito, TipoEvento.EntregaExitosa)] = EstadoEnvio.Entregado,
       [(EstadoEnvio.EnTransito, TipoEvento.FalloEntrega)] = EstadoEnvio.NoEntregado,
+      [(EstadoEnvio.EnTransito, TipoEvento.EntregaParcial)] = EstadoEnvio.EntregadoParcialmente,
       [(EstadoEnvio.NoEntregado, TipoEvento.Reintentar)] = EstadoEnvio.Reprogramado,
       [(EstadoEnvio.NoEntregado, TipoEvento.Devolver)] = EstadoEnvio.EnDevolucion,
       [(EstadoEnvio.Reprogramado, TipoEvento.Cancelar)] = EstadoEnvio.EnDevolucion,

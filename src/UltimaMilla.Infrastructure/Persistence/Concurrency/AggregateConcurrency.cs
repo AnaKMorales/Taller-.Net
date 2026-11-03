@@ -38,6 +38,20 @@ internal static class AggregateConcurrency
                     foreach (var intento in Parents(entry, typeof(IntentoEntrega), "IntentoKey"))
                         Parents(intento, typeof(Envio), "EnvioKey");
                     break;
+                case DetalleIntentoBulto:
+                    foreach (var intento in Parents(entry, typeof(IntentoEntrega), "IntentoKey"))
+                        Parents(intento, typeof(Envio), "EnvioKey");
+                    foreach (var bulto in Parents(entry, typeof(Bulto), "BultoKey"))
+                        Parents(bulto, typeof(Envio), "EnvioKey");
+                    break;
+                case PruebaBulto:
+                    foreach (var detalle in Parents(entry, typeof(DetalleIntentoBulto), "DetalleKey"))
+                        foreach (var intento in Parents(detalle, typeof(IntentoEntrega), "IntentoKey"))
+                            Parents(intento, typeof(Envio), "EnvioKey");
+                    foreach (var prueba in Parents(entry, typeof(PruebaEntrega), "PruebaKey"))
+                        foreach (var intento in Parents(prueba, typeof(IntentoEntrega), "IntentoKey"))
+                            Parents(intento, typeof(Envio), "EnvioKey");
+                    break;
                 case Rendicion:
                     Parents(entry, typeof(Ruta), "RutaKey");
                     break;

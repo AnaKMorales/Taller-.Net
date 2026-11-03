@@ -13,6 +13,7 @@ public sealed class Bulto : Entidad
   public IReadOnlyCollection<EscaneoBulto> Escaneos => _escaneos.AsReadOnly();
   public IReadOnlyCollection<Discrepancia> Discrepancias => _discrepancias.AsReadOnly();
   public string Codigo { get; private set; }
+  public EstadoBulto Estado { get; private set; } = EstadoBulto.Admitido;
   public decimal Peso { get; private set; }
   // Peso en kg y dimensiones en cm.
   public decimal Alto { get; private set; }
@@ -32,6 +33,7 @@ public sealed class Bulto : Entidad
   }
 
   internal void Vincular(Envio envio) => Envio = envio;
+  internal void ActualizarEstado(EstadoBulto estado) => Estado = estado;
   internal void Registrar(EscaneoBulto escaneo) => _escaneos.Add(escaneo);
   internal void Registrar(Discrepancia discrepancia) => _discrepancias.Add(discrepancia);
 }

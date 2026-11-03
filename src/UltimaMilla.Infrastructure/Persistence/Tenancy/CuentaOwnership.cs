@@ -17,6 +17,8 @@ internal static class CuentaOwnership
         [typeof(EventoDeEnvio)] = ["Envio", "CuentaComercialKey"],
         [typeof(MensajeOutbox)] = ["Evento", "Envio", "CuentaComercialKey"],
         [typeof(IntentoEntrega)] = ["Envio", "CuentaComercialKey"],
+        [typeof(DetalleIntentoBulto)] = ["Intento", "Envio", "CuentaComercialKey"],
+        [typeof(PruebaBulto)] = ["Detalle", "Intento", "Envio", "CuentaComercialKey"],
         [typeof(PruebaEntrega)] = ["Intento", "Envio", "CuentaComercialKey"],
         [typeof(Parada)] = ["Envio", "CuentaComercialKey"],
         [typeof(Devolucion)] = ["Envio", "CuentaComercialKey"],

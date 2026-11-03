@@ -26,6 +26,9 @@ internal sealed class ReglasOperativasConfiguration : IEntityTypeConfiguration<R
     public void Configure(EntityTypeBuilder<ReglasOperativas> b)
     {
         Mapping.Entity(b, "ReglasOperativas");
+        b.Property(x => x.PermiteEntregaParcial).HasDefaultValue(false);
+        b.Property(x => x.AccionPendientes).HasDefaultValue(AccionBultosPendientes.NuevaVisitaSinRecargo);
+        b.ToTable(t => t.HasCheckConstraint("CK_ReglasOperativas_AccionPendientes", "\"AccionPendientes\" IN (0, 1, 2)"));
         Mapping.Key(b, "Operador");
         b.HasOne(x => x.Operador).WithMany(x => x.VersionesReglas).HasForeignKey("OperadorKey");
         Mapping.Key(b, "PoliticaDevolucion");

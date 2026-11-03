@@ -1,6 +1,6 @@
 namespace UltimaMilla.Domain.Envios;
 
-public sealed class Envio : Entidad
+public sealed partial class Envio : Entidad
 {
   // Reservado para rehidratar el estado persistido sin ejecutar reglas de alta.
   private Envio()
@@ -93,6 +93,7 @@ public sealed class Envio : Entidad
     CodigoSeguimiento = Guid.NewGuid().ToString("N");
     ValidarResponsable(responsable, fechaAdmision);
 
+    Estado = EstadoConjuntoEnvio.Calcular(_bultos.Select(b => b.Estado));
     foreach (var bulto in _bultos) bulto.Vincular(this);
     destinatario.Vincular(this);
     reglas.MarcarEnUso();
@@ -158,6 +159,8 @@ public sealed class Envio : Entidad
     Guid idOperacion, GeoPunto? posicion = null)
   {
     Validacion.Enumeracion(resultado, nameof(resultado));
+    if (resultado == ResultadoIntento.Parcial)
+      throw new ArgumentException("Usa el registro por bulto para una entrega parcial.", nameof(resultado));
     if (idOperacion == Guid.Empty) throw new ArgumentException("La operacion debe tener un identificador.", nameof(idOperacion));
     ValidarResponsable(responsable, ocurridoEn);
     var anterior = _intentos.SingleOrDefault(i => i.IdOperacion == idOperacion);
@@ -198,6 +201,7 @@ public sealed class Envio : Entidad
 
     var parada = Parada;
     var intento = new IntentoEntrega(this, parada, _intentos.Count + 1, resultado, motivo, lista, idOperacion, ocurridoEn);
+    foreach (var bulto in _bultos) intento.RegistrarDetalle(bulto, resultado, motivo, lista);
     _intentos.Add(intento);
     parada.Registrar(intento);
     Aplicar(tipo, responsable, ocurridoEn, OrigenEvento.AppRepartidor, posicion, null, idOperacion);
@@ -208,7 +212,7 @@ public sealed class Envio : Entidad
   public void Reprogramar(ProgramacionEntrega nuevaProgramacion, Usuario responsable, DateTime ocurridoEn)
   {
     VerificarEvento(TipoEvento.Reintentar, responsable, ocurridoEn);
-    if (_intentos.Count == 0 || UltimoIntento!.MotivoNoEntrega?.EsReintentable != true ||
+    if (_intentos.Count == 0 || !UltimoIntento!.EsReintentable ||
         _intentos.Count >= Reglas.MaxIntentosEntrega)
       throw new InvalidOperationException("El envio no admite otro intento.");
     ValidarNuevaProgramacion(nuevaProgramacion, ocurridoEn);
@@ -225,7 +229,7 @@ public sealed class Envio : Entidad
     if (Devolucion is not null) throw new InvalidOperationException("El envio ya tiene una devolucion.");
     if (Estado == EstadoEnvio.NoEntregado)
     {
-      var noReintentable = UltimoIntento!.MotivoNoEntrega?.EsReintentable == false;
+      var noReintentable = UltimoIntento!.TieneMotivoNoReintentable;
       var agotados = _intentos.Count >= Reglas.MaxIntentosEntrega && Reglas.PoliticaDevolucion.DevolverAlAgotarIntentos;
       if (!noReintentable && !agotados) throw new InvalidOperationException("Corresponde reintentar antes de devolver.");
     }
@@ -275,7 +279,7 @@ public sealed class Envio : Entidad
   private void VerificarEvento(TipoEvento tipo, Usuario responsable, DateTime ocurridoEn)
   {
     ValidarResponsable(responsable, ocurridoEn);
-    _ = TransicionesEnvio.Resolver(Estado, tipo);
+    _ = PrepararEstados(tipo);
   }
 
   private void ValidarZonaProgramacion(ProgramacionEntrega programacion)
@@ -299,10 +303,23 @@ public sealed class Envio : Entidad
     GeoPunto? posicion = null, string? detalle = null, Guid? idOperacion = null,
     ProgramacionEntrega? programacionAnterior = null, ProgramacionEntrega? programacionNueva = null)
   {
-    var nuevo = TransicionesEnvio.Resolver(Estado, tipo);
+    var estados = PrepararEstados(tipo);
+    var nuevo = EstadoConjuntoEnvio.Calcular(estados.Select(x => x.Estado));
     var evento = new EventoDeEnvio(this, tipo, origen, Estado, nuevo, responsable, ocurridoEn, posicion, detalle, idOperacion,
       programacionAnterior, programacionNueva);
+    foreach (var cambio in estados) cambio.Bulto.ActualizarEstado(cambio.Estado);
     Estado = nuevo;
     _eventos.Add(evento);
+  }
+
+  private (Bulto Bulto, EstadoBulto Estado)[] PrepararEstados(TipoEvento tipo)
+  {
+    if (_bultos.Count == 0 || EstadoConjuntoEnvio.Calcular(_bultos.Select(b => b.Estado)) != Estado)
+      throw new InvalidOperationException("Carga todos los bultos y sus estados coherentes antes de operar sobre el envio.");
+    var esperado = TransicionesEnvio.Resolver(Estado, tipo);
+    var cambios = _bultos.Select(b => (Bulto: b, Estado: TransicionesBulto.Resolver(b.Estado, tipo))).ToArray();
+    if (EstadoConjuntoEnvio.Calcular(cambios.Select(x => x.Estado)) != esperado)
+      throw new InvalidOperationException("La transicion de los bultos no coincide con la del envio.");
+    return cambios;
   }
 }

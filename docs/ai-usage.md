@@ -258,3 +258,134 @@ La revisión automática inicialmente rechazó la ejecución con la base de desa
 conexión de control. Se inspeccionó el aislamiento de la suite y se ejecutó una alternativa
 con una base de control temporal explícita y bases temporales por prueba, eliminadas al
 terminar. La base de desarrollo no se modificó durante estas verificaciones.
+
+### 01/11/2026: seguimiento del cambio y prueba del flujo de entrega
+
+Se creó CAMBIOS-REQUERIMIENTOS.md junto al README, contrastado con el PDF del 30/10:
+alcance de tres integrantes, requisitos 31–36, responsabilidades, orden de trabajo,
+decisiones abiertas y aclaraciones de caché y banderas. Se enlazó desde README.
+
+Se agregó FlujoEntregaTests, una prueba de integración del núcleo con contextos independientes
+para recepción, asignación, carga, despacho, entrega, repetición de operación y rendición.
+Verifica persistencia, historial, evidencias, mensajes pendientes e invisibilidad para otro operador.
+No implementa pantallas, PWA, Worker ni entrega parcial. La admisión usa el escenario de Domain
+persistido; no es una prueba completa desde HTTP ni del alta automática de tarifa y fechas.
+
+Pasaron 125 pruebas sin conexión y la nueva prueba contra PostgreSQL real con base de control
+temporal y base temporal por prueba, eliminadas al finalizar. Las otras 68 integraciones se
+omitieron en la ejecución sin conexión; no se reportan como ejecutadas en esta sesión.
+El primer escenario falló al crear vehículo y asignación simultáneos por propagación de TenantId.
+Con la flota registrada previamente pasó. El caso simultáneo queda documentado como pendiente,
+sin modificar ni debilitar las validaciones de producción. No se aplicaron migraciones a desarrollo.
+
+### 01/11/2026: corrección de asignación con vehículo nuevo (letra original)
+
+El usuario autorizó corregir el fallo de persistencia dentro de su responsabilidad de núcleo/datos.
+Dos regresiones reprodujeron el error de propagación de Envio.TenantId, con guardado síncrono
+y asíncrono. AppDbContext ahora estampa el operador capturado al empezar a seguir entidades
+Added con TenantId vacío, antes de que la detección de relaciones propague sus claves compuestas.
+No sobrescribe tenants explícitos ni filas leídas/adjuntadas como existentes. Se mantienen los
+guards de guardado, filtros, claves compuestas y validaciones de cuenta y concurrencia.
+
+Se corrigió también una expectativa del escenario de prueba: ya existía un vehículo en los datos
+iniciales y debían comprobarse ambos IDs, no una única fila. No cambió el modelo de tablas.
+No se modificaron Web, PWA, Worker, contratos de entrega parcial ni migraciones.
+La explicación técnica se agregó a multitenancy.md; el seguimiento del PDF nuevo remite allí
+para distinguir esta corrección de los requisitos 31–36. Compilación Release sin advertencias.
+
+Verificación final: pasaron las 196 pruebas en una ejecución de la solución, incluidas las
+71 integraciones contra PostgreSQL real (sin omisiones). La base de control y las bases
+temporales por prueba se eliminaron al terminar. Incluye ambas regresiones nuevas y las
+protecciones existentes frente a referencias cruzadas, propietarios falsificados, escrituras
+de otra cuenta, concurrencia y outbox. No se modificó la base de desarrollo.
+
+### 01/11/2026: configuración versionada de entrega parcial (requisito nuevo 33)
+
+Se implementó una etapa acotada del nuevo documento dentro de núcleo/datos:
+ReglasOperativas agrega permiso de entrega parcial y AccionBultosPendientes, con
+las tres alternativas de la consigna. Los argumentos opcionales false/0 conservan
+las llamadas existentes y Domain rechaza acciones desconocidas antes de registrar la versión.
+DatosReglasDto y el backend de configuración reciben y devuelven los campos; no se
+implementaron formularios, PWA ni Worker. La acción puede quedar preconfigurada aunque
+el permiso esté desactivado. No se definió un importe ni una fórmula de recargo.
+
+Se generó 20261101185636_ReglasEntregaParcial con dos columnas, defaults para datos previos
+y CHECK de valores válidos. Se actualizó el SQL de instalación y se comprobó que no quedan
+cambios del modelo sin migración. No se aplicó la migración a la base de desarrollo.
+Cinco casos de Domain y tres integraciones cubren defaults, políticas, históricos, migración,
+aislamiento, inmutabilidad y acciones inválidas incluso mediante SQL directo.
+Se documentó en CAMBIOS-REQUERIMIENTOS.md como avance parcial, con campos y valores para
+integración del equipo y la necesidad de reenviarlos al crear versiones sucesivas.
+Quedan pendientes los estados y resultados por bulto y ejecutar la política en el flujo real.
+
+Verificación final: las 204 pruebas pasaron en la ejecución completa, incluidas 74 integraciones
+contra PostgreSQL real sin omisiones. Se eliminaron las bases temporales al finalizar.
+Compilación Release con advertencias como errores: cero errores y advertencias.
+
+### 01/11/2026: estados de bultos y derivación del envío (base del requisito 31)
+
+El usuario autorizó avanzar solo con núcleo/datos. Se agregó EstadoBulto y una tabla pura
+de transiciones declarativas; Bulto conserva setter privado y solo Envio modifica su estado.
+Recepción, asignación, rechazo, aplazamiento, despacho, intento completo, reintento,
+devolución y extravío validan primero todas las transiciones. El resumen persistido de Envio
+se calcula desde los resultados de sus bultos y se contrasta con su transición declarativa.
+
+EstadoConjuntoEnvio define conjuntos homogéneos y mixtos, y se agregó EntregadoParcialmente
+al final del enum sin renumerar valores previos. Las prioridades de casos mixtos son una
+decisión de diseño documentada en el seguimiento y ADR-007 en curso. No se implementó un
+método que registre resultados distintos por bulto: la entrega mixta operativa, evidencias,
+asignación de pendientes y eventos nuevos quedan para las siguientes etapas. No se presenta
+el requisito 31 como completamente terminado. No se modificaron Web, PWA ni Worker.
+
+La migración EstadosPorBulto agrega Estado, infiere cada valor anterior desde Envio uniendo
+también TenantId y agrega CHECK de valores 0–9. No crea eventos ni evidencias anteriores.
+Se actualizó el SQL de instalación y el modelo coincide con las migraciones; no se aplicaron
+a desarrollo. Se ampliaron las comprobaciones del flujo persistido y se agregaron doce
+casos de Domain y tres integraciones (backfill por operador, concurrencia y CHECK).
+
+La primera ejecución detectó un fallo de arquitectura por un tipo auxiliar generado por
+el compilador para el array constante de prioridades. Se cambió a una lista de solo lectura,
+sin alterar las reglas de arquitectura, y las once pruebas volvieron a pasar.
+
+La ejecución final completa pasó las 219 pruebas (89 Domain, 5 Application, 37 Infrastructure,
+11 arquitectura y 77 PostgreSQL), sin omisiones. Release compiló sin errores ni advertencias.
+La migración se verificó en bases temporales eliminadas al finalizar; desarrollo no se modificó.
+
+### 01/11/2026: resultados y evidencias por bulto (requisito nuevo 32)
+
+Se implementó RegistrarIntentoPorBulto en Domain, sin Web/PWA/Worker. El resultado por bulto
+incluye motivo activo de la versión del envío para cada fallo y las evidencias exigidas.
+Una prueba puede acreditar varios entregados mediante PruebaBulto, pero no se comparte entre
+entregados y fallidos. DetalleIntentoBulto conserva resultado y motivo; IntentoEntrega conserva
+su resumen. Las validaciones preceden toda mutación; al confirmar se actualizan los bultos,
+el resumen del envío, el historial y se libera la parada. La firma previa sigue disponible y
+genera detalles para intentos nuevos, sin alterar el formato V1 ni reconstruir historial previo.
+
+La operación nueva exige la parada de origen para rechazar trabajo de otra visita, UTC e
+IdOperacion estable. Una huella SHA-256 compara contenido y asociaciones sin depender del
+orden ni de nuevos Id de evidencia al reconstruir el reenvío. Igual contenido devuelve el
+intento existente; otro contenido se rechaza. El llamador debe resolver identidad/catálogo
+y cargar el agregado con seguimiento. Orquestación de Application y endpoint aún pendientes.
+
+Se generó ResultadosEntregaPorBulto: dos tablas, huella nullable, FK de envío/intento/tenant,
+índices y CHECK. TenantModel conserva los componentes adicionales de las FK; sus guards leen
+la posición del Id principal en claves de más de dos columnas. Se agregaron caminos de cuenta,
+concurrencia por padres e inmutabilidad de intentos/evidencias en SaveChanges. El outbox nuevo
+usa EventoEnvioV2 para el método por bulto; el transporte permanece abstracto y Worker debe
+integrar las versiones y la compatibilidad de receptores. No se aplicaron migraciones a desarrollo.
+
+Las primeras integraciones detectaron supuestos de fixture de un solo bulto y una navegación
+sin cargar en una comprobación de cuenta; se corrigieron los escenarios. También se detectó
+una carrera real en la que PostgreSQL rechaza el número de intento antes de actualizar RowVersion:
+se tradujeron los índices de número/IdOperacion de intento y de IdOperacion de evento a conflicto
+de concurrencia, conservando el rollback y sin presentar una colisión como éxito idempotente.
+
+Se agregaron 18 casos de Domain y seis integraciones de persistencia, repetición, outbox V2,
+concurrencia, rollback, FK incluso dentro de un operador, cuenta, historial y migración.
+El detalle de integración quedó en intentos-por-bulto.md y el seguimiento compartido y ADR-007.
+Las nuevas visitas, devolución de pendientes y recargos siguen pendientes de los requisitos 33/34.
+
+La ejecución final completa pasó 243 pruebas: 107 de Domain, 5 de Application, 37 de
+Infrastructure, 11 de arquitectura y 83 de PostgreSQL real, sin omisiones. Release compiló
+con advertencias como errores sin errores ni advertencias, y EF confirmó que no hay cambios
+de modelo pendientes de migración. Se eliminaron las bases temporales; desarrollo no se modificó.

@@ -11,7 +11,7 @@ internal sealed class EscenarioPersistencia
     internal Vehiculo Vehiculo { get; }
     internal Envio Envio { get; }
 
-    internal EscenarioPersistencia(bool reintentable = false, Comercio? comercio = null)
+    internal EscenarioPersistencia(bool reintentable = false, Comercio? comercio = null, bool parcial = false)
     {
         Admin = new Usuario(Operador, "admin@example.com", RolUsuario.Administrador);
         Repartidor = new Repartidor(Operador, "repartidor@example.com");
@@ -20,7 +20,7 @@ internal sealed class EscenarioPersistencia
         usuarioComercio.AsignarCuentaComercial(cuenta);
         Zona = new ZonaCobertura(Operador, "Centro", "11000", [new FranjaHoraria("Día", new(8, 0), new(18, 0))]);
         Reglas = new ReglasOperativas(Operador, 1, Fecha.AddDays(-1), 2, 0,
-            [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true));
+            [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, true), parcial);
         _ = new PlazoServicio(Reglas, ModalidadServicio.Estandar, 24, new(16, 0));
         _ = new MotivoNoEntrega(Reglas, "Ausente o rechazo", "Motivo de prueba", Responsable.Destinatario, true, reintentable);
         var cuadro = new CuadroTarifario(Operador, 1, Fecha.AddDays(-1));
@@ -29,6 +29,7 @@ internal sealed class EscenarioPersistencia
         Vehiculo = new Vehiculo(Operador, "ABC123", 100, 10);
         Envio = new Envio(cuenta, new Destinatario("Persona", "099000002", "persona@example.com",
                 new Direccion("Calle", "0010 bis", "Montevideo", "01100")),
+            parcial ? [new Bulto("B001", 2.1234567m, 10, 20, 30), new Bulto("B002", 1, 10, 10, 10), new Bulto("B003", 1, 10, 10, 10)] :
             [new Bulto("B001", 2.1234567m, 10, 20, 30)], ModalidadServicio.Estandar, Zona, Reglas, cuadro,
             150.25m, Fecha, Fecha.AddHours(1),
             ProgramacionEntrega.Crear(Zona.Franjas.Single(), new(2026, 10, 14), TimeSpan.FromHours(-3)), Admin);
@@ -36,7 +37,7 @@ internal sealed class EscenarioPersistencia
 
     internal void Recibir()
     {
-        EscaneoBulto.RegistrarRecepcion(Envio.Bultos.Single(), Admin, Fecha);
+        foreach (var bulto in Envio.Bultos) EscaneoBulto.RegistrarRecepcion(bulto, Admin, Fecha);
         Envio.RecibirEnDeposito(Admin, Fecha);
     }
 
@@ -68,6 +69,9 @@ internal sealed class EscenarioPersistencia
         .Include(e => e.Eventos).ThenInclude(v => v.ProgramacionAnterior).ThenInclude(p => p!.Franja)
         .Include(e => e.Eventos).ThenInclude(v => v.ProgramacionNueva).ThenInclude(p => p!.Franja)
         .Include(e => e.Intentos).ThenInclude(i => i.Pruebas)
+        .Include(e => e.Intentos).ThenInclude(i => i.Detalles).ThenInclude(d => d.Bulto)
+        .Include(e => e.Intentos).ThenInclude(i => i.Detalles).ThenInclude(d => d.Motivo)
+        .Include(e => e.Intentos).ThenInclude(i => i.Detalles).ThenInclude(d => d.Evidencias).ThenInclude(p => p.Prueba)
         .Include(e => e.Intentos).ThenInclude(i => i.MotivoNoEntrega)
         .Include(e => e.Intentos).ThenInclude(i => i.Parada).ThenInclude(p => p.Ruta).ThenInclude(r => r.Vehiculo)
         .Include(e => e.Parada).ThenInclude(p => p!.Ruta)

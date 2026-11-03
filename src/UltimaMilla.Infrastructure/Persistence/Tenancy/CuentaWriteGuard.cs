@@ -48,7 +48,7 @@ internal static class CuentaWriteGuard
                 var principal = fk.PrincipalEntityType;
                 var isAccountData = CuentaOwnership.Paths.ContainsKey(principal.ClrType);
                 if (!isAccountData && principal.ClrType != typeof(ProgramacionEntrega) && principal.ClrType != typeof(Usuario)) continue;
-                var idProperty = fk.Properties.Single(p => p.Name != TenantModel.TenantId);
+                var idProperty = TenantModel.ReferenceId(fk);
                 if (entry.Property(idProperty.Name).CurrentValue is not Guid id) continue;
                 if (principal.ClrType == typeof(Usuario))
                 {
@@ -75,7 +75,7 @@ internal static class CuentaWriteGuard
             if (path.Length == 1) return (Guid?)entry.Property(path[0]).CurrentValue;
             var navigation = entry.Metadata.FindNavigation(path[0])!;
             var fk = navigation.ForeignKey;
-            var idProperty = fk.Properties.Single(p => p.Name != TenantModel.TenantId);
+            var idProperty = TenantModel.ReferenceId(fk);
             if (navigation.IsOnDependent)
             {
                 if (entry.Property(idProperty.Name).CurrentValue is not Guid id) return null;
@@ -104,7 +104,7 @@ internal static class CuentaWriteGuard
             foreach (var parent in entries.Where(e => e.Entity is Envio or EventoDeEnvio))
             foreach (var fk in parent.Metadata.GetForeignKeys().Where(f => f.PrincipalEntityType.ClrType == typeof(ProgramacionEntrega)))
             {
-                var property = fk.Properties.Single(p => p.Name != TenantModel.TenantId);
+                var property = TenantModel.ReferenceId(fk);
                 if (!Equals(parent.Property(property.Name).CurrentValue, snapshotId)) continue;
                 found = true;
                 if (await ProposedOwner(parent) != scope) return false;

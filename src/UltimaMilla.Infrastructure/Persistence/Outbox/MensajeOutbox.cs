@@ -7,11 +7,11 @@ public sealed class MensajeOutbox
 {
     private MensajeOutbox() { Evento = null!; Tipo = null!; Contenido = null!; }
 
-    internal MensajeOutbox(EventoDeEnvio evento, string contenido)
+    internal MensajeOutbox(EventoDeEnvio evento, string contenido, string tipo = "envio.evento.v1")
     {
         Id = evento.Id; // Estable también si se vuelve a intentar el mismo guardado.
         Evento = evento;
-        Tipo = "envio.evento.v1";
+        Tipo = tipo;
         Contenido = contenido;
         CreadoEn = DateTime.UtcNow;
     }

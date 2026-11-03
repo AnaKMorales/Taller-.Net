@@ -11,5 +11,6 @@ public enum EstadoEnvio
   Reprogramado,
   EnDevolucion,
   Devuelto,
-  Extraviado
+  Extraviado,
+  EntregadoParcialmente
 }

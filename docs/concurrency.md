@@ -40,8 +40,10 @@ renueva versiones y los envíos independientes no comparten un contador global.
 
 El índice único filtrado `IX_Paradas_EnvioId` sigue impidiendo dos paradas activas para un
 envío. Si una carrera alcanza ese índice antes de comprobar la versión, su violación también
-se traduce a `ConflictoConcurrenciaException`. Los demás errores de unicidad conservan su
-tratamiento original: no se confunden con este conflicto ni con una respuesta idempotente.
+se traduce a `ConflictoConcurrenciaException`. También se traducen los índices de número
+e IdOperacion por envío de IntentosEntrega y de IdOperacion de EventosDeEnvio: dos decisiones
+pueden colisionar allí antes del UPDATE de la raíz. No es una respuesta idempotente automática;
+hay que releer. Los demás errores de unicidad conservan su tratamiento original.
 
 ## Cómo deben usarlo los casos de uso
 

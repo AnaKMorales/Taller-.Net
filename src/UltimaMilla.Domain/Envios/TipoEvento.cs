@@ -15,5 +15,6 @@ public enum TipoEvento
   Devolver,
   Cancelar,
   DevolucionExitosa,
-  EventoAnomalo
+  EventoAnomalo,
+  EntregaParcial
 }

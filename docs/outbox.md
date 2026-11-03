@@ -19,7 +19,8 @@ para que persistan los cambios. No desactivar las transacciones automáticas de 
   versión del contrato, tipo/origen, estados, fecha del evento e IdOperacion opcional.
 - `Infrastructure/Persistence/Outbox/MensajeOutbox.cs`: registro técnico persistente.
   `Id` coincide con el identificador del evento y es estable; `Tipo` vale
-  `envio.evento.v1`; `Contenido` es una instantánea JSON; `CreadoEn` es la hora UTC del
+  `envio.evento.v1` para la firma tradicional y `envio.evento.v2` para el registro por bulto;
+  `Contenido` es una instantánea JSON; `CreadoEn` es la hora UTC del
   registro y `PublicadoEn` queda nulo mientras está pendiente.
 - `OutboxPreparation`: detecta eventos Added y prepara una sola fila por evento. La
   cuenta se obtiene de la FK del envío, sin exigir cargar esa navegación.
@@ -32,7 +33,11 @@ para que persistan los cambios. No desactivar las transacciones automáticas de 
 El JSON usa nombres camelCase y nombres de enumeraciones como texto. No incluye el
 grafo de entidades, destinatario, dirección, evidencia ni token público. Es un aviso de
 la transición, no una copia completa del envío. El consumidor debe interpretar la versión
-1; agregar o cambiar la semántica del contrato exige coordinar su versionado.
+1 para el formato tradicional. El método RegistrarIntentoPorBulto genera EventoEnvioV2
+con versión 2 y resultados/motivos/Id de pruebas por bulto; no agrega contenido de archivos
+ni datos personales. La firma anterior conserva V1. El Worker deberá enrutar/interpretar
+las versiones y acordar el formato de los receptores; esto no implementa envío de webhooks.
+Ver [contrato, repetición y límites](intentos-por-bulto.md).
 
 ## Aislamiento e integración
 

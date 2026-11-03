@@ -1143,3 +1143,108 @@ VALUES ('20261027220546_TransactionalOutbox', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "Usuarios" ADD "ContrasenaHash" character varying(256);
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261030191957_CredencialesLogin', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "ReglasOperativas" ADD "AccionPendientes" integer NOT NULL DEFAULT 0;
+
+ALTER TABLE "ReglasOperativas" ADD "PermiteEntregaParcial" boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE "ReglasOperativas" ADD CONSTRAINT "CK_ReglasOperativas_AccionPendientes" CHECK ("AccionPendientes" IN (0, 1, 2));
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261101185636_ReglasEntregaParcial', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "Bultos" ADD "Estado" integer NOT NULL DEFAULT 0;
+
+UPDATE "Bultos" AS b
+SET "Estado" = e."Estado"
+FROM "Envios" AS e
+WHERE b."EnvioId" = e."Id" AND b."TenantId" = e."TenantId";
+
+ALTER TABLE "Bultos" ADD CONSTRAINT "CK_Bultos_Estado" CHECK ("Estado" BETWEEN 0 AND 9);
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261101195520_EstadosPorBulto', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "IntentosEntrega" ADD "HuellaSolicitud" character varying(64);
+
+ALTER TABLE "PruebasEntrega" ADD CONSTRAINT "AK_PruebasEntrega_Id_IntentoId" UNIQUE ("Id", "IntentoId");
+
+ALTER TABLE "PruebasEntrega" ADD CONSTRAINT "AK_PruebasEntrega_Id_IntentoId_TenantId" UNIQUE ("Id", "IntentoId", "TenantId");
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "AK_IntentosEntrega_Id_EnvioId" UNIQUE ("Id", "EnvioId");
+
+ALTER TABLE "IntentosEntrega" ADD CONSTRAINT "AK_IntentosEntrega_Id_EnvioId_TenantId" UNIQUE ("Id", "EnvioId", "TenantId");
+
+ALTER TABLE "Bultos" ADD CONSTRAINT "AK_Bultos_Id_EnvioId" UNIQUE ("Id", "EnvioId");
+
+ALTER TABLE "Bultos" ADD CONSTRAINT "AK_Bultos_Id_EnvioId_TenantId" UNIQUE ("Id", "EnvioId", "TenantId");
+
+CREATE TABLE "DetallesIntentoBulto" (
+    "Id" uuid NOT NULL,
+    "IntentoId" uuid NOT NULL,
+    "BultoId" uuid NOT NULL,
+    "EnvioId" uuid NOT NULL,
+    "Resultado" integer NOT NULL,
+    "MotivoId" uuid,
+    "TenantId" uuid NOT NULL,
+    CONSTRAINT "PK_DetallesIntentoBulto" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_DetallesIntentoBulto_Id_IntentoId" UNIQUE ("Id", "IntentoId"),
+    CONSTRAINT "AK_DetallesIntentoBulto_Id_IntentoId_TenantId" UNIQUE ("Id", "IntentoId", "TenantId"),
+    CONSTRAINT "AK_DetallesIntentoBulto_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "CK_DetalleIntento_ResultadoMotivo" CHECK (("Resultado" = 0 AND "MotivoId" IS NULL) OR ("Resultado" = 1 AND "MotivoId" IS NOT NULL)),
+    CONSTRAINT "FK_DetallesIntentoBulto_Bultos_BultoId_EnvioId_TenantId" FOREIGN KEY ("BultoId", "EnvioId", "TenantId") REFERENCES "Bultos" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_DetallesIntentoBulto_IntentosEntrega_IntentoId_EnvioId_Tena~" FOREIGN KEY ("IntentoId", "EnvioId", "TenantId") REFERENCES "IntentosEntrega" ("Id", "EnvioId", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_DetallesIntentoBulto_MotivosNoEntrega_MotivoId_TenantId" FOREIGN KEY ("MotivoId", "TenantId") REFERENCES "MotivosNoEntrega" ("Id", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_DetallesIntentoBulto_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT
+);
+
+CREATE TABLE "PruebasBulto" (
+    "Id" uuid NOT NULL,
+    "DetalleId" uuid NOT NULL,
+    "IntentoId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "PruebaId" uuid NOT NULL,
+    CONSTRAINT "PK_PruebasBulto" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_PruebasBulto_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "FK_PruebasBulto_DetallesIntentoBulto_DetalleId_IntentoId_Tenan~" FOREIGN KEY ("DetalleId", "IntentoId", "TenantId") REFERENCES "DetallesIntentoBulto" ("Id", "IntentoId", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_PruebasBulto_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_PruebasBulto_PruebasEntrega_PruebaId_IntentoId_TenantId" FOREIGN KEY ("PruebaId", "IntentoId", "TenantId") REFERENCES "PruebasEntrega" ("Id", "IntentoId", "TenantId") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_DetallesIntentoBulto_BultoId_EnvioId_TenantId" ON "DetallesIntentoBulto" ("BultoId", "EnvioId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_DetallesIntentoBulto_IntentoId_BultoId" ON "DetallesIntentoBulto" ("IntentoId", "BultoId");
+
+CREATE INDEX "IX_DetallesIntentoBulto_IntentoId_EnvioId_TenantId" ON "DetallesIntentoBulto" ("IntentoId", "EnvioId", "TenantId");
+
+CREATE INDEX "IX_DetallesIntentoBulto_MotivoId_TenantId" ON "DetallesIntentoBulto" ("MotivoId", "TenantId");
+
+CREATE INDEX "IX_DetallesIntentoBulto_TenantId" ON "DetallesIntentoBulto" ("TenantId");
+
+CREATE INDEX "IX_PruebasBulto_DetalleId_IntentoId_TenantId" ON "PruebasBulto" ("DetalleId", "IntentoId", "TenantId");
+
+CREATE UNIQUE INDEX "IX_PruebasBulto_DetalleId_PruebaId" ON "PruebasBulto" ("DetalleId", "PruebaId");
+
+CREATE INDEX "IX_PruebasBulto_PruebaId_IntentoId_TenantId" ON "PruebasBulto" ("PruebaId", "IntentoId", "TenantId");
+
+CREATE INDEX "IX_PruebasBulto_TenantId" ON "PruebasBulto" ("TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261101201848_ResultadosEntregaPorBulto', '10.0.12');
+
+COMMIT;
+

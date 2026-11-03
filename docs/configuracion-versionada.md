@@ -101,3 +101,35 @@ Backoffice compartida con despachadores y depósito. La verificación del backen
 Los casos de uso de alta aún deben seleccionar sus versiones vigentes y calcular sus fechas
 y tarifa en el servidor: no se modificó CrearEnvioHandler ni la programación de entrega.
 El circuito Blazor y sus formularios siguen requiriendo integración del equipo.
+
+## Entrega parcial: configuración preparada (requisito 33)
+
+DatosReglasDto y ReglasOperativas incorporan PermiteEntregaParcial y AccionPendientes.
+La acción admite NuevaVisitaSinRecargo (0), NuevaVisitaConRecargo (1) y DevolverAlComercio (2).
+Los nuevos argumentos son opcionales y sus valores predeterminados son false y 0.
+Una acción puede quedar preconfigurada aunque el permiso esté desactivado; solo se aplicará
+cuando el futuro flujo por bulto permita una entrega parcial. No es una bandera de funcionalidad.
+
+Por ejemplo, partiendo del detalle devuelto por ObtenerReglasAsync:
+
+```csharp
+var datos = detalle.Datos with
+{
+    PermiteEntregaParcial = true,
+    AccionPendientes = AccionBultosPendientes.DevolverAlComercio
+};
+await gestion.CrearReglasAsync(new(ultimaVersionCreada, null, datos));
+```
+
+La versión esperada sigue siendo la última creada, incluyendo futuras, no necesariamente
+la del detalle consultado. La creación exige administrador activo del operador.
+Los formularios deben conservar ambos campos al crear versiones sucesivas: omitirlos
+produce false/0, no hereda la configuración de otra versión. No se agregó un formulario.
+
+La migración 20261101185636_ReglasEntregaParcial completa las filas existentes con false/0
+y una restricción CHECK rechaza acciones fuera de 0, 1 y 2. No agrega tablas ni cambia
+referencias históricas. La inmutabilidad de versiones ya persistidas cubre estos campos.
+
+Esta etapa solo prepara configuración persistida y versionada. RegistrarIntento aún trabaja
+con el envío completo: no ejecuta la política por bulto ni calcula/cobra recargos de nueva visita.
+El requisito 33 no se considera terminado hasta integrar ese comportamiento.

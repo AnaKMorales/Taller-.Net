@@ -23,7 +23,19 @@ public sealed class AppDbContext : DbContext
     internal Guid? EnvioPublicoId => _tenant?.EnvioPublicoId;
 
     public AppDbContext(DbContextOptions<AppDbContext> options, ITenantActual? tenantActual = null) : base(options)
-        => _tenant = tenantActual?.Contexto;
+    {
+        _tenant = tenantActual?.Contexto;
+        ChangeTracker.Tracked += (_, args) =>
+        {
+            // Las FK compuestas se propagan antes de SaveChanges. Las altas necesitan
+            // el operador al entrar al tracker para no propagar Guid.Empty a filas existentes.
+            // No se reescriben valores explícitos ni entidades leídas o adjuntadas.
+            if (args.FromQuery || args.Entry.State != EntityState.Added || OperadorIdActual == Guid.Empty ||
+                args.Entry.Metadata.FindProperty(TenantModel.TenantId) is null) return;
+            var tenant = args.Entry.Property(TenantModel.TenantId);
+            if (Equals(tenant.CurrentValue, Guid.Empty)) tenant.CurrentValue = OperadorIdActual;
+        };
+    }
 
     public DbSet<Envio> Envios => Set<Envio>();
 
@@ -41,9 +53,12 @@ public sealed class AppDbContext : DbContext
         { throw new ConflictoConcurrenciaException(error); }
     }
 
+    // Un intento concurrente puede chocar con su índice único antes del UPDATE de la raíz.
     private static bool IsConcurrencyConflict(DbUpdateException error) =>
         error is DbUpdateConcurrencyException || error.InnerException is PostgresException
-        { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: ConcurrencyModel.ActiveAssignmentIndex };
+        { SqlState: PostgresErrorCodes.UniqueViolation } postgres && postgres.ConstraintName is
+            ConcurrencyModel.ActiveAssignmentIndex or "IX_IntentosEntrega_EnvioId_Numero" or
+            "IX_IntentosEntrega_EnvioId_IdOperacion" or "IX_EventosDeEnvio_EnvioId_IdOperacion";
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.AddInterceptors(TenantSaveChangesInterceptor.Instance);
@@ -65,6 +80,11 @@ public sealed class AppDbContext : DbContext
                 entity.Ignore(property.Name);
         }
 
+        // Las claves compuestas se referencian desde configuraciones de otros tipos;
+        // declarar sus tipos evita depender del orden de aplicación de los mapeos.
+        modelBuilder.Entity<IntentoEntrega>().Property<Guid>("EnvioKey");
+        modelBuilder.Entity<PruebaEntrega>().Property<Guid>("IntentoKey");
+        modelBuilder.Entity<DetalleIntentoBulto>().Property<Guid>("IntentoKey");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         TenantModel.Configure(modelBuilder, this);
         CuentaModel.Configure(modelBuilder, this);

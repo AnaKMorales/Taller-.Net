@@ -324,6 +324,11 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AccionPendientes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("EnUso")
                         .HasColumnType("boolean");
 
@@ -333,6 +338,11 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("OperadorKey")
                         .HasColumnType("uuid")
                         .HasColumnName("OperadorId");
+
+                    b.Property<bool>("PermiteEntregaParcial")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("PlazoEntreIntentosHoras")
                         .HasColumnType("integer");
@@ -367,6 +377,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
 
                     b.ToTable("ReglasOperativas", null, t =>
                         {
+                            t.HasCheckConstraint("CK_ReglasOperativas_AccionPendientes", "\"AccionPendientes\" IN (0, 1, 2)");
+
                             t.HasCheckConstraint("CK_ReglasOperativas_OperadorTenant", "\"OperadorId\" = \"TenantId\"");
                         });
                 });
@@ -711,6 +723,11 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("EnvioId");
 
+                    b.Property<int>("Estado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<decimal>("Largo")
                         .HasColumnType("numeric");
 
@@ -723,6 +740,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("Id", "EnvioKey");
+
                     b.HasIndex("TenantId");
 
                     b.HasIndex("EnvioKey", "CodigoNormalizado")
@@ -730,7 +749,10 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EnvioKey", "TenantId");
 
-                    b.ToTable("Bultos", (string)null);
+                    b.ToTable("Bultos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Bultos_Estado", "\"Estado\" BETWEEN 0 AND 9");
+                        });
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Envios.Destinatario", b =>
@@ -766,6 +788,57 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Destinatarios", (string)null);
+                });
+
+            modelBuilder.Entity("UltimaMilla.Domain.Envios.DetalleIntentoBulto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BultoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("BultoId");
+
+                    b.Property<Guid>("EnvioKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("EnvioId");
+
+                    b.Property<Guid>("IntentoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("IntentoId");
+
+                    b.Property<Guid?>("MotivoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MotivoId");
+
+                    b.Property<int>("Resultado")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "IntentoKey");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("IntentoKey", "BultoKey")
+                        .IsUnique();
+
+                    b.HasIndex("MotivoKey", "TenantId");
+
+                    b.HasIndex("BultoKey", "EnvioKey", "TenantId");
+
+                    b.HasIndex("IntentoKey", "EnvioKey", "TenantId");
+
+                    b.ToTable("DetallesIntentoBulto", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DetalleIntento_ResultadoMotivo", "(\"Resultado\" = 0 AND \"MotivoId\" IS NULL) OR (\"Resultado\" = 1 AND \"MotivoId\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Envios.Direccion", b =>
@@ -966,6 +1039,10 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("EnvioId");
 
+                    b.Property<string>("HuellaSolicitud")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<Guid>("IdOperacion")
                         .HasColumnType("uuid");
 
@@ -991,6 +1068,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "EnvioKey");
 
                     b.HasIndex("TenantId");
 
@@ -1045,6 +1124,43 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.ToTable("ProgramacionesEntrega", (string)null);
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Envios.PruebaBulto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DetalleKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("DetalleId");
+
+                    b.Property<Guid>("IntentoKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("IntentoId");
+
+                    b.Property<Guid>("PruebaKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("PruebaId");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("DetalleKey", "PruebaKey")
+                        .IsUnique();
+
+                    b.HasIndex("DetalleKey", "IntentoKey", "TenantId");
+
+                    b.HasIndex("PruebaKey", "IntentoKey", "TenantId");
+
+                    b.ToTable("PruebasBulto", (string)null);
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Envios.PruebaEntrega", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1074,6 +1190,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "IntentoKey");
 
                     b.HasAlternateKey("Id", "TenantId");
 
@@ -1750,6 +1868,41 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Direccion");
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Envios.DetalleIntentoBulto", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Configuracion.MotivoNoEntrega", "Motivo")
+                        .WithMany()
+                        .HasForeignKey("MotivoKey", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("UltimaMilla.Domain.Envios.Bulto", "Bulto")
+                        .WithMany()
+                        .HasForeignKey("BultoKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.IntentoEntrega", "Intento")
+                        .WithMany("Detalles")
+                        .HasForeignKey("IntentoKey", "EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "EnvioKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bulto");
+
+                    b.Navigation("Intento");
+
+                    b.Navigation("Motivo");
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Envios.Direccion", b =>
                 {
                     b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
@@ -1924,6 +2077,33 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Franja");
+                });
+
+            modelBuilder.Entity("UltimaMilla.Domain.Envios.PruebaBulto", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.DetalleIntentoBulto", "Detalle")
+                        .WithMany("Evidencias")
+                        .HasForeignKey("DetalleKey", "IntentoKey", "TenantId")
+                        .HasPrincipalKey("Id", "IntentoKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.PruebaEntrega", "Prueba")
+                        .WithMany()
+                        .HasForeignKey("PruebaKey", "IntentoKey", "TenantId")
+                        .HasPrincipalKey("Id", "IntentoKey", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Detalle");
+
+                    b.Navigation("Prueba");
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Envios.PruebaEntrega", b =>
@@ -2137,6 +2317,11 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Navigation("Notificaciones");
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Envios.DetalleIntentoBulto", b =>
+                {
+                    b.Navigation("Evidencias");
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Envios.Direccion", b =>
                 {
                     b.Navigation("Destinatario");
@@ -2157,6 +2342,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("UltimaMilla.Domain.Envios.IntentoEntrega", b =>
                 {
+                    b.Navigation("Detalles");
+
                     b.Navigation("Pruebas");
                 });
 

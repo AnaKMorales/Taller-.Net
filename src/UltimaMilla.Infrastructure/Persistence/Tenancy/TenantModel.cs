@@ -33,7 +33,11 @@ internal static class TenantModel
             var principal = fk.PrincipalEntityType.GetRootType();
             if (principal.FindProperty(TenantId) is not { } principalTenant) continue;
             var dependentTenant = fk.DeclaringEntityType.FindProperty(TenantId)!;
-            var key = principal.FindKey([principal.FindProperty("Id")!, principalTenant])!;
+            // Conserva componentes adicionales (envío/intento) que impiden referencias
+            // cruzadas dentro del mismo operador, además de agregar el tenant.
+            var keyProperties = fk.PrincipalKey.Properties.Append(principalTenant).ToArray();
+            var key = principal.FindKey(keyProperties) ?? builder.Entity(principal.Name)
+                .HasAlternateKey(keyProperties.Select(p => p.Name).ToArray()).Metadata;
             fk.SetProperties([.. fk.Properties, dependentTenant], key);
         }
 
@@ -51,5 +55,12 @@ internal static class TenantModel
         builder.Entity<Comercio>().HasQueryFilter(FilterName,
             row => context.OperadorIdActual != Guid.Empty && row.CuentasComerciales.Any(
                 account => EF.Property<Guid>(account, TenantId) == context.OperadorIdActual));
+    }
+
+    internal static IProperty ReferenceId(IReadOnlyForeignKey fk)
+    {
+        var index = fk.PrincipalKey.Properties.ToList().FindIndex(p => p.Name == "Id");
+        if (index < 0) throw new InvalidOperationException("La referencia no identifica a su principal.");
+        return (IProperty)fk.Properties[index];
     }
 }

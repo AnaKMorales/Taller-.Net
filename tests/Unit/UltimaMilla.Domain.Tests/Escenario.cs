@@ -14,7 +14,8 @@ internal sealed class Escenario
   public MotivoNoEntrega Reintentable { get; }
   public MotivoNoEntrega NoReintentable { get; }
 
-  public Escenario(int maxIntentos = 2, bool devolverAlAgotarIntentos = true, int plazoEntreIntentosHoras = 0)
+  public Escenario(int maxIntentos = 2, bool devolverAlAgotarIntentos = true, int plazoEntreIntentosHoras = 0,
+    bool permiteEntregaParcial = false)
   {
     Cuenta = new CuentaComercial(Operador, Comercio);
     Administrador = new Usuario(Operador, "admin@example.com", RolUsuario.Administrador);
@@ -22,7 +23,7 @@ internal sealed class Escenario
     Zona = new ZonaCobertura(Operador, "Centro", "11000",
       [new FranjaHoraria("Dia", new TimeOnly(8, 0), new TimeOnly(18, 0))]);
     Reglas = new ReglasOperativas(Operador, 1, Fecha.AddDays(-1), maxIntentos, plazoEntreIntentosHoras,
-      [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, devolverAlAgotarIntentos));
+      [TipoPrueba.Foto], new PoliticaDevolucion(1, 5, devolverAlAgotarIntentos), permiteEntregaParcial);
     _ = new PlazoServicio(Reglas, ModalidadServicio.Estandar, 24, new TimeOnly(16, 0));
     Reintentable = new MotivoNoEntrega(Reglas, "Ausente", "No habia nadie",
       Responsable.Destinatario, false, true);

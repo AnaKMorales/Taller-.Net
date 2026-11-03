@@ -32,6 +32,8 @@ internal sealed class BultoConfiguration : IEntityTypeConfiguration<Bulto>
     public void Configure(EntityTypeBuilder<Bulto> b)
     {
         Mapping.Entity(b, "Bultos");
+        b.Property(x => x.Estado).HasDefaultValue(EstadoBulto.Admitido);
+        b.ToTable(t => t.HasCheckConstraint("CK_Bultos_Estado", "\"Estado\" BETWEEN 0 AND 9"));
         Mapping.Key(b, "Envio");
         b.HasOne(x => x.Envio).WithMany(x => x.Bultos).HasForeignKey("EnvioKey");
         b.Property<string>("CodigoNormalizado").HasComputedColumnSql("lower(\"Codigo\")", stored: true);
@@ -93,6 +95,45 @@ internal sealed class IntentoEntregaConfiguration : IEntityTypeConfiguration<Int
         b.HasIndex("EnvioKey", nameof(IntentoEntrega.IdOperacion)).IsUnique();
         b.HasIndex("EnvioKey", nameof(IntentoEntrega.Numero)).IsUnique();
         Mapping.Collection(b, "Pruebas", "_pruebas");
+        Mapping.Collection(b, "Detalles", "_detalles");
+        b.Property(x => x.HuellaSolicitud).HasMaxLength(64);
+    }
+}
+
+internal sealed class DetalleIntentoBultoConfiguration : IEntityTypeConfiguration<DetalleIntentoBulto>
+{
+    public void Configure(EntityTypeBuilder<DetalleIntentoBulto> b)
+    {
+        Mapping.Entity(b, "DetallesIntentoBulto");
+        Mapping.Key(b, "Envio");
+        Mapping.Key(b, "Intento");
+        Mapping.Key(b, "Bulto");
+        Mapping.Key(b, "Motivo", optional: true);
+        b.HasOne(x => x.Intento).WithMany(x => x.Detalles).HasForeignKey("IntentoKey", "EnvioKey")
+            .HasPrincipalKey("Id", "EnvioKey");
+        b.HasOne(x => x.Bulto).WithMany().HasForeignKey("BultoKey", "EnvioKey")
+            .HasPrincipalKey("Id", "EnvioKey");
+        b.HasOne(x => x.Motivo).WithMany().HasForeignKey("MotivoKey");
+        b.HasIndex("IntentoKey", "BultoKey").IsUnique();
+        b.ToTable(t => t.HasCheckConstraint("CK_DetalleIntento_ResultadoMotivo",
+            "(\"Resultado\" = 0 AND \"MotivoId\" IS NULL) OR (\"Resultado\" = 1 AND \"MotivoId\" IS NOT NULL)"));
+        Mapping.Collection(b, "Evidencias", "_evidencias");
+    }
+}
+
+internal sealed class PruebaBultoConfiguration : IEntityTypeConfiguration<PruebaBulto>
+{
+    public void Configure(EntityTypeBuilder<PruebaBulto> b)
+    {
+        Mapping.Entity(b, "PruebasBulto");
+        Mapping.Key(b, "Intento");
+        Mapping.Key(b, "Detalle");
+        Mapping.Key(b, "Prueba");
+        b.HasOne(x => x.Detalle).WithMany(x => x.Evidencias).HasForeignKey("DetalleKey", "IntentoKey")
+            .HasPrincipalKey("Id", "IntentoKey");
+        b.HasOne(x => x.Prueba).WithMany().HasForeignKey("PruebaKey", "IntentoKey")
+            .HasPrincipalKey("Id", "IntentoKey");
+        b.HasIndex("DetalleKey", "PruebaKey").IsUnique();
     }
 }
 

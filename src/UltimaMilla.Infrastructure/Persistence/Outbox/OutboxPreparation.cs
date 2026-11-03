@@ -21,6 +21,18 @@ internal static class OutboxPreparation
             if (!pending.Add(evento.Id)) continue;
             // Se lee la FK de EF: no exige cargar la navegación CuentaComercial.
             var cuentaId = db.Entry(evento.Envio).Property<Guid>("CuentaComercialKey").CurrentValue;
+            var intento = evento.IdOperacion is Guid operacion ? evento.Envio.Intentos
+                .SingleOrDefault(i => i.IdOperacion == operacion && i.HuellaSolicitud is not null) : null;
+            if (intento is not null)
+            {
+                var v2 = new EventoEnvioV2(evento.Id, 2, db.OperadorIdActual, cuentaId, evento.EnvioId,
+                    evento.Id, evento.Tipo.ToString(), evento.Origen.ToString(), evento.EstadoAnterior?.ToString(),
+                    evento.EstadoNuevo.ToString(), evento.OcurridoEn, intento.IdOperacion,
+                    intento.Detalles.OrderBy(d => d.Bulto.Id).Select(d => new ResultadoBultoV2(d.Bulto.Id,
+                        d.Resultado.ToString(), d.Motivo?.Id, d.Evidencias.Select(p => p.Prueba.Id).Order().ToArray())).ToArray());
+                db.Add(new MensajeOutbox(evento, JsonSerializer.Serialize(v2, JsonOptions), "envio.evento.v2"));
+                continue;
+            }
             var payload = new EventoEnvioV1(evento.Id, 1, db.OperadorIdActual, cuentaId,
                 evento.EnvioId, evento.Id, evento.Tipo.ToString(), evento.Origen.ToString(),
                 evento.EstadoAnterior?.ToString(), evento.EstadoNuevo.ToString(), evento.OcurridoEn,

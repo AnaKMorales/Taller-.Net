@@ -60,8 +60,7 @@ internal static class TenantWriteGuard
             {
                 var principal = fk.PrincipalEntityType;
                 if (principal.ClrType == typeof(Comercio)) continue;
-                var idProperty = principal.ClrType == typeof(Operador)
-                    ? fk.Properties.Single() : fk.Properties.Single(p => p.Name != TenantModel.TenantId);
+                var idProperty = TenantModel.ReferenceId(fk);
                 if (entry.Property(idProperty.Name).CurrentValue is not Guid id)
                 {
                     if (fk.IsRequired) throw new AislamientoOperadorException();
