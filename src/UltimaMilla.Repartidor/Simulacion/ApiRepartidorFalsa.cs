@@ -6,13 +6,13 @@ using UltimaMilla.Repartidor.Sincronizacion;
 
 namespace UltimaMilla.Repartidor.Simulacion;
 
-// DATOS DE PRUEBA: reemplaza a la API de Web, que todavía no existe (no hay login de repartidor
-// ni endpoints de hoja de ruta / intentos). Imita lo que hará el servidor real:
+// DATOS DE PRUEBA para hoja de ruta e intentos: Web todavía no tiene esos endpoints (el login sí es real,
+// ver Servidor/ApiRepartidorHttp). Imita lo que hará el servidor real:
 // - sin red lanza HttpRequestException, como HttpClient;
 // - descarta un IdOperacion repetido (como Envio.RegistrarIntento) y cuenta los duplicados;
 // - rechaza intentos sobre envíos que ya no están en tránsito (conflicto).
 // Su "base de datos" se guarda en el almacén local para que la demostración sobreviva a una recarga.
-public sealed class ApiRepartidorFalsa(IAlmacenLocal almacen, EstadoConexion conexion) : IApiRepartidor
+public sealed class ApiRepartidorFalsa(IAlmacenLocal almacen, EstadoConexion conexion)
 {
     private const string Clave = "servidor-falso";
     private static readonly TimeSpan Latencia = TimeSpan.FromMilliseconds(400);
@@ -33,17 +33,7 @@ public sealed class ApiRepartidorFalsa(IAlmacenLocal almacen, EstadoConexion con
         (EnvioQueCambiaEnServidor, "Diego Romero", "Emilio Mitre 830, CABA", 14, 16)
     ];
 
-    public async Task<SesionRepartidor?> IniciarSesionAsync(string email, string contrasena, CancellationToken ct = default)
-    {
-        await SimularRedAsync(ct);
-        // Sin credenciales en el código: acepta cualquier email con formato y una contraseña no vacía.
-        if (!email.Contains('@') || string.IsNullOrWhiteSpace(contrasena)) return null;
-        var nombre = email.Split('@')[0];
-        return new SesionRepartidor("token-de-prueba", Guid.Parse("9b1d3c1e-0000-4000-8000-0000000000f1"),
-            Guid.Parse("9b1d3c1e-0000-4000-8000-0000000000f2"), nombre);
-    }
-
-    public async Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(SesionRepartidor sesion, CancellationToken ct = default)
+    public async Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(CancellationToken ct = default)
     {
         await SimularRedAsync(ct);
         var estado = await LeerEstadoAsync();
@@ -69,7 +59,7 @@ public sealed class ApiRepartidorFalsa(IAlmacenLocal almacen, EstadoConexion con
         [TipoPrueba.Nombre, TipoPrueba.Documento]);
     }
 
-    public async Task<RespuestaAccion> EnviarAccionAsync(SesionRepartidor sesion, AccionEntregaDto accion, CancellationToken ct = default)
+    public async Task<RespuestaAccion> EnviarAccionAsync(AccionEntregaDto accion, CancellationToken ct = default)
     {
         await SimularRedAsync(ct);
         var estado = await LeerEstadoAsync();

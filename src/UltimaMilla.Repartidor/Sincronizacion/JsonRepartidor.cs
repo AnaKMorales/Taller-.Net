@@ -9,6 +9,9 @@ namespace UltimaMilla.Repartidor.Sincronizacion;
 // Enums como texto, igual que la API de Web (JsonStringEnumConverter).
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(SesionRepartidor))]
+[JsonSerializable(typeof(SolicitudLogin))]
+[JsonSerializable(typeof(TokenAcceso))]
+[JsonSerializable(typeof(PerfilRepartidor))]
 [JsonSerializable(typeof(HojaDeRutaDto))]
 [JsonSerializable(typeof(AccionEntregaDto))]
 [JsonSerializable(typeof(RespuestaAccion))]

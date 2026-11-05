@@ -7,6 +7,10 @@ public static class Politicas
 {
     public const string Backoffice = "Backoffice";
     public const string Portal = "Portal";
+    public const string Repartidor = "Repartidor";
+
+    // Elige cookie (backoffice/portal) o token Bearer (PWA del repartidor) según el pedido.
+    public const string EsquemaSelector = "UltimaMilla";
 
     public static readonly string[] RolesBackoffice =
         [nameof(RolUsuario.Administrador), nameof(RolUsuario.Despachador), nameof(RolUsuario.OperarioDeposito)];

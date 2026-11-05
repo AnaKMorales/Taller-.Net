@@ -108,12 +108,11 @@ else
     // el contador de registrados no debe subir, solo el de descartados.
     private async Task ReenviarSincronizadasAsync()
     {
-        if (await Datos.ObtenerSesionAsync() is not { } sesion) return;
         _procesando = true;
         try
         {
             foreach (var item in _cola.Where(a => a.Estado == EstadoAccion.Sincronizada))
-                await ServidorDePrueba.EnviarAccionAsync(sesion, item.Accion);
+                await ServidorDePrueba.EnviarAccionAsync(item.Accion);
         }
         catch (HttpRequestException)
         {

@@ -89,6 +89,31 @@ public sealed class SincronizadorTests
         Assert.Equal(EstadoAccion.Sincronizada, Assert.Single(await _cola.ListarAsync()).Estado);
     }
 
+    // Con 401 las acciones esperan el nuevo ingreso: no se pierden ni consumen reintentos.
+    [Fact]
+    public async Task ConLaSesionVencidaLasAccionesSiguenPendientesSinContarReintentos()
+    {
+        var hoja = Datos.Hoja(EstadoEnvio.EnTransito, EstadoEnvio.EnTransito);
+        await EncolarEntregaAsync(hoja, 0);
+        await EncolarEntregaAsync(hoja, 1);
+        _servidor.SesionVencida = true;
+
+        var resumen = await _sincronizador.SincronizarAsync(Datos.Sesion);
+
+        Assert.True(resumen.SesionExpirada);
+        Assert.Equal(1, _servidor.Llamadas);
+        Assert.All(await _cola.ListarAsync(), a =>
+        {
+            Assert.Equal(EstadoAccion.Pendiente, a.Estado);
+            Assert.Equal(0, a.Intentos);
+            Assert.Null(a.ProximoIntentoEn);
+        });
+
+        _servidor.SesionVencida = false;
+        await _sincronizador.SincronizarAsync(Datos.Sesion);
+        Assert.Equal(2, _servidor.Registradas);
+    }
+
     [Theory]
     [InlineData(1, 5)]
     [InlineData(2, 10)]

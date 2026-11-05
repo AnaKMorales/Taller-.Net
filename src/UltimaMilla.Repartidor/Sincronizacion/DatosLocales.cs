@@ -15,8 +15,19 @@ public sealed class DatosLocales(IAlmacenLocal almacen)
     public async Task<SesionRepartidor?> ObtenerSesionAsync() =>
         await almacen.LeerAsync(ClaveSesion) is { } json ? JsonSerializer.Deserialize(json, JsonRepartidor.Default.SesionRepartidor) : null;
 
-    public Task GuardarSesionAsync(SesionRepartidor sesion) =>
-        almacen.GuardarAsync(ClaveSesion, JsonSerializer.Serialize(sesion, JsonRepartidor.Default.SesionRepartidor));
+    // Avisa cuando se guarda la sesión (ingreso o vencimiento) para actualizar el indicador.
+    public event Action? SesionActualizada;
+
+    public async Task GuardarSesionAsync(SesionRepartidor sesion)
+    {
+        await almacen.GuardarAsync(ClaveSesion, JsonSerializer.Serialize(sesion, JsonRepartidor.Default.SesionRepartidor));
+        SesionActualizada?.Invoke();
+    }
+
+    // El servidor rechazó el token: se conserva la sesión (para seguir viendo la hoja sin conexión)
+    // pero queda vencida, así no se envían más pedidos hasta volver a ingresar.
+    public Task MarcarSesionVencidaAsync(SesionRepartidor sesion) =>
+        GuardarSesionAsync(sesion with { ExpiraEn = DateTimeOffset.UnixEpoch });
 
     public async Task CerrarSesionAsync()
     {

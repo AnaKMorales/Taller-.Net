@@ -3,6 +3,7 @@
 @inject DatosLocales Datos
 @inject EstadoConexion Conexion
 @inject NavigationManager Navegacion
+@inject ColaAcciones Cola
 
 <PageTitle>Ingresar</PageTitle>
 
@@ -17,10 +18,6 @@
         <div class="alert alert-danger py-2 mb-0">@_error</div>
     }
 </form>
-
-<p class="text-muted small mt-3">
-    Modo de prueba: la API del repartidor todavía no existe; cualquier email y contraseña no vacía ingresan.
-</p>
 
 @code {
     private string _email = "";
@@ -45,6 +42,15 @@
             {
                 // Mismo mensaje en los dos casos, igual que el login de Web.
                 _error = "Email o contraseña incorrectos.";
+                return;
+            }
+
+            // Las acciones pendientes son del repartidor que las registró: otro no puede enviarlas.
+            var anterior = await Datos.ObtenerSesionAsync();
+            var pendientes = (await Cola.ListarAsync()).Any(a => a.Estado == EstadoAccion.Pendiente);
+            if (pendientes && anterior is not null && anterior.RepartidorId != sesion.RepartidorId)
+            {
+                _error = $"Hay acciones sin sincronizar de {anterior.Email}. Ese repartidor debe ingresar para enviarlas.";
                 return;
             }
 
