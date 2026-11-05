@@ -48,6 +48,40 @@
         retries: 20
         start_period: 15s
 
+    # Worker: publica el outbox y consume la cola "avisos" (envía los webhooks firmados).
+    # Necesita la base ya migrada (la migra la Web: scripts/Start-Web.ps1, o `dotnet ef database update`).
+    worker:
+      build:
+        context: ..
+        dockerfile: src/UltimaMilla.Worker/Dockerfile
+      depends_on:
+        postgres:
+          condition: service_healthy
+        rabbitmq:
+          condition: service_healthy
+      environment:
+        ConnectionStrings__UltimaMilla: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ultimamilla};Username=${POSTGRES_USER:-ultimamilla};Password="${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en deploy/.env}"
+        RabbitMq__Host: rabbitmq
+        RabbitMq__Puerto: "5672"
+        RabbitMq__Usuario: ${RABBITMQ_USER:-ultimamilla}
+        RabbitMq__Clave: ${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD en deploy/.env}
+        # SOLO DEMO: el receptor es una dirección privada de la red de Docker y el Worker bloquea esas por defecto
+        # (protección contra que un comercio apunte a la red interna). No activar en producción.
+        Webhooks__PermitirDestinosPrivados: "true"
+      restart: unless-stopped
+
+    # Receptor de webhooks de prueba (tools/UltimaMilla.ReceptorWebhooks): /ok, /fail, /slow y /flaky.
+    # Dentro de Docker se llama http://receptor:8080; desde tu máquina, http://127.0.0.1:${RECEPTOR_PORT:-58080}.
+    receptor:
+      build:
+        context: ../tools/UltimaMilla.ReceptorWebhooks
+      environment:
+        # Debe coincidir con el secreto de las suscripciones (la demo usa "secreto-demo").
+        Receptor__Secreto: ${WEBHOOK_SECRETO:-secreto-demo}
+      ports:
+        - "127.0.0.1:${RECEPTOR_PORT:-58080}:8080"
+      restart: unless-stopped
+
   volumes:
     postgres_data:
     rabbitmq_data:

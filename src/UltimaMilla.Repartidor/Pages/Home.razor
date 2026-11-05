@@ -1,0 +1,146 @@
+﻿@page "/"
+@implements IDisposable
+@inject DatosLocales Datos
+@inject ColaAcciones Cola
+@inject IApiRepartidor Api
+@inject EstadoConexion Conexion
+@inject NavigationManager Navegacion
+@inject TimeProvider Reloj
+
+<PageTitle>Hoja de ruta</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h1 class="h4 mb-0">Hoja de ruta</h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary" @onclick="ActualizarAsync" disabled="@(!Conexion.EnLinea || _procesando)">Actualizar</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="SalirAsync">Salir</button>
+    </div>
+</div>
+
+@if (_mensaje is not null)
+{
+    <div class="alert alert-warning py-2">@_mensaje</div>
+}
+@if (_sesion?.Vencida(Reloj.GetUtcNow()) == true)
+{
+    <div class="alert alert-warning py-2">
+        Tu sesión venció. Lo que registres se guarda en el teléfono; <a href="login">ingresá de nuevo</a> para sincronizar.
+    </div>
+}
+
+@if (_hoja is null)
+{
+    <p>No hay una hoja de ruta guardada. Conectate y tocá <strong>Actualizar</strong>.</p>
+}
+else
+{
+    <p class="text-muted small">@_sesion?.Email · descargada @_hoja.DescargadaEn.ToLocalTime().ToString("dd/MM HH:mm")</p>
+    <ul class="list-group">
+        @foreach (var parada in _hoja.Paradas.OrderBy(p => p.Orden))
+        {
+            var accion = UltimaAccion(parada.EnvioId);
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <strong>@parada.Orden. @parada.Destinatario</strong>
+                    <EstadoParada Parada="parada" Accion="accion" />
+                </div>
+                <div>@parada.Direccion</div>
+                <div class="small text-muted">Ventana @parada.VentanaDesde.ToLocalTime().ToString("HH:mm")–@parada.VentanaHasta.ToLocalTime().ToString("HH:mm")</div>
+                @if (PuedeRegistrar(parada, accion))
+                {
+                    <a class="btn btn-sm btn-primary mt-2" href="parada/@parada.EnvioId">Registrar visita</a>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private SesionRepartidor? _sesion;
+    private HojaDeRutaDto? _hoja;
+    private IReadOnlyList<AccionPendiente> _cola = [];
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sesion = await Datos.ObtenerSesionAsync();
+        if (_sesion is null)
+        {
+            Navegacion.NavigateTo("login");
+            return;
+        }
+
+        Cola.Cambio += AlCambiar;
+        Conexion.Cambio += AlCambiar;
+        Datos.HojaActualizada += AlCambiar;
+        Datos.SesionActualizada += AlCambiar;
+        await CargarAsync();
+    }
+
+    // Todo se lee del dispositivo: funciona igual con o sin conexión.
+    private async Task CargarAsync()
+    {
+        _sesion = await Datos.ObtenerSesionAsync() ?? _sesion;
+        _hoja = await Datos.ObtenerHojaAsync();
+        _cola = await Cola.ListarAsync();
+    }
+
+    private void AlCambiar() => _ = InvokeAsync(async () =>
+    {
+        await CargarAsync();
+        StateHasChanged();
+    });
+
+    private AccionPendiente? UltimaAccion(Guid envioId) =>
+        _cola.Where(a => a.Accion.EnvioId == envioId).MaxBy(a => a.Accion.OcurridoEn);
+
+    // Se puede registrar si el envío está en tránsito y no tiene ya una acción pendiente o sincronizada.
+    private static bool PuedeRegistrar(ParadaDto parada, AccionPendiente? accion) =>
+        parada.Estado == EstadoEnvio.EnTransito && accion is null or { Estado: EstadoAccion.Rechazada };
+
+    private async Task ActualizarAsync()
+    {
+        _mensaje = null;
+        _procesando = true;
+        try
+        {
+            await Datos.GuardarHojaAsync(await Api.ObtenerHojaDeRutaAsync(_sesion!));
+            await CargarAsync();
+        }
+        catch (SesionExpiradaException)
+        {
+            await Datos.MarcarSesionVencidaAsync(_sesion!);
+            await CargarAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _mensaje = "No se pudo descargar la hoja de ruta. Se sigue mostrando la guardada.";
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task SalirAsync()
+    {
+        // Cerrar sesión con acciones sin enviar las perdería: se bloquea.
+        if (_cola.Any(a => a.Estado == EstadoAccion.Pendiente))
+        {
+            _mensaje = "Tenés acciones sin sincronizar. Conectate y esperá a que se envíen antes de salir.";
+            return;
+        }
+
+        await Datos.CerrarSesionAsync();
+        Navegacion.NavigateTo("login");
+    }
+
+    public void Dispose()
+    {
+        Cola.Cambio -= AlCambiar;
+        Conexion.Cambio -= AlCambiar;
+        Datos.HojaActualizada -= AlCambiar;
+        Datos.SesionActualizada -= AlCambiar;
+    }
+}

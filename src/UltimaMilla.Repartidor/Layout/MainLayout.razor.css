@@ -1,0 +1,6 @@
+.barra {
+    background-color: #03173d;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}

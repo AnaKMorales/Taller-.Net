@@ -14,6 +14,9 @@ public sealed partial class PostgresTests
         var (a, b) = await DosOperadores();
         await CompletarFlujo(a);
         await CompletarFlujo(b);
+        // MensajesProcesados también es dato por operador: se siembra una fila para cada uno.
+        await Registro().EjecutarUnaVezAsync(TenantDe(a), Guid.NewGuid(), "avisos", _ => Task.CompletedTask);
+        await Registro().EjecutarUnaVezAsync(TenantDe(b), Guid.NewGuid(), "avisos", _ => Task.CompletedTask);
         await using var first = Context(a.Operador.Id);
         await using var second = Context(b.Operador.Id);
         Assert.Same(first.Model, second.Model);

@@ -1,0 +1,71 @@
+@page "/login"
+@inject IApiRepartidor Api
+@inject DatosLocales Datos
+@inject EstadoConexion Conexion
+@inject NavigationManager Navegacion
+@inject ColaAcciones Cola
+
+<PageTitle>Ingresar</PageTitle>
+
+<h1 class="h4">Ingresar</h1>
+
+<form @onsubmit="IngresarAsync" class="d-grid gap-2" style="max-width: 24rem">
+    <input class="form-control" type="email" placeholder="Email" autocomplete="username" @bind="_email" required />
+    <input class="form-control" type="password" placeholder="Contraseña" autocomplete="current-password" @bind="_contrasena" required />
+    <button class="btn btn-primary" type="submit" disabled="@_procesando">@(_procesando ? "Ingresando..." : "Ingresar")</button>
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger py-2 mb-0">@_error</div>
+    }
+</form>
+
+@code {
+    private string _email = "";
+    private string _contrasena = "";
+    private string? _error;
+    private bool _procesando;
+
+    private async Task IngresarAsync()
+    {
+        _error = null;
+        // Sin red no hay forma de validar credenciales; después del primer ingreso la sesión queda guardada.
+        if (!Conexion.EnLinea)
+        {
+            _error = "Necesitás conexión para ingresar.";
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            if (await Api.IniciarSesionAsync(_email, _contrasena) is not { } sesion)
+            {
+                // Mismo mensaje en los dos casos, igual que el login de Web.
+                _error = "Email o contraseña incorrectos.";
+                return;
+            }
+
+            // Las acciones pendientes son del repartidor que las registró: otro no puede enviarlas.
+            var anterior = await Datos.ObtenerSesionAsync();
+            var pendientes = (await Cola.ListarAsync()).Any(a => a.Estado == EstadoAccion.Pendiente);
+            if (pendientes && anterior is not null && anterior.RepartidorId != sesion.RepartidorId)
+            {
+                _error = $"Hay acciones sin sincronizar de {anterior.Email}. Ese repartidor debe ingresar para enviarlas.";
+                return;
+            }
+
+            await Datos.GuardarSesionAsync(sesion);
+            // La hoja se descarga ya, mientras hay señal, para poder trabajar sin conexión después.
+            await Datos.GuardarHojaAsync(await Api.ObtenerHojaDeRutaAsync(sesion));
+            Navegacion.NavigateTo("");
+        }
+        catch (HttpRequestException)
+        {
+            _error = "No se pudo contactar al servidor. Intentá de nuevo.";
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+}

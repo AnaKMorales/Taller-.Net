@@ -12,11 +12,12 @@ Verifica las reglas del ADR-001. No necesita Docker, PostgreSQL, Redis ni Rabbit
 | Application | Domain |
 | Infrastructure | Application y Domain |
 | Web | Application, Infrastructure y Domain |
+| Repartidor (PWA) | Ninguna: usa sus propios DTOs del contrato JSON de la API |
 
 NetArchTest inspecciona los tipos de los ensamblados compilados. Domain admite tipos de
 su propio namespace y de System. Application admite los suyos, Domain y System. Así se
 detecta, por ejemplo, una propiedad DbContext o un cliente Redis en un caso de uso.
-Infrastructure no puede depender de Web, Worker o Repartidor. Web tampoco puede depender
+Infrastructure no puede depender de Web, Worker o Repartidor. Worker puede referenciar solo Application e Infrastructure. Web tampoco puede depender
 de las otras aplicaciones ejecutables. Las referencias a Infrastructure desde Web están
 permitidas para registrar los servicios al arrancar, según la estructura acordada.
 

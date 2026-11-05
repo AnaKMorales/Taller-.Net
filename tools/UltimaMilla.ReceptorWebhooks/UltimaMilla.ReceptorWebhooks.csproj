@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Herramienta de prueba: simula el servidor de un comercio que recibe webhooks. No es parte del producto
+       (por eso vive en tools/ y no en src/) y no referencia ningún proyecto de UltimaMilla: verifica la firma
+       con su propio código, como lo haría el comercio. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
