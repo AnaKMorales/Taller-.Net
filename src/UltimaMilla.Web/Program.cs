@@ -40,7 +40,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Politicas.Backoffice, p => p.RequireRole(Politicas.RolesBackoffice))
-    .AddPolicy(Politicas.Portal, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Comercio)));
+    .AddPolicy(Politicas.Portal, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Comercio)))
+    .AddPolicy(Politicas.Administracion, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Administrador)));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantActual, TenantActualHttp>();
 
