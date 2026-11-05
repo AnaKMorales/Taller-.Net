@@ -1,0 +1,113 @@
+@page "/parada/{EnvioId:guid}"
+@inject DatosLocales Datos
+@inject ColaAcciones Cola
+@inject Navegador Dispositivo
+@inject SincronizacionAutomatica Automatica
+@inject TimeProvider Reloj
+@inject NavigationManager Navegacion
+
+<PageTitle>Registrar visita</PageTitle>
+
+@if (_parada is null || _hoja is null)
+{
+    <p>El envío no está en la hoja de ruta. <a href="">Volver</a></p>
+}
+else
+{
+    <h1 class="h4">@_parada.Orden. @_parada.Destinatario</h1>
+    <p>@_parada.Direccion</p>
+
+    <div class="btn-group w-100 mb-3" role="group">
+        <button class="btn @(_entregado ? "btn-success" : "btn-outline-success")" @onclick="() => _entregado = true">Entregado</button>
+        <button class="btn @(!_entregado ? "btn-danger" : "btn-outline-danger")" @onclick="() => _entregado = false">No entregado</button>
+    </div>
+
+    <form @onsubmit="RegistrarAsync" class="d-grid gap-2">
+        @if (_entregado)
+        {
+            @foreach (var tipo in _hoja.PruebasExigidas)
+            {
+                @if (tipo is TipoPrueba.Nombre or TipoPrueba.Documento)
+                {
+                    <label class="form-label mb-0">@(tipo == TipoPrueba.Nombre ? "Nombre de quien recibe" : "Documento de quien recibe")</label>
+                    <input class="form-control" @bind="_textos[tipo]" />
+                }
+                else
+                {
+                    <div class="alert alert-info py-2 mb-0">El operador exige @tipo: la captura de firma y foto llega en la segunda etapa.</div>
+                }
+            }
+        }
+        else
+        {
+            <label class="form-label mb-0">Motivo</label>
+            <select class="form-select" @bind="_motivo">
+                <option value="">Elegí un motivo...</option>
+                @foreach (var motivo in _hoja.Motivos)
+                {
+                    <option value="@motivo.Id">@motivo.Nombre@(motivo.RequiereEvidencia ? " (requiere evidencia)" : "")</option>
+                }
+            </select>
+            <label class="form-label mb-0">Nombre de quien atendió (evidencia, opcional)</label>
+            <input class="form-control" @bind="_textos[TipoPrueba.Nombre]" />
+        }
+
+        <button class="btn btn-primary" type="submit" disabled="@_procesando">@(_procesando ? "Obteniendo ubicación..." : "Registrar")</button>
+        <a class="btn btn-link" href="">Cancelar</a>
+    </form>
+
+    @foreach (var error in _errores)
+    {
+        <div class="alert alert-danger py-2 mt-2 mb-0">@error</div>
+    }
+}
+
+@code {
+    [Parameter] public Guid EnvioId { get; set; }
+
+    private HojaDeRutaDto? _hoja;
+    private ParadaDto? _parada;
+    private bool _entregado = true;
+    private string _motivo = "";
+    private readonly Dictionary<TipoPrueba, string> _textos = new() { [TipoPrueba.Nombre] = "", [TipoPrueba.Documento] = "" };
+    private IReadOnlyList<string> _errores = [];
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hoja = await Datos.ObtenerHojaAsync();
+        _parada = _hoja?.Paradas.SingleOrDefault(p => p.EnvioId == EnvioId);
+    }
+
+    private async Task RegistrarAsync()
+    {
+        _procesando = true;
+        try
+        {
+            // Hora y posición se toman en el momento de la acción, en el dispositivo (ver ADR-005).
+            var ahora = Reloj.GetUtcNow();
+            var posicion = await Dispositivo.ObtenerUbicacionAsync();
+            var tipos = _entregado ? _hoja!.PruebasExigidas.Where(_textos.ContainsKey) : [TipoPrueba.Nombre];
+            var pruebas = tipos
+                .Where(t => !string.IsNullOrWhiteSpace(_textos[t]))
+                .Select(t => new PruebaDto(t, _textos[t].Trim(), ahora, posicion))
+                .ToList();
+
+            // Guid nuevo por cada acción: si se reenvía, el servidor lo reconoce y no la duplica.
+            var accion = new AccionEntregaDto(Guid.NewGuid(), EnvioId,
+                _entregado ? ResultadoIntento.Entregado : ResultadoIntento.Fallido,
+                _entregado || !Guid.TryParse(_motivo, out var motivoId) ? null : motivoId, pruebas, ahora, posicion);
+
+            _errores = await Cola.EncolarAsync(accion, _hoja!);
+            if (_errores.Count > 0) return;
+
+            // Se guarda primero en el dispositivo; el envío al servidor es un intento aparte.
+            _ = Automatica.SincronizarAhoraAsync();
+            Navegacion.NavigateTo("");
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+}

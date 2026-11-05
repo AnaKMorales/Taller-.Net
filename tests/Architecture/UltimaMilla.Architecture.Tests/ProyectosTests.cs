@@ -10,7 +10,9 @@ public sealed class ProyectosTests
         ["UltimaMilla.Domain"] = [],
         ["UltimaMilla.Application"] = ["UltimaMilla.Domain"],
         ["UltimaMilla.Infrastructure"] = ["UltimaMilla.Domain", "UltimaMilla.Application"],
-        ["UltimaMilla.Web"] = ["UltimaMilla.Domain", "UltimaMilla.Application", "UltimaMilla.Infrastructure"]
+        ["UltimaMilla.Web"] = ["UltimaMilla.Domain", "UltimaMilla.Application", "UltimaMilla.Infrastructure"],
+        // La PWA corre en el navegador: solo conoce el contrato JSON de la API, no las capas del servidor.
+        ["UltimaMilla.Repartidor"] = []
     };
 
     [Theory]
@@ -18,6 +20,7 @@ public sealed class ProyectosTests
     [InlineData("UltimaMilla.Application")]
     [InlineData("UltimaMilla.Infrastructure")]
     [InlineData("UltimaMilla.Web")]
+    [InlineData("UltimaMilla.Repartidor")]
     public void ReferenciasDeclaradasRespetanLaDireccionDeLasCapas(string proyecto)
     {
         var path = Path.Combine(RaizRepositorio(), "src", proyecto, proyecto + ".csproj");

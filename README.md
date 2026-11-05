@@ -6,8 +6,8 @@ Este repositorio está organizado siguiendo la estructura indicada en la documen
 
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
 Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
-de persistencia y pruebas de arquitectura. Repartidor, Worker y el despliegue que se enumeran
-abajo son la estructura prevista.
+de persistencia y pruebas de arquitectura, y la PWA del repartidor (MVP con API de prueba).
+Worker y el despliegue que se enumeran abajo son la estructura prevista.
 
 Domain contiene las entidades y relaciones de los cuatro diagramas UML, agrupadas por
 área funcional. El detalle, las convenciones adoptadas y los límites de esta implementación
@@ -227,6 +227,40 @@ simular un alta y una recepción en depósito y ver los cambios en vivo.
 Límites actuales: el reintento manual de avisos fallidos se agrega cuando esté el Worker; con una transacción
 explícita el aviso al tablero sale antes del commit (lo resuelve el outbox); el alta en Blazor (`/envios/nuevo`)
 todavía no recibe el contexto del operador dentro del circuito interactivo.
+
+## App del repartidor (PWA)
+
+`src/UltimaMilla.Repartidor` es una PWA Blazor WebAssembly instalable: login, hoja de ruta con
+paradas, registro de entregas exitosas (pruebas Nombre/Documento) y fallidas (motivo del catálogo),
+cola local en IndexedDB y sincronización automática al volver la conexión. Cada acción lleva
+`IdOperacion` generado en el dispositivo, `OcurridoEn` y GPS opcional. La barra superior indica
+en línea / sin conexión / pendientes / rechazadas.
+
+**Usa datos de prueba** (`Simulacion/ApiRepartidorFalsa`): Web todavía no expone login de
+repartidor ni endpoints de hoja de ruta e intentos. Cualquier email y contraseña no vacía ingresan.
+El contrato que debe implementar Web, la política de conflictos ("el servidor gana") y el límite
+del GPS con pantalla apagada están en [ADR-005](docs/adr/005-sincronizacion-offline-repartidor.md).
+La lógica de cola y sincronización se prueba sin navegador en `tests/Unit/UltimaMilla.Repartidor.Tests`.
+
+```powershell
+dotnet run --project src/UltimaMilla.Repartidor   # http://localhost:5086
+```
+
+Demostración (Chrome/Edge, DevTools → Network → Offline):
+
+1. Ingresar; se descarga la hoja de ruta. Marcar **Offline**: la barra pasa a "Sin conexión".
+2. Registrar dos entregas (nombre y documento). Quedan "sin sincronizar" y la barra muestra "2 pendientes".
+3. Desmarcar **Offline**: se sincronizan solas. En **Sincronización** el servidor de prueba muestra
+   2 intentos registrados. "Reenviar sincronizadas" sube solo los descartados por IdOperacion.
+4. Conflicto: la parada 4 cambia en el servidor después de la primera descarga. Si se registra
+   **sin conexión** (junto con el paso 2), al reconectar queda **Rechazada** con el motivo y la hoja
+   se actualiza con su estado real (Reprogramado). Con conexión la app ya ve el cambio y no deja registrarla.
+
+Para abrir la app sin red después de recargar hace falta el service worker publicado
+(`dotnet publish src/UltimaMilla.Repartidor -c Release` y servir la carpeta `wwwroot` publicada
+en localhost); en `dotnet run` el service worker de desarrollo no guarda caché.
+
+Segunda etapa: cifrado de los datos locales, firma, foto, escaneo de códigos y la API real.
 
 ## Estructura
 

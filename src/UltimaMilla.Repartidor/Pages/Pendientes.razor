@@ -1,0 +1,143 @@
+@page "/pendientes"
+@implements IDisposable
+@inject ColaAcciones Cola
+@inject DatosLocales Datos
+@inject EstadoConexion Conexion
+@inject SincronizacionAutomatica Automatica
+@inject ApiRepartidorFalsa ServidorDePrueba
+@inject NavigationManager Navegacion
+
+<PageTitle>Sincronización</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h1 class="h4 mb-0">Sincronización</h1>
+    <button class="btn btn-sm btn-primary" @onclick="SincronizarAsync" disabled="@(!Conexion.EnLinea || _procesando)">Sincronizar ahora</button>
+</div>
+
+@if (_cola.Count == 0)
+{
+    <p>No hay acciones registradas.</p>
+}
+else
+{
+    <ul class="list-group mb-3">
+        @foreach (var item in _cola.OrderByDescending(a => a.Accion.OcurridoEn))
+        {
+            <li class="list-group-item small">
+                <div class="d-flex justify-content-between">
+                    <strong>@Destinatario(item.Accion.EnvioId) · @(item.Accion.Resultado == ResultadoIntento.Entregado ? "Entregado" : "No entregado")</strong>
+                    <span class="badge @Color(item.Estado)">@item.Estado</span>
+                </div>
+                <div class="text-muted">
+                    @item.Accion.OcurridoEn.ToLocalTime().ToString("HH:mm:ss") · operación @item.Accion.IdOperacion.ToString()[..8]
+                    @(item.Accion.Posicion is null ? " · sin GPS" : " · con GPS")
+                    @(item.Intentos > 0 ? $" · {item.Intentos} reintento(s)" : "")
+                </div>
+                @if (item.Detalle is not null)
+                {
+                    <div>@item.Detalle</div>
+                }
+                @if (item.Estado == EstadoAccion.Rechazada)
+                {
+                    <button class="btn btn-sm btn-outline-danger mt-1" @onclick="() => Cola.DescartarRechazadaAsync(item.Accion.IdOperacion)">Entendido, descartar</button>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@* Panel de demostración: solo existe mientras se use la API de prueba. *@
+<div class="card border-info">
+    <div class="card-body small">
+        <h2 class="h6">Servidor de prueba</h2>
+        <p class="mb-2">Intentos registrados: <strong>@_registradas</strong> · reenvíos descartados por IdOperacion: <strong>@_duplicadas</strong></p>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-sm btn-outline-info" @onclick="ReenviarSincronizadasAsync" disabled="@(!Conexion.EnLinea || _procesando)">Reenviar sincronizadas (probar duplicados)</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ReiniciarAsync">Reiniciar datos de prueba</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<AccionPendiente> _cola = [];
+    private HojaDeRutaDto? _hoja;
+    private int _registradas;
+    private int _duplicadas;
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cola.Cambio += AlCambiar;
+        Conexion.Cambio += AlCambiar;
+        Datos.HojaActualizada += AlCambiar;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cola = await Cola.ListarAsync();
+        _hoja = await Datos.ObtenerHojaAsync();
+        (_registradas, _duplicadas) = await ServidorDePrueba.ResumenAsync();
+    }
+
+    private void AlCambiar() => _ = InvokeAsync(async () =>
+    {
+        await CargarAsync();
+        StateHasChanged();
+    });
+
+    private string Destinatario(Guid envioId) =>
+        _hoja?.Paradas.SingleOrDefault(p => p.EnvioId == envioId)?.Destinatario ?? "Envío";
+
+    private static string Color(EstadoAccion estado) => estado switch
+    {
+        EstadoAccion.Pendiente => "bg-warning text-dark",
+        EstadoAccion.Sincronizada => "bg-success",
+        _ => "bg-danger"
+    };
+
+    private async Task SincronizarAsync()
+    {
+        _procesando = true;
+        await Automatica.SincronizarAhoraAsync();
+        await CargarAsync();
+        _procesando = false;
+    }
+
+    // Simula que la respuesta del servidor se perdió y la app vuelve a mandar lo mismo:
+    // el contador de registrados no debe subir, solo el de descartados.
+    private async Task ReenviarSincronizadasAsync()
+    {
+        if (await Datos.ObtenerSesionAsync() is not { } sesion) return;
+        _procesando = true;
+        try
+        {
+            foreach (var item in _cola.Where(a => a.Estado == EstadoAccion.Sincronizada))
+                await ServidorDePrueba.EnviarAccionAsync(sesion, item.Accion);
+        }
+        catch (HttpRequestException)
+        {
+            // Se cortó la red durante la prueba: no cambia nada en la cola.
+        }
+        finally
+        {
+            await CargarAsync();
+            _procesando = false;
+        }
+    }
+
+    private async Task ReiniciarAsync()
+    {
+        await Cola.VaciarAsync();
+        await ServidorDePrueba.ReiniciarAsync();
+        await Datos.CerrarSesionAsync();
+        Navegacion.NavigateTo("login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        Cola.Cambio -= AlCambiar;
+        Conexion.Cambio -= AlCambiar;
+        Datos.HojaActualizada -= AlCambiar;
+    }
+}
