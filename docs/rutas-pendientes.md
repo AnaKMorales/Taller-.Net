@@ -81,5 +81,6 @@ desde los valores actuales al migrar: no es posible recuperar medidas originales
 visita porque antes no se almacenaban. No se crean eventos ni se recalculan tarifas.
 La migración se probó en bases temporales, sin aplicarla a desarrollo en esta sesión.
 
-Continúan pendientes la API de asignación/hoja de ruta y
-conexiones de interfaz y sincronización de sus responsables.
+La [API de descarga de hoja de ruta](api-monitoreos.md) ya devuelve la composición
+de la visita actual al repartidor autenticado. Continúan pendientes la API de asignación
+y las conexiones de interfaz y sincronización de sus responsables.

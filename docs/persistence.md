@@ -136,7 +136,7 @@ Se omiten cuando falta `ULTIMAMILLA_TEST_CONNECTION_STRING`; el script local la 
 La conexión debe ser local y el usuario debe poder crear y eliminar las bases temporales.
 Las pruebas comprueban aislamiento con dos operadores y dos cuentas de un mismo operador,
 claims, Worker, seguimiento público, referencias falsificadas y migración con datos.
-Las 98 pruebas de integración incluyen el alta mediante el contrato de Application,
+Las 104 pruebas de integración incluyen el alta mediante el contrato de Application,
 conflictos de versión de envíos y rutas, asignaciones
 simultáneas, capacidad compartida, hijos operativos, rollback, migración de versiones con datos,
 caché, siete pruebas del registro transaccional del outbox, nueve de su publicador,
@@ -157,6 +157,9 @@ migración de composición, aislamiento/inmutabilidad y dos rutas que compiten p
 Seis casos verifican recargo fijo, configuración y reglas históricas sin importe,
 unicidad/inmutabilidad/aislamiento, rollback completo, despacho concurrente y devolución
 parcial recargada desde PostgreSQL, además del backfill de devoluciones anteriores.
+Seis casos HTTP arrancan el host Web real y verifican la API privada de hoja de ruta
+y la edición administrativa de reglas/tarifas, con identidad, roles, aislamiento,
+antiforgery, versiones, conservación de históricos e invalidación de caché de desarrollo.
 No demuestran todavía todas las condiciones de idempotencia.
 
 Los filtros de operador/cuenta, TenantContext y el interceptor de validación de escrituras

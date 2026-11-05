@@ -11,8 +11,11 @@ using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Infrastructure.Cache;
 using UltimaMilla.Infrastructure.Persistence;
 using UltimaMilla.Infrastructure.Persistence.Backoffice;
+using UltimaMilla.Infrastructure.Persistence.Configuracion;
+using UltimaMilla.Infrastructure.Persistence.Despacho;
 using UltimaMilla.Infrastructure.Persistence.Tablero;
 using UltimaMilla.Web.Components;
+using UltimaMilla.Web.Api;
 using UltimaMilla.Web.Desarrollo;
 using UltimaMilla.Web.Seguridad;
 using UltimaMilla.Web.Tiempo;
@@ -25,6 +28,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 
 // Razor Pages para el Backoffice y Blazor para el Portal
 builder.Services.AddRazorPages();
+builder.Services.AddAntiforgery(o => o.HeaderName = ApiOperativa.CabeceraAntiforgery);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Sesión con cookie.
@@ -37,6 +41,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         o.Cookie.HttpOnly = true;
         o.Cookie.SameSite = SameSiteMode.Strict;
         o.ExpireTimeSpan = TimeSpan.FromHours(8);
+        ApiOperativa.ConfigurarRespuestasDeAutenticacion(o);
     });
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Politicas.Backoffice, p => p.RequireRole(Politicas.RolesBackoffice))
@@ -57,6 +62,8 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) => options
 builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AgregarHojasRuta();
+builder.Services.AgregarConfiguracionVersionada();
 
 // Caché del tarifario y del seguimiento (ADR-004).
 builder.Services.AgregarCacheUltimaMilla(builder.Configuration.GetConnectionString("Redis"),
@@ -99,6 +106,7 @@ app.MapStaticAssets();
 app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
+app.MapearApiOperativa();
 
 // Seguimiento público (sin login).
 app.MapGet("/api/seguimiento/{token}", async (string token, ISeguimientoPublico seguimiento, CancellationToken ct) =>

@@ -79,7 +79,8 @@ services.AgregarRegistroIntentos();
 ```
 
 Requiere DbContextOptions<AppDbContext> e ITenantActual con la identidad resuelta. Se registran
-el handler y su repositorio; no se modificó Program.cs ni se expuso un endpoint.
+el handler y su repositorio. Program.cs todavía no registra este servicio ni expone
+un endpoint de intentos; sí incorpora por separado la descarga de hojas y la configuración.
 La API futura debe autenticar, resolver tenant y traducir errores de solicitud/permisos/
 concurrencia sin aceptar identidad del body. La PWA deberá conservar versión, parada e
 IdOperacion y mapear sus capturas al contrato. Archivo es una referencia a evidencia ya
@@ -88,5 +89,6 @@ almacenada: este caso de uso no recibe ni sube bytes de archivos.
 El repositorio ya carga Parada.Bultos.Bulto y admite el registro de la visita de pendientes
 con o sin recargo. La solicitud contiene solo esos bultos; los entregados antes no se repiten.
 La carga incluye el recargo de la parada y los históricos del envío. Continúan pendientes las
-API de asignación/hoja de ruta. Ver [políticas de pendientes](politicas-pendientes.md).
+API de asignación. La [descarga autenticada de hoja](api-monitoreos.md) ya incluye su
+composición y versión esperada. Ver [políticas de pendientes](politicas-pendientes.md).
 Esta implementación no sustituye la sincronización offline ni la demo del 12/11.

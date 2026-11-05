@@ -94,8 +94,9 @@ services.AgregarConfiguracionVersionada();
 ```
 
 El host debe tener DbContextOptions<AppDbContext>, ITenantActual, logging e
-IInvalidacionTarifario registrados. El registro es optativo y no se modificó Program.cs.
-Las pantallas futuras deben usar una política exclusiva de Administrador, no la política
+IInvalidacionTarifario registrados. Program.cs ya incorpora este registro y expone
+la API administrativa de reglas y tarifarios. Ver [rutas, permisos y antiforgery](api-monitoreos.md).
+Las pantallas deben usar una política exclusiva de Administrador, no la política
 Backoffice compartida con despachadores y depósito. La verificación del backend es adicional.
 
 Los casos de uso de alta aún deben seleccionar sus versiones vigentes y calcular sus fechas

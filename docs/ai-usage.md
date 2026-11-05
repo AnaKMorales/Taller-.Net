@@ -490,3 +490,40 @@ el rechazo de una composición de devolución filtrada y el despacho competidor 
 a conflicto sin duplicar cargos. Release compiló con advertencias como errores sin errores
 ni advertencias, EF confirmó el modelo alineado y se regeneró el SQL de instalación.
 Las bases temporales se eliminaron; desarrollo no se modificó.
+
+### 03/11/2026: backend de monitoreos anteriores al 12/11
+
+El usuario autorizó completar su parte pendiente de los monitoreos anteriores, excluyendo
+el 12/11 (opcionales y ensayo) y tareas de sus compañeras. Se implementó IHojasRuta con
+DTO de lectura en Application y consultas dedicadas en Infrastructure: solo Repartidor
+auténtico/activo, rutas propias despachadas/no rendidas y paradas activas, ordenadas por
+Cod ascendente como secuencia manual del despachador. El detalle usa RepeatableRead para
+descargar versiones, composición por visita, dirección, ventana y requisitos de evidencia
+en un snapshot coherente. No se inventa una fecha local de ruta ni se usa el día del servidor.
+
+Program registra hojas de ruta y configuración versionada. La Web expone la descarga y
+consultas/creación de versiones administrativas, sin lógica de negocio en los endpoints.
+Se agrega antiforgery a las escrituras con cookie y un endpoint autenticado que entrega
+el token. Un marcador limita las respuestas 401/403 a estas API, conservando el comportamiento
+previo de las páginas. Se mantienen comprobaciones de tenant/rol, versión e invalidación
+del tarifario del servicio existente. No hay cambios de modelo ni migraciones.
+
+Se agregaron seis pruebas HTTP con WebApplicationFactory sobre el Program real y bases
+PostgreSQL temporales, usando un autenticador sintético solo en el servidor de pruebas y
+el resolver real de usuarios/operador. Comprueban rutas no despachadas/rendidas, orden,
+versiones, composición de pendientes, aislamiento, roles, revocación, antiforgery, edición
+en caliente, conflicto y conservación de reglas/tarifa históricas. La primera ejecución
+detectó redirecciones 302 en denegaciones de API y una navegación no cargada en una prueba;
+se corrigieron ambos puntos. La comprobación de caché se amplió para poblarla antes del
+POST y comprobar la nueva versión y el aislamiento después, usando caché de desarrollo.
+
+No se implementaron pantallas, emisión de tokens/login móvil, PWA, Worker, adaptador de
+broker, endpoint de intentos, cobertura, opcionales o ensayo. Se documentaron contratos,
+integraciones de sus responsables y la diferencia entre backend listo y demostración
+completa en api-monitoreos.md, README y seguimiento compartido.
+
+Verificación final: pasaron 293 pruebas (126 Domain, 15 Application, 37 Infrastructure,
+11 arquitectura y 104 PostgreSQL real), sin omisiones. Los seis casos HTTP pasaron después
+de las correcciones y confirmaron la invalidación de la caché poblada. Release compiló
+con advertencias como errores sin errores ni advertencias; EF confirmó el modelo alineado
+con las migraciones existentes. Se eliminaron las bases temporales; desarrollo no se modificó.

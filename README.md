@@ -118,7 +118,20 @@ en SaveChanges; los envíos anteriores conservan sus referencias y tarifa.
 
 Al confirmar un tarifario se solicita su invalidación mediante el contrato de caché existente.
 La implementación, el registro opcional y los DTO están preparados para las pantallas;
-todavía no se agregaron endpoints o formularios. Ver [contratos y límites](docs/configuracion-versionada.md).
+Program ya registra el servicio y expone endpoints administrativos de reglas y tarifarios,
+con permisos de administrador y antiforgery para escrituras. Los formularios siguen
+requiriendo integración. Ver [contratos y límites](docs/configuracion-versionada.md).
+
+## API de hoja de ruta y configuración
+
+La API privada del repartidor permite consultar sus rutas despachadas y no rendidas en
+`GET /api/repartidor/rutas` y descargar una en `GET /api/repartidor/rutas/{id}`. Las paradas
+se ordenan por la secuencia Cod del despachador y contienen bultos de esa visita, versiones,
+dirección, ventana y reglas para registrar entregas. No se agregó login móvil ni PWA.
+
+La configuración se consulta y versiona en `/api/configuracion`, exclusivamente con perfil
+Administrador. Las escrituras exigen cookie y token antiforgery. Endpoints, ejemplos de
+integración y pendientes por responsable: [backend de los monitoreos](docs/api-monitoreos.md).
 
 La migración `ReglasEntregaParcial` agrega el permiso de entrega parcial y la acción para
 bultos pendientes a cada versión de reglas. PoliticasPendientesYRecargoFijo agrega el importe

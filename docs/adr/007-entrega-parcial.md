@@ -90,7 +90,8 @@ intento; los V2 de intento conservan su detalle. V1 no incorpora ese vocabulario
 ## Pendientes para completar el cambio
 
 - Endpoint autenticado para el caso de uso RegistrarIntentoHandler ya implementado.
-- API/hoja de ruta de la nueva asignación de pendientes e integración del despacho/devolución.
+- API de asignación de pendientes e integración del despacho/devolución. La descarga
+  autenticada de la composición actual ya está disponible; ver api-monitoreos.md.
 - Integrar los eventos V2 con el enrutamiento y compatibilidad de receptores existentes.
 - Adaptaciones de Web, seguimiento, PWA y Worker por sus responsables.
 - Demostración offline/sincronización del 12/11 y evaluación final de dificultades y pruebas.

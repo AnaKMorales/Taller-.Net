@@ -22,7 +22,7 @@ También se exige un ADR que explique los componentes modificados y las dificult
 | 31 | Estado por bulto, estado del envío derivado y entrega parcial; transiciones declarativas en ambos niveles | El núcleo registra entregas mixtas, visitas sucesivas y devolución de pendientes. Continúa integración de aplicaciones |
 | 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | Domain, persistencia y caso de uso Application implementados para la visita actual, con identidad, versión esperada y reenvíos. Pendientes endpoint y captura/sincronización PWA |
 | 33 | Reglas versionadas para permitir parciales y decidir nueva visita con/sin recargo o devolución al comercio | Núcleo, configuración y persistencia aplican las tres opciones; recargo fijo registrado al despacho, separado de la tarifa original. Continúan interfaces e integración |
-| 34 | Asignar bultos pendientes a una nueva hoja de ruta | Domain y persistencia asignan solo pendientes, con composición y capacidad por parada; continúan API/hoja de ruta e integración con aplicaciones |
+| 34 | Asignar bultos pendientes a una nueva hoja de ruta | Domain y persistencia asignan solo pendientes, con composición y capacidad por parada; la descarga autenticada de hoja ya los incluye. Continúan API de asignación e integración con aplicaciones |
 | 35 | Seguimiento con cantidades entregadas y totales, sin identificadores internos | Pendiente adaptar consulta, contrato y presentación |
 | 36 | Eventos de bulto y avisos versionados compatibles con receptores anteriores | Outbox V2 con resultados por bulto para el método nuevo; V1 se mantiene en la firma tradicional. Pendientes Worker, enrutamiento/compatibilidad de webhooks y recepción real |
 
@@ -282,3 +282,21 @@ Detalle para integrar: [políticas de pendientes y recargo fijo](docs/politicas-
 Verificación final: 287 pruebas aprobadas, incluidas 98 contra PostgreSQL real, sin omisiones.
 Release sin errores ni advertencias y modelo alineado con las migraciones. Se actualizó el
 SQL de instalación y se eliminaron las bases temporales; desarrollo no se modificó.
+
+### 03/11: integración HTTP de compromisos anteriores (letra original)
+
+La API de hoja de ruta del 22/10 ya permite listar y descargar rutas despachadas del
+repartidor autenticado, con orden manual documentado y versiones de ruta/envío. Reutiliza
+la composición por parada y por eso también devuelve correctamente visitas de pendientes.
+La API de asignación de nuevas visitas y el endpoint de intentos siguen pendientes.
+
+Para el 29/10 se registró el backend de configuración en Web y se expusieron consultas y
+creación de versiones administrativas con antiforgery, aislamiento y conflictos de versión.
+No se implementaron pantallas ni mensajería real. No se trabajó en opcionales, cobertura,
+ensayo o cierre del ADR-007 del 12/11. No requiere otra migración.
+
+Detalle y límites por responsable: [backend de monitoreos](docs/api-monitoreos.md).
+
+Verificación: 293 pruebas aprobadas, incluidas 104 con PostgreSQL real, sin omisiones.
+Release sin errores ni advertencias; modelo sin cambios pendientes. Bases temporales
+eliminadas y base de desarrollo sin cambios.
