@@ -32,7 +32,24 @@ public enum ResultadoIntento
     Fallido
 }
 
-public sealed record SesionRepartidor(string Token, Guid RepartidorId, Guid OperadorId, string Nombre);
+// Sesión guardada en el dispositivo. No incluye el operador: el servidor lo obtiene del token
+// en cada pedido, así la PWA no puede elegir ni alterar a qué operador pertenece.
+public sealed record SesionRepartidor(string Token, Guid RepartidorId, string Email, DateTimeOffset ExpiraEn)
+{
+    public bool Vencida(DateTimeOffset ahora) => ExpiraEn <= ahora;
+}
+
+// Cuerpo de POST /api/repartidor/sesion.
+public sealed record SolicitudLogin(string Email, string Contrasena);
+
+// Respuesta del manejador Bearer de ASP.NET Core (AddBearerToken).
+public sealed record TokenAcceso(string AccessToken, long ExpiresIn);
+
+// Respuesta de GET /api/repartidor/sesion.
+public sealed record PerfilRepartidor(Guid UsuarioId, string Email);
+
+// El servidor respondió 401 o el token venció: hay que volver a ingresar. Las acciones guardadas no se pierden.
+public sealed class SesionExpiradaException() : Exception("La sesión venció. Ingresá de nuevo para sincronizar.");
 
 public sealed record GeoPuntoDto(decimal Latitud, decimal Longitud);
 

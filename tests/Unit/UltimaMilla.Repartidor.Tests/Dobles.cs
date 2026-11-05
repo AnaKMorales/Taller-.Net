@@ -30,6 +30,7 @@ internal sealed class ServidorEnMemoria : IApiRepartidor
     public int Registradas => _procesadas.Count;
     public int Duplicadas { get; private set; }
     public Func<Task>? AlRecibir { get; set; }
+    public bool SesionVencida { get; set; }
 
     public Task<SesionRepartidor?> IniciarSesionAsync(string email, string contrasena, CancellationToken ct = default) =>
         throw new NotSupportedException();
@@ -42,6 +43,7 @@ internal sealed class ServidorEnMemoria : IApiRepartidor
         Llamadas++;
         if (AlRecibir is not null) await AlRecibir();
         if (!EnLinea) throw new HttpRequestException("Sin red");
+        if (SesionVencida) throw new SesionExpiradaException();
         if (EnviosConflictivos.Contains(accion.EnvioId))
             return new RespuestaAccion(ResultadoAccion.Rechazada, "El envío cambió de estado.");
         if (!_procesadas.Add(accion.IdOperacion))
@@ -63,7 +65,7 @@ internal sealed class ServidorEnMemoria : IApiRepartidor
 internal static class Datos
 {
     public static readonly DateTimeOffset Inicio = new(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);
-    public static readonly SesionRepartidor Sesion = new("t", Guid.NewGuid(), Guid.NewGuid(), "repartidor");
+    public static readonly SesionRepartidor Sesion = new("t", Guid.NewGuid(), "repartidor@demo.uy", DateTimeOffset.MaxValue);
     public static readonly GeoPuntoDto Posicion = new(-34.6m, -58.4m);
     public static readonly MotivoNoEntregaDto Ausente = new(Guid.NewGuid(), "Ausente", false);
     public static readonly MotivoNoEntregaDto Rechazo = new(Guid.NewGuid(), "Rechazado", true);

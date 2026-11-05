@@ -15,7 +15,7 @@ using UltimaMilla.Infrastructure.Persistence.Tenancy;
 namespace UltimaMilla.Web.Desarrollo;
 
 public sealed record DatosDemoCreados(Guid OperadorId, string EmailAdministrador, string EmailComercio,
-    string Contrasena, string CodigoSeguimiento);
+    string EmailRepartidor, string Contrasena, string CodigoSeguimiento);
 
 // Datos de prueba, solo para desarrollo. Cada llamada crea un operador nuevo.
 public static class DatosDemo
@@ -74,7 +74,7 @@ public static class DatosDemo
         foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
             ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
         await db.SaveChangesAsync(ct);
-        return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, ContrasenaDemo, admitido.CodigoSeguimiento);
+        return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, repartidor.Email, ContrasenaDemo, admitido.CodigoSeguimiento);
     }
 
     public static async Task SimularAltaAsync(DbContextOptions<AppDbContext> options, Guid operadorId, CancellationToken ct)

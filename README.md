@@ -236,19 +236,27 @@ cola local en IndexedDB y sincronización automática al volver la conexión. Ca
 `IdOperacion` generado en el dispositivo, `OcurridoEn` y GPS opcional. La barra superior indica
 en línea / sin conexión / pendientes / rechazadas.
 
-**Usa datos de prueba** (`Simulacion/ApiRepartidorFalsa`): Web todavía no expone login de
-repartidor ni endpoints de hoja de ruta e intentos. Cualquier email y contraseña no vacía ingresan.
-El contrato que debe implementar Web, la política de conflictos ("el servidor gana") y el límite
-del GPS con pantalla apagada están en [ADR-005](docs/adr/005-sincronizacion-offline-repartidor.md).
+**El login es real**: `POST /api/repartidor/sesion` en Web valida con el mismo mecanismo que el
+login web y entrega un token Bearer (8 h). El operador sale del token y `TenantResolver` lo verifica
+en cada pedido. Con el token vencido o un 401, las acciones quedan pendientes hasta volver a ingresar.
+**La hoja de ruta y los intentos todavía son simulados** (`Simulacion/ApiRepartidorFalsa`), porque
+Web no tiene esos endpoints. El login, su seguridad, el contrato pendiente, la política de conflictos
+("el servidor gana") y el límite del GPS con pantalla apagada están en
+[ADR-005](docs/adr/005-sincronizacion-offline-repartidor.md).
 La lógica de cola y sincronización se prueba sin navegador en `tests/Unit/UltimaMilla.Repartidor.Tests`.
 
 ```powershell
+./scripts/Start-Web.ps1                            # Web en http://localhost:5243 (PostgreSQL local)
+Invoke-RestMethod -Method Post http://localhost:5243/dev/datos-demo   # emailRepartidor y contrasena
 dotnet run --project src/UltimaMilla.Repartidor   # http://localhost:5086
 ```
 
+La PWA llama a la API indicada en `src/UltimaMilla.Repartidor/wwwroot/appsettings.json` (`ApiUrl`);
+Web solo acepta los orígenes de `Repartidor:Origenes` (en Desarrollo, `http://localhost:5086`).
+
 Demostración (Chrome/Edge, DevTools → Network → Offline):
 
-1. Ingresar; se descarga la hoja de ruta. Marcar **Offline**: la barra pasa a "Sin conexión".
+1. Ingresar con el repartidor demo; se descarga la hoja de ruta. Marcar **Offline**: la barra pasa a "Sin conexión".
 2. Registrar dos entregas (nombre y documento). Quedan "sin sincronizar" y la barra muestra "2 pendientes".
 3. Desmarcar **Offline**: se sincronizan solas. En **Sincronización** el servidor de prueba muestra
    2 intentos registrados. "Reenviar sincronizadas" sube solo los descartados por IdOperacion.

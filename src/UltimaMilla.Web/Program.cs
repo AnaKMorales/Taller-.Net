@@ -27,8 +27,15 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 builder.Services.AddRazorPages();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
-// Sesión con cookie.
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+// Sesión con cookie para backoffice y portal; token Bearer para la PWA del repartidor.
+// El selector usa el token solo si el pedido trae "Authorization: Bearer"; si no, la cookie de siempre.
+builder.Services.AddAuthentication(Politicas.EsquemaSelector)
+    .AddPolicyScheme(Politicas.EsquemaSelector, Politicas.EsquemaSelector, o => o.ForwardDefaultSelector = context =>
+        context.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? ApiRepartidor.Esquema
+            : CookieAuthenticationDefaults.AuthenticationScheme)
+    // Token protegido con Data Protection: no hay clave de firma que guardar en el repo.
+    .AddBearerToken(ApiRepartidor.Esquema, o => o.BearerTokenExpiration = TimeSpan.FromHours(8))
     .AddCookie(o =>
     {
         o.LoginPath = "/login";
@@ -40,7 +47,15 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Politicas.Backoffice, p => p.RequireRole(Politicas.RolesBackoffice))
-    .AddPolicy(Politicas.Portal, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Comercio)));
+    .AddPolicy(Politicas.Portal, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Comercio)))
+    .AddPolicy(Politicas.Repartidor, p => p.AddAuthenticationSchemes(ApiRepartidor.Esquema)
+        .RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Repartidor)));
+
+// La PWA se sirve desde otro origen; solo los configurados en Repartidor:Origenes pueden llamar a su API.
+builder.Services.AddCors(o => o.AddPolicy(ApiRepartidor.Cors, p => p
+    .WithOrigins(builder.Configuration.GetSection("Repartidor:Origenes").Get<string[]>() ?? [])
+    .WithHeaders("Authorization", "Content-Type")
+    .WithMethods("GET", "POST")));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantActual, TenantActualHttp>();
 
@@ -70,6 +85,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // HTTPS lo termina Traefik en AWS.
+app.UseCors();
 app.UseAuthentication();
 
 // Resuelve el operador de la sesión en cada petición.
@@ -99,6 +115,7 @@ app.MapStaticAssets();
 app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
+app.MapApiRepartidor();
 
 // Seguimiento público (sin login).
 app.MapGet("/api/seguimiento/{token}", async (string token, ISeguimientoPublico seguimiento, CancellationToken ct) =>

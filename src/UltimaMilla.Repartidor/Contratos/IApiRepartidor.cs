@@ -1,7 +1,8 @@
 namespace UltimaMilla.Repartidor.Contratos;
 
-// Única puerta hacia el servidor. Hoy la implementa ApiRepartidorFalsa (datos de prueba);
-// cuando Web exponga la API, se agrega una implementación con HttpClient y se cambia el registro en Program.cs.
+// Única puerta hacia el servidor. La implementa Servidor/ApiRepartidorHttp: el login es real;
+// hoja de ruta y acciones siguen simuladas hasta que Web exponga sus endpoints.
+// Con la sesión vencida o un 401, los métodos que reciben la sesión lanzan SesionExpiradaException.
 public interface IApiRepartidor
 {
     // Devuelve null si las credenciales no son válidas (sin distinguir email inexistente o contraseña).

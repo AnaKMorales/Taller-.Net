@@ -1,6 +1,6 @@
 # ADR-005: trabajo sin conexión y sincronización de la app del repartidor
 
-Estado: aceptada; implementada en la PWA con una API de prueba. La API real en Web está pendiente.
+Estado: aceptada. Login real implementado en Web; hoja de ruta e intentos siguen simulados en la PWA.
 
 ## Problema
 
@@ -65,22 +65,54 @@ Motivo: un intento de entrega es un hecho con consecuencias (estado, intentos, a
 aplicar automáticamente algo que contradice una decisión del despachador es peor que pedir una
 revisión. Los rechazos esperables son pocos porque la app ya valida las reglas locales.
 
-### Contrato que debe implementar Web
+### Login y token
+
+La PWA corre en otro origen y no puede usar la cookie `SameSite=Strict` del backoffice; además el
+login de Web rechaza a propósito el rol Repartidor. Por eso Web expone una API propia
+(`src/UltimaMilla.Web/Seguridad/ApiRepartidor.cs`):
+
+- `POST /api/repartidor/sesion` { email, contrasena }: valida con el mismo `IBuscadorUsuariosLogin`
+  del login de Web (email normalizado, usuario activo, hash PBKDF2). Si además el rol es Repartidor,
+  responde 200 `{ tokenType, accessToken, expiresIn, refreshToken }`. Si no, 401, sin distinguir
+  email inexistente, contraseña incorrecta u otro rol.
+- `GET /api/repartidor/sesion` con `Authorization: Bearer`: devuelve `{ usuarioId, email }`. La PWA lo
+  usa para tomar su perfil del servidor y para validar el token antes de cada operación.
+
+Se usa el token Bearer integrado de ASP.NET Core (`AddBearerToken`), no un JWT. Viene en el framework,
+sin paquetes adicionales, y se protege con Data Protection, igual que la cookie, así que no hay una
+clave de firma que guardar. Dura 8 horas, como la cookie; el refresh token no se usa todavía.
+Un esquema selector usa el token solo si el pedido trae `Authorization: Bearer`; si no, la cookie de
+siempre, de modo que backoffice y portal no cambian. La política `Repartidor` acepta solo el token y
+el rol Repartidor. CORS habilita únicamente los orígenes de `Repartidor:Origenes` (configuración).
+
+**Aislamiento:** el token lleva los mismos claims que la cookie (`operador_id` tomado de la base,
+usuario y rol). En cada pedido, `TenantResolver` vuelve a comprobar en la base que el usuario
+exista en ese operador, siga activo y conserve el rol. La PWA no guarda ni envía el operador:
+no lo puede elegir. Un usuario desactivado pierde el acceso en su próximo pedido, aunque su token
+todavía no haya vencido.
+
+**Vencimiento:** la PWA guarda `ExpiraEn`. Con el token vencido, o ante un 401/403, no envía nada más.
+La sesión queda marcada como vencida y la barra lo muestra; la hoja y la cola siguen disponibles
+sin conexión y las acciones quedan pendientes, sin consumir reintentos. Al volver a ingresar, se
+sincronizan. No se permite que otro repartidor ingrese mientras haya pendientes del anterior.
+
+En producción, las claves de Data Protection deben persistirse y compartirse entre instancias; si no,
+un reinicio invalida tokens y cookies. Ya era un requisito de la cookie.
+
+### Contrato pendiente en Web
 
 La PWA no referencia proyectos del servidor (prueba de arquitectura); el contrato son los DTOs de
 `src/UltimaMilla.Repartidor/Contratos`, en JSON con enums como texto (igual que la API de Web).
 
 | Operación | Endpoint propuesto | Respuesta |
 | --- | --- | --- |
-| Login | `POST /api/repartidor/sesion` { email, contrasena } | 200 `SesionRepartidor` (token Bearer) / 401 |
 | Hoja de ruta | `GET /api/repartidor/hoja-de-ruta` | 200 `HojaDeRutaDto` de la ruta activa |
-| Acción | `POST /api/repartidor/intentos` `AccionEntregaDto` | 200 `RespuestaAccion` (Aceptada/YaProcesada) / 409 o 422 con detalle = Rechazada / 5xx = reintentar |
+| Acción | `POST /api/repartidor/intentos` `AccionEntregaDto` | 200 `RespuestaAccion` (Aceptada/YaProcesada) / 409 o 422 con detalle = Rechazada / 401 = sesión vencida / 5xx = reintentar |
 
-El servidor toma operador y repartidor del token (TenantResolver), nunca del cuerpo, y llama a
-`Envio.RegistrarIntento` con el `IdOperacion` recibido. Si ese `IdOperacion` ya existe con otro
-resultado, responde Rechazada. Hoy el login de Web rechaza a propósito el rol Repartidor y usa cookie
-`SameSite=Strict`, por eso se necesita este endpoint propio. Una 401 (token vencido) debe tratarse
-como "pendiente, pedir login" sin perder la cola; queda para cuando exista la API real.
+Estos endpoints deben exigir la política `Repartidor`, tomar operador y repartidor de `ITenantActual`
+(nunca del cuerpo) y llamar a `Envio.RegistrarIntento` con el `IdOperacion` recibido. Si ese
+`IdOperacion` ya existe con otro resultado, responden Rechazada. Mientras no existan,
+`ApiRepartidorHttp` valida el token real y delega en la simulación.
 
 ## Límite: posición con la pantalla apagada
 

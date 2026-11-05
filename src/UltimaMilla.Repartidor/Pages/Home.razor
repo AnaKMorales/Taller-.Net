@@ -5,6 +5,7 @@
 @inject IApiRepartidor Api
 @inject EstadoConexion Conexion
 @inject NavigationManager Navegacion
+@inject TimeProvider Reloj
 
 <PageTitle>Hoja de ruta</PageTitle>
 
@@ -20,6 +21,12 @@
 {
     <div class="alert alert-warning py-2">@_mensaje</div>
 }
+@if (_sesion?.Vencida(Reloj.GetUtcNow()) == true)
+{
+    <div class="alert alert-warning py-2">
+        Tu sesión venció. Lo que registres se guarda en el teléfono; <a href="login">ingresá de nuevo</a> para sincronizar.
+    </div>
+}
 
 @if (_hoja is null)
 {
@@ -27,7 +34,7 @@
 }
 else
 {
-    <p class="text-muted small">@_sesion?.Nombre · descargada @_hoja.DescargadaEn.ToLocalTime().ToString("dd/MM HH:mm")</p>
+    <p class="text-muted small">@_sesion?.Email · descargada @_hoja.DescargadaEn.ToLocalTime().ToString("dd/MM HH:mm")</p>
     <ul class="list-group">
         @foreach (var parada in _hoja.Paradas.OrderBy(p => p.Orden))
         {
@@ -67,12 +74,14 @@ else
         Cola.Cambio += AlCambiar;
         Conexion.Cambio += AlCambiar;
         Datos.HojaActualizada += AlCambiar;
+        Datos.SesionActualizada += AlCambiar;
         await CargarAsync();
     }
 
     // Todo se lee del dispositivo: funciona igual con o sin conexión.
     private async Task CargarAsync()
     {
+        _sesion = await Datos.ObtenerSesionAsync() ?? _sesion;
         _hoja = await Datos.ObtenerHojaAsync();
         _cola = await Cola.ListarAsync();
     }
@@ -97,6 +106,11 @@ else
         try
         {
             await Datos.GuardarHojaAsync(await Api.ObtenerHojaDeRutaAsync(_sesion!));
+            await CargarAsync();
+        }
+        catch (SesionExpiradaException)
+        {
+            await Datos.MarcarSesionVencidaAsync(_sesion!);
             await CargarAsync();
         }
         catch (HttpRequestException)
@@ -127,5 +141,6 @@ else
         Cola.Cambio -= AlCambiar;
         Conexion.Cambio -= AlCambiar;
         Datos.HojaActualizada -= AlCambiar;
+        Datos.SesionActualizada -= AlCambiar;
     }
 }

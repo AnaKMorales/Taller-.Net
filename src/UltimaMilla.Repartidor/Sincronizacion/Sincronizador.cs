@@ -2,13 +2,14 @@ using UltimaMilla.Repartidor.Contratos;
 
 namespace UltimaMilla.Repartidor.Sincronizacion;
 
-public sealed record ResumenSincronizacion(int Sincronizadas, int Rechazadas, bool SinConexion);
+public sealed record ResumenSincronizacion(int Sincronizadas, int Rechazadas, bool SinConexion, bool SesionExpirada = false);
 
 // Envía al servidor las acciones pendientes, de la más antigua a la más nueva.
 // - Éxito o "ya procesada" (mismo IdOperacion) => Sincronizada. Reenviar nunca duplica.
 // - Rechazo de negocio => Rechazada, sin reintento (política del ADR-005).
 // - Error de red/servidor => sigue Pendiente, con espera creciente, y se corta la ronda:
 //   si una falló por red, las siguientes también fallarían.
+// - Sesión vencida => sigue Pendiente sin contar un reintento, y se corta la ronda hasta volver a ingresar.
 public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimeProvider reloj)
 {
     public static readonly TimeSpan EsperaMaxima = TimeSpan.FromMinutes(5);
@@ -36,6 +37,10 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
                 try
                 {
                     respuesta = await api.EnviarAccionAsync(sesion, item.Accion, ct);
+                }
+                catch (SesionExpiradaException)
+                {
+                    return new ResumenSincronizacion(sincronizadas, rechazadas, false, SesionExpirada: true);
                 }
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
                 {

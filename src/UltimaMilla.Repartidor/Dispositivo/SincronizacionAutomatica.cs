@@ -6,7 +6,7 @@ namespace UltimaMilla.Repartidor.Dispositivo;
 // Decide CUÁNDO sincronizar; el CÓMO está en Sincronizador (probado sin navegador).
 // Momentos: al volver la conexión, cada 30 segundos, después de registrar una acción y con el botón.
 public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincronizador sincronizador,
-    DatosLocales datos, IApiRepartidor api, ILogger<SincronizacionAutomatica> log)
+    DatosLocales datos, IApiRepartidor api, TimeProvider reloj, ILogger<SincronizacionAutomatica> log)
 {
     private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(30);
     private bool _iniciada;
@@ -40,11 +40,22 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
         try
         {
             if (!conexion.EnLinea || await datos.ObtenerSesionAsync() is not { } sesion) return;
+            // Con la sesión vencida no se envía nada: las acciones esperan a que el repartidor vuelva a ingresar.
+            if (sesion.Vencida(reloj.GetUtcNow())) return;
             var resumen = await sincronizador.SincronizarAsync(sesion, ignorarEspera);
+            if (resumen.SesionExpirada)
+            {
+                await datos.MarcarSesionVencidaAsync(sesion);
+                return;
+            }
 
             // Si el servidor aceptó o rechazó algo, se baja la hoja actualizada con los estados reales.
             if (resumen.Sincronizadas + resumen.Rechazadas > 0)
                 await datos.GuardarHojaAsync(await api.ObtenerHojaDeRutaAsync(sesion));
+        }
+        catch (SesionExpiradaException)
+        {
+            if (await datos.ObtenerSesionAsync() is { } sesion) await datos.MarcarSesionVencidaAsync(sesion);
         }
         catch (HttpRequestException)
         {

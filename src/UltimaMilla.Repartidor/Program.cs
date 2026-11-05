@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using UltimaMilla.Repartidor;
 using UltimaMilla.Repartidor.Contratos;
 using UltimaMilla.Repartidor.Dispositivo;
+using UltimaMilla.Repartidor.Servidor;
 using UltimaMilla.Repartidor.Simulacion;
 using UltimaMilla.Repartidor.Sincronizacion;
 
@@ -20,9 +21,12 @@ builder.Services.AddSingleton<ColaAcciones>();
 builder.Services.AddSingleton<Sincronizador>();
 builder.Services.AddSingleton<SincronizacionAutomatica>();
 
-// DATOS DE PRUEBA hasta que Web exponga la API del repartidor (contrato en docs/adr/005-*.md).
-// Para la API real: registrar acá una implementación de IApiRepartidor basada en HttpClient.
+// Dirección de la API de Web (wwwroot/appsettings.json). No es un secreto: el acceso lo da el token.
+var api = new Uri(builder.Configuration["ApiUrl"] ?? builder.HostEnvironment.BaseAddress);
+builder.Services.AddSingleton(new HttpClient { BaseAddress = api });
+
+// Login real; hoja de ruta e intentos siguen simulados hasta que Web exponga sus endpoints (ADR-005).
 builder.Services.AddSingleton<ApiRepartidorFalsa>();
-builder.Services.AddSingleton<IApiRepartidor>(sp => sp.GetRequiredService<ApiRepartidorFalsa>());
+builder.Services.AddSingleton<IApiRepartidor, ApiRepartidorHttp>();
 
 await builder.Build().RunAsync();
