@@ -1265,6 +1265,29 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Inbox.MensajeProcesado", b =>
+                {
+                    b.Property<Guid>("MensajeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Consumidor")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("ProcesadoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MensajeId", "Consumidor");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("MensajesProcesados", (string)null);
+                });
+
             modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Outbox.MensajeOutbox", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2022,6 +2045,15 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Operador");
+                });
+
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Inbox.MensajeProcesado", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Outbox.MensajeOutbox", b =>

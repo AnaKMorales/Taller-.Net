@@ -8,7 +8,9 @@ using UltimaMilla.Application.Envios.CrearEnvio;
 using UltimaMilla.Application.Tablero;
 using UltimaMilla.Application.Tarifas;
 using UltimaMilla.Application.Tenancy;
+using UltimaMilla.Domain.Envios;
 using UltimaMilla.Infrastructure.Cache;
+using UltimaMilla.Infrastructure.Mensajeria;
 using UltimaMilla.Infrastructure.Persistence;
 using UltimaMilla.Infrastructure.Persistence.Backoffice;
 using UltimaMilla.Infrastructure.Persistence.Tablero;
@@ -68,6 +70,9 @@ builder.Services.AddSignalR()
 builder.Services.AddDbContext<AppDbContext>((sp, options) => options
     .UseNpgsql(builder.Configuration.GetConnectionString("UltimaMilla"))
     .AddInterceptors(sp.GetRequiredService<PublicarCambiosInterceptor>()));
+
+// Cola de fallidos (avisos.dlq) para /backoffice/fallidos. Clave: RabbitMq__Clave (variable de entorno).
+builder.Services.AgregarColaFallidos(builder.Configuration);
 
 builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
@@ -148,6 +153,24 @@ if (app.Environment.IsDevelopment())
         if (tenant.Contexto is not { } contexto) return Results.Forbid();
         await DatosDemo.SimularAltaAsync(options, contexto.OperadorId, ct);
         return Results.NoContent();
+    });
+
+    // Suscribe la cuenta demo a los destinos del receptor de prueba (ok / flaky / fail) para demostrar webhooks.
+    // El secreto debe coincidir con Receptor__Secreto del receptor (por defecto, el de deploy/compose.yaml).
+    simular.MapPost("/webhooks", async (ITenantActual tenant, DbContextOptions<AppDbContext> options,
+        string? receptor, string? secreto, string? eventos, CancellationToken ct) =>
+    {
+        if (tenant.Contexto is not { } contexto) return Results.Forbid();
+        if (!Uri.TryCreate(receptor ?? "http://receptor:8080", UriKind.Absolute, out var destino) ||
+            destino.Scheme is not ("http" or "https"))
+            return Results.BadRequest("receptor debe ser una URL http(s) absoluta.");
+        // Por defecto solo "Admitir" (el evento del alta): así la demostración no se mezcla con eventos anteriores.
+        var tipos = (eventos ?? nameof(TipoEvento.Admitir)).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => Enum.TryParse<TipoEvento>(t, out var tipo) && Enum.IsDefined(tipo) ? (TipoEvento?)tipo : null).ToList();
+        if (tipos.Count == 0 || tipos.Any(t => t is null))
+            return Results.BadRequest("eventos debe ser una lista separada por comas de tipos de evento válidos.");
+        return Results.Ok(await DatosDemo.SuscribirReceptorAsync(options, contexto.OperadorId, destino,
+            string.IsNullOrWhiteSpace(secreto) ? "secreto-demo" : secreto, tipos.Select(t => t!.Value).ToList(), ct));
     });
 
     simular.MapPost("/recepcion", async (ITenantActual tenant, DbContextOptions<AppDbContext> options, CancellationToken ct) =>

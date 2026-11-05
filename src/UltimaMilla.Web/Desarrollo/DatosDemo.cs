@@ -93,6 +93,23 @@ public static class DatosDemo
         await db.SaveChangesAsync(ct);
     }
 
+    // Suscribe la primera cuenta del operador a los tipos de evento indicados, con tres destinos del receptor de prueba
+    // (tools/UltimaMilla.ReceptorWebhooks): /ok, /flaky?n=2 y /fail. Es idempotente por URL.
+    public static async Task<IReadOnlyList<string>> SuscribirReceptorAsync(DbContextOptions<AppDbContext> options,
+        Guid operadorId, Uri receptor, string secreto, IReadOnlyCollection<TipoEvento> tipos, CancellationToken ct)
+    {
+        await using var db = new AppDbContext(options, TenantActual.ParaOperador(operadorId));
+        _ = await db.Set<Operador>().SingleAsync(o => o.Id == operadorId, ct);
+        var cuenta = await db.Set<CuentaComercial>().FirstAsync(ct);
+        var existentes = (await db.Set<SuscripcionAviso>().ToListAsync(ct)).Select(s => s.UrlDestino.AbsoluteUri).ToHashSet();
+        var base_ = receptor.AbsoluteUri.TrimEnd('/');
+        var destinos = new[] { "/ok", "/flaky?n=2", "/fail" }.Select(ruta => new Uri(base_ + ruta)).ToList();
+        foreach (var destino in destinos.Where(d => !existentes.Contains(d.AbsoluteUri)))
+            db.Add(new SuscripcionAviso(cuenta, tipos, secreto, destino));
+        await db.SaveChangesAsync(ct);
+        return destinos.Select(d => d.AbsoluteUri).ToList();
+    }
+
     public static async Task<bool> SimularRecepcionAsync(DbContextOptions<AppDbContext> options, Guid operadorId, CancellationToken ct)
     {
         await using var db = new AppDbContext(options, TenantActual.ParaOperador(operadorId));

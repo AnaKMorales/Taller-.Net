@@ -5,6 +5,10 @@
     <Project Path="src/UltimaMilla.Infrastructure/UltimaMilla.Infrastructure.csproj" />
     <Project Path="src/UltimaMilla.Repartidor/UltimaMilla.Repartidor.csproj" />
     <Project Path="src/UltimaMilla.Web/UltimaMilla.Web.csproj" />
+    <Project Path="src/UltimaMilla.Worker/UltimaMilla.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/UltimaMilla.ReceptorWebhooks/UltimaMilla.ReceptorWebhooks.csproj" />
   </Folder>
   <Folder Name="/tests/" />
   <Folder Name="/tests/Architecture/">
@@ -18,5 +22,6 @@
     <Project Path="tests/Unit/UltimaMilla.Domain.Tests/UltimaMilla.Domain.Tests.csproj" />
     <Project Path="tests/Unit/UltimaMilla.Infrastructure.Tests/UltimaMilla.Infrastructure.Tests.csproj" />
     <Project Path="tests/Unit/UltimaMilla.Repartidor.Tests/UltimaMilla.Repartidor.Tests.csproj" />
+    <Project Path="tests/Unit/UltimaMilla.Worker.Tests/UltimaMilla.Worker.Tests.csproj" />
   </Folder>
 </Solution>
