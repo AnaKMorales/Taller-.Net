@@ -12,6 +12,7 @@ Verifica las reglas del ADR-001. No necesita Docker, PostgreSQL, Redis ni Rabbit
 | Application | Domain |
 | Infrastructure | Application y Domain |
 | Web | Application, Infrastructure y Domain |
+| Repartidor (PWA) | Ninguna: usa sus propios DTOs del contrato JSON de la API |
 
 NetArchTest inspecciona los tipos de los ensamblados compilados. Domain admite tipos de
 su propio namespace y de System. Application admite los suyos, Domain y System. Así se

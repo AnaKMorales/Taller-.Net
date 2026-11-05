@@ -27,4 +27,9 @@ utilicen en código. Agregar Worker o Repartidor exige incluirlos en la matriz y
 análisis de sus ensamblados. La ejecución está integrada en la solución; su conexión al
 pipeline depende de la implementación de CI del equipo.
 
+Repartidor (Blazor WebAssembly PWA) se incorporó a la matriz sin referencias a proyectos
+del servidor: corre en el navegador y se comunica solo por HTTP con DTOs propios. Así no
+puede llegar a Infrastructure ni descargar Domain al dispositivo. Infrastructure y Web
+tampoco pueden depender de Repartidor.
+
 Ver [detalle y criterios para modificar las reglas](../architecture-tests.md).
