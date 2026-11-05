@@ -7,8 +7,60 @@
 }
 
 <h1>Avisos fallidos</h1>
-<p class="nota">Avisos a comercios (webhooks) que todavía no se pudieron entregar. El reenvío lo hará el Worker
-    con reintentos y cola de fallidos; el botón para reintentar a mano se agrega cuando el Worker esté integrado.</p>
+
+@if (Model.Resultado is not null)
+{
+    <p class="nota" role="status"><strong>@Model.Resultado</strong></p>
+}
+
+<h2>Cola de fallidos (avisos.dlq)</h2>
+<p class="nota">Mensajes de eventos de envío que el Worker no pudo procesar después de reintentar a los 5 segundos,
+    30 segundos y 2 minutos. Al reintentar, el mensaje vuelve a la cola de avisos con el contador en cero; si ya
+    se había procesado, se descarta como duplicado.</p>
+
+@if (!Model.ColaConfigurada)
+{
+    <p class="vacio">RabbitMQ no está configurado en este servidor.</p>
+}
+else if (Model.ErrorCola is not null)
+{
+    <p class="vacio">@Model.ErrorCola</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>Mensaje</th><th>Envío</th><th>Evento</th><th>Cambio de estado</th><th>Ocurrió</th><th>Reintentos</th><th>Falló</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var m in Model.Muertos)
+            {
+                <tr>
+                    <td title="@m.MensajeId">@Textos.Corto(Guid.TryParse(m.MensajeId, out var id) ? id : Guid.Empty)</td>
+                    <td>@Textos.Corto(m.EnvioId)</td>
+                    <td>@m.TipoEvento</td>
+                    <td>@(m.EstadoAnterior ?? "—") → @m.EstadoNuevo</td>
+                    <td>@Textos.Fecha(m.OcurridoEn)</td>
+                    <td>@m.Intentos</td>
+                    <td>@(m.FallidoEn is { } f ? Textos.Fecha(f) : "—")</td>
+                    <td>
+                        <form method="post" asp-page-handler="Reintentar">
+                            <input type="hidden" name="mensajeId" value="@m.MensajeId" />
+                            <button type="submit">Reintentar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Muertos.Count == 0)
+            {
+                <tr><td colspan="8" class="vacio">No hay mensajes en la cola de fallidos.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Webhooks a comercios</h2>
+<p class="nota">Avisos a comercios (webhooks) que todavía no se pudieron entregar.</p>
 
 <table>
     <thead>

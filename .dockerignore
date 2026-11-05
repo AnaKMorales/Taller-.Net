@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+.vscode/
+deploy/.env*
+deploy/terraform/
+docs/
+tests/

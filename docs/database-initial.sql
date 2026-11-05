@@ -1143,3 +1143,28 @@ VALUES ('20261027220546_TransactionalOutbox', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "Usuarios" ADD "ContrasenaHash" character varying(256);
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261030191957_CredencialesLogin', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "MensajesProcesados" (
+    "MensajeId" uuid NOT NULL,
+    "Consumidor" character varying(100) NOT NULL,
+    "ProcesadoEn" timestamp with time zone NOT NULL,
+    "TenantId" uuid NOT NULL,
+    CONSTRAINT "PK_MensajesProcesados" PRIMARY KEY ("MensajeId", "Consumidor"),
+    CONSTRAINT "FK_MensajesProcesados_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_MensajesProcesados_TenantId" ON "MensajesProcesados" ("TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261105204809_MensajeProcesado', '10.0.12');
+
+COMMIT;
+
