@@ -40,6 +40,10 @@ public sealed partial class PostgresTests
         Assert.Equal(EstadoEnvio.EnTransito, parada.EstadoEnvio);
         Assert.True(parada.Reglas.PermiteEntregaParcial);
         Assert.Equal(new[] { "PARCIAL-01", "PARCIAL-02" }, parada.Bultos.Select(b => b.Codigo));
+
+        await using var db = Context(demo.OperadorId);
+        var avisos = await db.Set<EntregaAviso>().OrderBy(a => a.Exitoso).ToListAsync();
+        Assert.Collection(avisos, aviso => Assert.False(aviso.Exitoso), aviso => Assert.True(aviso.Exitoso));
     }
 
     [PostgresFact]

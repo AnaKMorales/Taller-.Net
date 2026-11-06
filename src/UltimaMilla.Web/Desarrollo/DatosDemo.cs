@@ -56,6 +56,12 @@ public static class DatosDemo
         fallido.RecibirEnDeposito(admin, ahora.AddSeconds(1));
         _ = new Discrepancia(fallido, bulto, TipoDiscrepancia.PesoNoCoincide, "Peso del bulto", "2.5 kg", "3.1 kg",
             ahora.AddSeconds(1));
+
+        // Entregado antes de la fecha comprometida: cuenta como cumplido en los reportes.
+        var entregado = NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Ana Gómez", ahora);
+        EscaneoBulto.RegistrarRecepcion(entregado.Bultos.Single(), admin, ahora.AddSeconds(1));
+        entregado.RecibirEnDeposito(admin, ahora.AddSeconds(1));
+
         Envio? visitaParcial = null;
         if (incluirVisitaParcial)
         {
@@ -69,7 +75,7 @@ public static class DatosDemo
         // Los envíos deben existir antes de insertar las paradas que los referencian.
         await using var db = new AppDbContext(options, TenantActual.ParaOperador(operador.Id));
         await using var transaccion = await db.Database.BeginTransactionAsync(ct);
-        db.AddRange(admitido, fallido, admin, usuarioComercio, repartidor);
+        db.AddRange(admitido, fallido, entregado, admin, usuarioComercio, repartidor);
         if (visitaParcial is not null) db.Add(visitaParcial);
         foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
             ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
@@ -77,16 +83,11 @@ public static class DatosDemo
 
         var ruta = new Ruta(repartidor, vehiculo, 10);
         ruta.AgregarParada(fallido, 1, fallido.VentanaDesde.AddHours(1), admin, ahora.AddSeconds(2));
+        ruta.AgregarParada(entregado, 2, entregado.VentanaDesde.AddHours(2), admin, ahora.AddSeconds(2));
         if (visitaParcial is not null)
-            ruta.AgregarParada(visitaParcial, 2, visitaParcial.VentanaDesde.AddHours(2), admin, ahora.AddSeconds(2));
+            ruta.AgregarParada(visitaParcial, 3, visitaParcial.VentanaDesde.AddHours(3), admin, ahora.AddSeconds(2));
         db.Add(ruta);
         await db.SaveChangesAsync(ct);
-
-        // Entregado antes de la fecha comprometida: cuenta como cumplido en los reportes.
-        var entregado = NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Ana Gómez", ahora);
-        EscaneoBulto.RegistrarRecepcion(entregado.Bultos.Single(), admin, ahora.AddSeconds(1));
-        entregado.RecibirEnDeposito(admin, ahora.AddSeconds(1));
-        ruta.AgregarParada(entregado, 2, entregado.VentanaDesde.AddHours(2), admin, ahora.AddSeconds(2));
 
         ruta.Despachar(admin, ahora.AddSeconds(3));
         fallido.RegistrarIntento(ResultadoIntento.Fallido, ausente,
@@ -104,10 +105,6 @@ public static class DatosDemo
         new EntregaAviso(suscripcion, entregado.Eventos.Last()).RegistrarIntento(true, ahora.AddSeconds(5));
 
         db.Add(suscripcion);
-        await using var db = new AppDbContext(options, TenantActual.ParaOperador(operador.Id));
-        db.AddRange(admitido, fallido, entregado, ruta, suscripcion, admin, usuarioComercio, repartidor);
-        foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
-            ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
         await db.SaveChangesAsync(ct);
         await transaccion.CommitAsync(ct);
         return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, repartidor.Email, ContrasenaDemo,
