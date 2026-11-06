@@ -8,7 +8,7 @@ namespace UltimaMilla.Infrastructure.Persistence.Intentos;
 public sealed class RegistroIntentoRepository(DbContextOptions<AppDbContext> options, ITenantActual actual)
     : IRegistroIntentoRepository
 {
-    public async Task<IOperacionRegistroIntento> AbrirAsync(Guid envioId, Guid idOperacion, CancellationToken ct)
+    public async Task<IOperacionRegistroIntento> AbrirAsync(Guid envioId, Guid paradaId, Guid idOperacion, CancellationToken ct)
     {
         var tenant = actual.Contexto;
         if (tenant is not { Origen: OrigenTenant.UsuarioAutenticado, Rol: RolUsuario.Repartidor, UsuarioId: not null })
@@ -22,9 +22,13 @@ public sealed class RegistroIntentoRepository(DbContextOptions<AppDbContext> opt
             var responsable = await db.Set<Repartidor>().Include(r => r.Operador)
                 .SingleOrDefaultAsync(r => r.Id == tenant.UsuarioId && r.Activo && r.Rol == RolUsuario.Repartidor, ct)
                 ?? throw new AislamientoOperadorException();
+            // La parada histórica propia permite informar el conflicto. Domain sigue exigiendo
+            // que una operación nueva corresponda a la parada activa para poder guardar.
             var envio = await Grafo(db).SingleOrDefaultAsync(e => e.Id == envioId &&
                 ((e.Parada != null && e.Parada.Ruta.Repartidor.Id == responsable.Id) ||
-                 e.Intentos.Any(i => i.IdOperacion == idOperacion && i.Parada.Ruta.Repartidor.Id == responsable.Id)), ct)
+                 e.Intentos.Any(i => i.IdOperacion == idOperacion && i.Parada.Ruta.Repartidor.Id == responsable.Id) ||
+                 db.Set<Parada>().Any(p => p.Id == paradaId && p.Envio.Id == e.Id &&
+                     !p.Activa && p.Ruta.Repartidor.Id == responsable.Id)), ct)
                 ?? throw new AislamientoOperadorException();
             await lectura.CommitAsync(ct);
             return new Operacion(db, envio, responsable);

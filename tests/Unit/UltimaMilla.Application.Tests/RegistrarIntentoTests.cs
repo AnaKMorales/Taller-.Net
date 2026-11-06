@@ -144,7 +144,7 @@ public sealed class RegistrarIntentoTests
             void Escanear(Bulto b) => UltimaMilla.Domain.Deposito.EscaneoBulto.RegistrarRecepcion(b, admin, fecha);
         }
 
-        public Task<IOperacionRegistroIntento> AbrirAsync(Guid envioId, Guid idOperacion, CancellationToken ct)
+        public Task<IOperacionRegistroIntento> AbrirAsync(Guid envioId, Guid paradaId, Guid idOperacion, CancellationToken ct)
         { Abiertos++; return Task.FromResult<IOperacionRegistroIntento>(new Operacion(this)); }
 
         private sealed class Operacion(Caso caso) : IOperacionRegistroIntento

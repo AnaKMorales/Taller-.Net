@@ -36,10 +36,11 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
 
     private async Task SincronizarAsync(bool ignorarEspera)
     {
+        SesionRepartidor? sesion = null;
         // Corre en segundo plano: un error se registra pero no puede tirar la app.
         try
         {
-            if (!conexion.EnLinea || await datos.ObtenerSesionAsync() is not { } sesion) return;
+            if (!conexion.EnLinea || (sesion = await datos.ObtenerSesionAsync()) is null) return;
             // Con la sesión vencida no se envía nada: las acciones esperan a que el repartidor vuelva a ingresar.
             if (sesion.Vencida(reloj.GetUtcNow())) return;
             var resumen = await sincronizador.SincronizarAsync(sesion, ignorarEspera);
@@ -49,13 +50,19 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
                 return;
             }
 
-            // Si el servidor aceptó o rechazó algo, se baja la hoja actualizada con los estados reales.
-            if (resumen.Sincronizadas + resumen.Rechazadas > 0)
-                await datos.GuardarHojaAsync(await api.ObtenerHojaDeRutaAsync(sesion));
+            if (resumen.Sincronizadas + resumen.Rechazadas > 0 &&
+                await datos.ObtenerHojaAsync() is { } hoja &&
+                await datos.ObtenerSesionAsync() is { } actual &&
+                actual.RepartidorId == sesion.RepartidorId && actual.Token == sesion.Token)
+            {
+                var actualizada = await api.ObtenerHojaDeRutaAsync(sesion, hoja.RutaId);
+                if ((await datos.ObtenerHojaAsync())?.RutaId == hoja.RutaId)
+                    await datos.GuardarHojaAsync(sesion, actualizada);
+            }
         }
         catch (SesionExpiradaException)
         {
-            if (await datos.ObtenerSesionAsync() is { } sesion) await datos.MarcarSesionVencidaAsync(sesion);
+            if (sesion is not null) await datos.MarcarSesionVencidaAsync(sesion);
         }
         catch (HttpRequestException)
         {

@@ -26,21 +26,37 @@ public sealed class DatosLocales(IAlmacenLocal almacen)
 
     // El servidor rechazó el token: se conserva la sesión (para seguir viendo la hoja sin conexión)
     // pero queda vencida, así no se envían más pedidos hasta volver a ingresar.
-    public Task MarcarSesionVencidaAsync(SesionRepartidor sesion) =>
-        GuardarSesionAsync(sesion with { ExpiraEn = DateTimeOffset.UnixEpoch });
+    public async Task MarcarSesionVencidaAsync(SesionRepartidor sesion)
+    {
+        if (await EsSesionActualAsync(sesion))
+            await GuardarSesionAsync(sesion with { ExpiraEn = DateTimeOffset.UnixEpoch });
+    }
 
     public async Task CerrarSesionAsync()
     {
+        var sesion = await ObtenerSesionAsync();
         await almacen.BorrarAsync(ClaveSesion);
+        if (sesion is not null) await almacen.BorrarAsync(ClaveHojaDe(sesion));
         await almacen.BorrarAsync(ClaveHoja);
     }
 
-    public async Task<HojaDeRutaDto?> ObtenerHojaAsync() =>
-        await almacen.LeerAsync(ClaveHoja) is { } json ? JsonSerializer.Deserialize(json, JsonRepartidor.Default.HojaDeRutaDto) : null;
-
-    public async Task GuardarHojaAsync(HojaDeRutaDto hoja)
+    public async Task<HojaDeRutaDto?> ObtenerHojaAsync()
     {
-        await almacen.GuardarAsync(ClaveHoja, JsonSerializer.Serialize(hoja, JsonRepartidor.Default.HojaDeRutaDto));
+        var sesion = await ObtenerSesionAsync();
+        if (sesion is null) return null;
+        var json = await almacen.LeerAsync(ClaveHojaDe(sesion));
+        return json is null ? null : JsonSerializer.Deserialize(json, JsonRepartidor.Default.HojaDeRutaDto);
+    }
+
+    public async Task GuardarHojaAsync(SesionRepartidor sesion, HojaDeRutaDto hoja)
+    {
+        if (!await EsSesionActualAsync(sesion)) return;
+        await almacen.GuardarAsync(ClaveHojaDe(sesion), JsonSerializer.Serialize(hoja, JsonRepartidor.Default.HojaDeRutaDto));
         HojaActualizada?.Invoke();
     }
+
+    private static string ClaveHojaDe(SesionRepartidor sesion) => $"{ClaveHoja}:{sesion.RepartidorId}";
+
+    private async Task<bool> EsSesionActualAsync(SesionRepartidor sesion) =>
+        await ObtenerSesionAsync() is { } actual && actual.RepartidorId == sesion.RepartidorId && actual.Token == sesion.Token;
 }

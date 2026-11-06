@@ -13,7 +13,12 @@ namespace UltimaMilla.Repartidor.Sincronizacion;
 [JsonSerializable(typeof(TokenAcceso))]
 [JsonSerializable(typeof(PerfilRepartidor))]
 [JsonSerializable(typeof(HojaDeRutaDto))]
+[JsonSerializable(typeof(HojaRutaApiDto))]
+[JsonSerializable(typeof(RutaDisponibleDto[]))]
 [JsonSerializable(typeof(AccionEntregaDto))]
+[JsonSerializable(typeof(IntentoPorBultoDto))]
+[JsonSerializable(typeof(IntentoConfirmadoDto))]
+[JsonSerializable(typeof(ProblemaIntentoDto))]
 [JsonSerializable(typeof(RespuestaAccion))]
 [JsonSerializable(typeof(List<AccionPendiente>))]
-public sealed partial class JsonRepartidor : JsonSerializerContext;
+internal sealed partial class JsonRepartidor : JsonSerializerContext;

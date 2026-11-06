@@ -41,18 +41,21 @@ public sealed partial class PostgresTests
         }
     }
 
-    private sealed class ServidorApi(string connection) : WebApplicationFactory<App>
+    private sealed class ServidorApi(string connection, bool usarIdentidadPrueba = true, string ambiente = "Testing")
+        : WebApplicationFactory<App>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Testing");
+            builder.UseEnvironment(ambiente);
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:UltimaMilla"] = connection, ["ConnectionStrings:Redis"] = "",
+                ["Repartidor:Origenes:0"] = "https://repartidor.example",
                 ["Logging:LogLevel:Default"] = "Warning"
             }));
             builder.ConfigureServices(services =>
             {
+                if (!usarIdentidadPrueba) return;
                 services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new RelojConfiguracion());
                 services.AddAuthentication(o => o.DefaultAuthenticateScheme = "Test")
                     .AddScheme<AuthenticationSchemeOptions, IdentidadPrueba>("Test", _ => { });

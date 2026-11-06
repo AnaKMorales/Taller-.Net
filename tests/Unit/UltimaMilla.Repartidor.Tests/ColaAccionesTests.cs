@@ -5,6 +5,33 @@ namespace UltimaMilla.Repartidor.Tests;
 
 public sealed class ColaAccionesTests
 {
+    [Fact]
+    public async Task ConservaLaVisitaParcialPorRepartidorYPermiteUnaNuevaParadaDelMismoEnvio()
+    {
+        var (hoja, accion) = Datos.VisitaParcial();
+        var repartidor = Datos.Sesion.RepartidorId;
+        var cola = new ColaAcciones(_almacen);
+        Assert.Empty(await cola.EncolarAsync(accion, hoja, repartidor));
+
+        var reabierta = new ColaAcciones(_almacen);
+        Assert.Empty(await reabierta.ListarAsync(Guid.NewGuid()));
+        var primera = Assert.Single(await reabierta.ListarAsync(repartidor));
+        Assert.Equal(accion.Intento!.IdOperacion, primera.Accion.Intento!.IdOperacion);
+        Assert.Equal(DateTimeKind.Utc, primera.Accion.Intento.OcurridoEn.Kind);
+        Assert.Single(primera.Accion.Intento.Evidencias);
+
+        var nueva = hoja.Paradas[0] with { ParadaId = Guid.NewGuid(), VersionEsperadaEnvio = Guid.NewGuid() };
+        var nuevaOperacion = Guid.NewGuid();
+        var siguiente = accion with
+        {
+            IdOperacion = nuevaOperacion,
+            Intento = accion.Intento with { ParadaId = nueva.ParadaId.Value,
+                VersionEsperada = nueva.VersionEsperadaEnvio.Value, IdOperacion = nuevaOperacion }
+        };
+        Assert.Empty(await reabierta.EncolarAsync(siguiente, hoja with { Paradas = [nueva] }, repartidor));
+        Assert.Equal(2, (await reabierta.ListarAsync(repartidor)).Count);
+    }
+
     private readonly AlmacenEnMemoria _almacen = new();
 
     [Fact]

@@ -1,6 +1,6 @@
 # ADR-005: trabajo sin conexión y sincronización de la app del repartidor
 
-Estado: aceptada. Login real implementado en Web; hoja de ruta e intentos siguen simulados en la PWA.
+Estado: aceptada. La PWA usa el login, la descarga de hoja de ruta y el registro por bulto reales.
 
 ## Problema
 
@@ -13,24 +13,29 @@ no puede generar dos intentos de entrega en el servidor.
 ### Datos en el dispositivo
 
 - La PWA (`src/UltimaMilla.Repartidor`, Blazor WebAssembly) guarda en IndexedDB la sesión, la hoja
-  de ruta descargada (paradas, catálogo de motivos, pruebas exigidas) y la cola de acciones.
+  de ruta descargada (paradas, catálogo de motivos, pruebas exigidas) y la cola de acciones
+  separada por repartidor.
 - Toda pantalla lee del dispositivo, nunca directamente del servidor: se ve igual con o sin red.
 - El service worker publicado guarda en caché los archivos de la app para que abra sin conexión.
 - El acceso a IndexedDB es un módulo JS propio y chico (`wwwroot/js/repartidor.js`), sin paquetes.
 
 ### Acciones
 
-Cada entrega exitosa o fallo se registra **primero en la cola local** y se envía después. Lleva:
+Cada visita completa, parcial o fallida se registra **primero en la cola local** y se envía después. Lleva:
 
-- `IdOperacion`: GUID generado en el dispositivo. Es la clave de idempotencia; `Envio.RegistrarIntento`
-  ya devuelve el intento existente si recibe un `IdOperacion` repetido con el mismo resultado.
+- `IdOperacion`: GUID generado en el dispositivo. Es la clave de idempotencia. Reenviar el mismo
+  cuerpo con el mismo identificador devuelve el intento existente.
+- Parada y versión esperada del envío, tomadas de la hoja descargada.
+- Resultado de cada bulto asignado a esa visita, con el motivo de los fallidos y las referencias
+  a evidencias. El código de un bulto se puede ingresar con un lector que actúe como teclado.
 - `OcurridoEn`: hora del dispositivo en UTC, tomada al registrar (no al sincronizar).
 - `Posicion`: GPS opcional de la acción. Domain exige posición en cada **prueba**, así que si hay
   pruebas y no hay GPS, la app avisa y no deja registrar.
 
 Antes de encolar se validan en el dispositivo las reglas de Domain que no dependen del servidor:
 envío en tránsito y en la hoja; pruebas exigidas por el operador; motivo del catálogo; evidencia si
-el motivo la exige; un solo resultado por envío. Así el repartidor corrige en el momento.
+el motivo la exige; un resultado por bulto y una acción local por visita. Así el repartidor
+corrige en el momento.
 
 ### Sincronización
 
@@ -99,20 +104,19 @@ sincronizan. No se permite que otro repartidor ingrese mientras haya pendientes 
 En producción, las claves de Data Protection deben persistirse y compartirse entre instancias; si no,
 un reinicio invalida tokens y cookies. Ya era un requisito de la cookie.
 
-### Contrato pendiente en Web
+### Contrato de Web para la PWA
 
 La PWA no referencia proyectos del servidor (prueba de arquitectura); el contrato son los DTOs de
 `src/UltimaMilla.Repartidor/Contratos`, en JSON con enums como texto (igual que la API de Web).
 
-| Operación | Endpoint propuesto | Respuesta |
+| Operación | Endpoint | Respuesta |
 | --- | --- | --- |
-| Hoja de ruta | `GET /api/repartidor/hoja-de-ruta` | 200 `HojaDeRutaDto` de la ruta activa |
-| Acción | `POST /api/repartidor/intentos` `AccionEntregaDto` | 200 `RespuestaAccion` (Aceptada/YaProcesada) / 409 o 422 con detalle = Rechazada / 401 = sesión vencida / 5xx = reintentar |
+| Hoja de ruta | `GET /api/repartidor/rutas` y `GET /api/repartidor/rutas/{id}` | 200 con listado o detalle de la ruta despachada |
+| Intento | `POST /api/repartidor/intentos` | 200 `IntentoRegistradoDto` con `repetido`, 400 por datos inválidos, 401 por sesión, 403 por permisos, 409 por conflicto y 5xx para reintentar |
 
-Estos endpoints deben exigir la política `Repartidor`, tomar operador y repartidor de `ITenantActual`
-(nunca del cuerpo) y llamar a `Envio.RegistrarIntento` con el `IdOperacion` recibido. Si ese
-`IdOperacion` ya existe con otro resultado, responden Rechazada. Mientras no existan,
-`ApiRepartidorHttp` valida el token real y delega en la simulación.
+El endpoint de intentos exige Bearer con rol `Repartidor` y toma la identidad de `ITenantActual`.
+La cola de la PWA envía la parada, la versión esperada, los resultados por bulto y las evidencias
+con el `idOperacion` original. Consultar [el contrato de intentos](../registro-intento-aplicacion.md).
 
 ## Límite: posición con la pantalla apagada
 
@@ -133,5 +137,6 @@ una app nativa o un contenedor (por ejemplo, .NET MAUI) con permiso de ubicació
 - Puede pasar un tiempo hasta que el backoffice vea una entrega (consistencia eventual).
 - Se confía en el reloj del dispositivo para `OcurridoEn`; el servidor puede rechazar fechas futuras.
 - La sesión y la cola en IndexedDB **no están cifradas** todavía: quien tenga el dispositivo
-  desbloqueado puede leerlas. Cifrado, firma, foto y escaneo quedan para la segunda etapa.
+  desbloqueado puede leerlas. Las fotos y las firmas se guardan con la visita para poder
+  capturarlas sin conexión.
 - Si el usuario borra los datos del sitio en el navegador, se pierden las acciones no sincronizadas.

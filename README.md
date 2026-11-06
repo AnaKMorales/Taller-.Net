@@ -274,16 +274,17 @@ en línea / sin conexión / pendientes / rechazadas.
 **El login es real**: `POST /api/repartidor/sesion` en Web valida con el mismo mecanismo que el
 login web y entrega un token Bearer (8 h). El operador sale del token y `TenantResolver` lo verifica
 en cada pedido. Con el token vencido o un 401, las acciones quedan pendientes hasta volver a ingresar.
-**La hoja de ruta y los intentos todavía son simulados** (`Simulacion/ApiRepartidorFalsa`), porque
-Web no tiene esos endpoints. El login, su seguridad, el contrato pendiente, la política de conflictos
+La PWA descarga la hoja de ruta y sincroniza los intentos mediante la API de Web.
+El login, su seguridad, el contrato, la política de conflictos
 ("el servidor gana") y el límite del GPS con pantalla apagada están en
 [ADR-005](docs/adr/005-sincronizacion-offline-repartidor.md).
 La lógica de cola y sincronización se prueba sin navegador en `tests/Unit/UltimaMilla.Repartidor.Tests`.
 
 ```powershell
-./scripts/Start-Web.ps1                            # Web en http://localhost:5243 (PostgreSQL local)
-Invoke-RestMethod -Method Post http://localhost:5243/dev/datos-demo   # emailRepartidor y contrasena
-dotnet run --project src/UltimaMilla.Repartidor   # http://localhost:5086
+./scripts/Start-Web.ps1 # Dejar Web en ejecución en una terminal
+# En otra terminal, crear un escenario nuevo y arrancar la PWA
+Invoke-RestMethod -Method Post http://localhost:5243/dev/datos-demo-pwa
+dotnet run --project src/UltimaMilla.Repartidor --launch-profile http
 ```
 
 La PWA llama a la API indicada en `src/UltimaMilla.Repartidor/wwwroot/appsettings.json` (`ApiUrl`);
@@ -291,19 +292,16 @@ Web solo acepta los orígenes de `Repartidor:Origenes` (en Desarrollo, `http://l
 
 Demostración (Chrome/Edge, DevTools → Network → Offline):
 
-1. Ingresar con el repartidor demo; se descarga la hoja de ruta. Marcar **Offline**: la barra pasa a "Sin conexión".
-2. Registrar dos entregas (nombre y documento). Quedan "sin sincronizar" y la barra muestra "2 pendientes".
-3. Desmarcar **Offline**: se sincronizan solas. En **Sincronización** el servidor de prueba muestra
-   2 intentos registrados. "Reenviar sincronizadas" sube solo los descartados por IdOperacion.
-4. Conflicto: la parada 4 cambia en el servidor después de la primera descarga. Si se registra
-   **sin conexión** (junto con el paso 2), al reconectar queda **Rechazada** con el motivo y la hoja
-   se actualiza con su estado real (Reprogramado). Con conexión la app ya ve el cambio y no deja registrarla.
+1. Ingresar en `http://localhost:5086/` con el `emailRepartidor` y la `contrasena` devueltos por el comando.
+2. Abrir **Registrar visita** en **Entrega parcial de prueba**. Marcar **Offline** en DevTools.
+3. Marcar `PARCIAL-01` como entregado y `PARCIAL-02` como no entregado con motivo **Ausente**.
+   Adjuntar las fotos solicitadas, permitir el GPS y registrar la visita.
+4. Volver a **Online** y comprobar que la visita pasa de pendiente a sincronizada.
 
 Para abrir la app sin red después de recargar hace falta el service worker publicado
 (`dotnet publish src/UltimaMilla.Repartidor -c Release` y servir la carpeta `wwwroot` publicada
 en localhost); en `dotnet run` el service worker de desarrollo no guarda caché.
 
-Segunda etapa: cifrado de los datos locales, firma, foto, escaneo de códigos y la API real.
 
 ## Estructura
 

@@ -16,30 +16,32 @@ public sealed class ColaAcciones(IAlmacenLocal almacen)
     // Avisa a las pantallas que la cola cambió (indicador de pendientes, lista).
     public event Action? Cambio;
 
-    public async Task<IReadOnlyList<AccionPendiente>> ListarAsync()
+    public async Task<IReadOnlyList<AccionPendiente>> ListarAsync(Guid? repartidorId = null)
     {
         await _cerrojo.WaitAsync();
-        try { return await LeerAsync(); }
+        try { return await LeerAsync(repartidorId); }
         finally { _cerrojo.Release(); }
     }
 
     // Devuelve los errores de validación; lista vacía = encolada.
-    public async Task<IReadOnlyList<string>> EncolarAsync(AccionEntregaDto accion, HojaDeRutaDto hoja)
+    public async Task<IReadOnlyList<string>> EncolarAsync(AccionEntregaDto accion, HojaDeRutaDto hoja, Guid? repartidorId = null)
     {
         var errores = ValidadorAccion.Validar(accion, hoja).ToList();
+        if (accion.Intento is not null && (repartidorId is null || repartidorId == Guid.Empty))
+            errores.Add("La visita requiere el identificador del repartidor.");
         await _cerrojo.WaitAsync();
         try
         {
-            var cola = await LeerAsync();
+            var cola = await LeerAsync(repartidorId);
             if (cola.Any(a => a.Accion.IdOperacion == accion.IdOperacion))
                 errores.Add("Esta acción ya está registrada.");
-            // Evita dos resultados para el mismo envío (por ejemplo, un doble toque o entregado y fallido).
-            if (cola.Any(a => a.Accion.EnvioId == accion.EnvioId && a.Estado != EstadoAccion.Rechazada))
+            if (cola.Any(a => a.Accion.CorrespondeA(accion.EnvioId, accion.Intento?.ParadaId) &&
+                              a.Estado != EstadoAccion.Rechazada))
                 errores.Add("El envío ya tiene una acción registrada.");
             if (errores.Count > 0) return errores;
 
             cola.Add(new AccionPendiente(accion));
-            await GuardarAsync(cola);
+            await GuardarAsync(repartidorId, cola);
         }
         finally { _cerrojo.Release(); }
 
@@ -48,9 +50,9 @@ public sealed class ColaAcciones(IAlmacenLocal almacen)
     }
 
     // Reemplaza una acción por su versión actualizada (la busca por IdOperacion).
-    public async Task ActualizarAsync(AccionPendiente actualizada)
+    public async Task ActualizarAsync(AccionPendiente actualizada, Guid? repartidorId = null)
     {
-        await ModificarAsync(cola =>
+        await ModificarAsync(repartidorId, cola =>
         {
             var i = cola.FindIndex(a => a.Accion.IdOperacion == actualizada.Accion.IdOperacion);
             if (i >= 0) cola[i] = actualizada;
@@ -58,31 +60,35 @@ public sealed class ColaAcciones(IAlmacenLocal almacen)
     }
 
     // Solo se descartan las rechazadas: una pendiente todavía no llegó al servidor y se perdería.
-    public Task DescartarRechazadaAsync(Guid idOperacion) =>
-        ModificarAsync(cola => cola.RemoveAll(a => a.Accion.IdOperacion == idOperacion && a.Estado == EstadoAccion.Rechazada));
+    public Task DescartarRechazadaAsync(Guid idOperacion, Guid? repartidorId = null) =>
+        ModificarAsync(repartidorId, cola => cola.RemoveAll(a => a.Accion.IdOperacion == idOperacion && a.Estado == EstadoAccion.Rechazada));
 
     // Solo para reiniciar la demostración con datos de prueba.
-    public Task VaciarAsync() => ModificarAsync(cola => cola.Clear());
+    public Task VaciarDemoAsync(Guid repartidorId) =>
+        ModificarAsync(repartidorId, cola => cola.RemoveAll(a => a.Accion.Intento is null));
 
-    private async Task ModificarAsync(Action<List<AccionPendiente>> cambio)
+    private async Task ModificarAsync(Guid? repartidorId, Action<List<AccionPendiente>> cambio)
     {
         await _cerrojo.WaitAsync();
         try
         {
-            var cola = await LeerAsync();
+            var cola = await LeerAsync(repartidorId);
             cambio(cola);
-            await GuardarAsync(cola);
+            await GuardarAsync(repartidorId, cola);
         }
         finally { _cerrojo.Release(); }
 
         Cambio?.Invoke();
     }
 
-    private async Task<List<AccionPendiente>> LeerAsync() =>
-        await almacen.LeerAsync(Clave) is { } json
+    private async Task<List<AccionPendiente>> LeerAsync(Guid? repartidorId) =>
+        await almacen.LeerAsync(ClaveDe(repartidorId)) is { } json
             ? JsonSerializer.Deserialize(json, JsonRepartidor.Default.ListAccionPendiente) ?? []
             : [];
 
-    private Task GuardarAsync(List<AccionPendiente> cola) =>
-        almacen.GuardarAsync(Clave, JsonSerializer.Serialize(cola, JsonRepartidor.Default.ListAccionPendiente));
+    private Task GuardarAsync(Guid? repartidorId, List<AccionPendiente> cola) =>
+        almacen.GuardarAsync(ClaveDe(repartidorId), JsonSerializer.Serialize(cola, JsonRepartidor.Default.ListAccionPendiente));
+
+    private static string ClaveDe(Guid? repartidorId) =>
+        repartidorId is { } id ? $"{Clave}:{id}" : Clave;
 }

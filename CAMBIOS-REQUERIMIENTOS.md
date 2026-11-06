@@ -20,7 +20,7 @@ También se exige un ADR que explique los componentes modificados y las dificult
 | Requisito | Cambio necesario | Estado |
 | --- | --- | --- |
 | 31 | Estado por bulto, estado del envío derivado y entrega parcial; transiciones declarativas en ambos niveles | El núcleo registra entregas mixtas, visitas sucesivas y devolución de pendientes. Continúa integración de aplicaciones |
-| 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | Domain, persistencia y caso de uso Application implementados para la visita actual, con identidad, versión esperada y reenvíos. Pendientes endpoint y captura/sincronización PWA |
+| 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | La PWA registra por bulto mediante selección o lector de código tipo teclado, captura pruebas y sincroniza con el endpoint autenticado usando la versión e identificador originales. Entrega offline verificada en navegador y reenvío y conflicto cubiertos con el cliente real y PostgreSQL |
 | 33 | Reglas versionadas para permitir parciales y decidir nueva visita con/sin recargo o devolución al comercio | Núcleo, configuración y persistencia aplican las tres opciones; recargo fijo registrado al despacho, separado de la tarifa original. Continúan interfaces e integración |
 | 34 | Asignar bultos pendientes a una nueva hoja de ruta | Domain y persistencia asignan solo pendientes, con composición y capacidad por parada; la descarga autenticada de hoja ya los incluye. Continúan API de asignación e integración con aplicaciones |
 | 35 | Seguimiento con cantidades entregadas y totales, sin identificadores internos | Pendiente adaptar consulta, contrato y presentación |
@@ -300,3 +300,18 @@ Detalle y límites por responsable: [backend de monitoreos](docs/api-monitoreos.
 Verificación: 293 pruebas aprobadas, incluidas 104 con PostgreSQL real, sin omisiones.
 Release sin errores ni advertencias; modelo sin cambios pendientes. Bases temporales
 eliminadas y base de desarrollo sin cambios.
+
+### 05/11: registro y sincronización por bulto en la PWA (requisito 32)
+
+La PWA permite marcar los bultos entregados por código o selección, pedir el motivo de
+cada bulto fallido y capturar las pruebas indicadas por la parada. IndexedDB conserva la
+visita por repartidor, con sus evidencias, parada, versión esperada e identificador de
+operación. Al volver la conexión se envía el mismo cuerpo al endpoint autenticado. Los
+conflictos quedan visibles en la cola y requieren actualizar la hoja.
+
+La prueba manual con el navegador y la API real confirmó el registro offline y la
+sincronización al reconectar. El seguimiento público devolvió `EntregadoParcialmente`.
+La prueba automatizada usa la cola y el cliente de la PWA contra la API real y PostgreSQL
+con un almacén local en memoria. Si se pierde la respuesta después del guardado, reenvía el
+mismo cuerpo y confirma la visita existente. Una segunda acción con la versión anterior
+recibe 409 y queda rechazada. Se conserva un solo intento y un solo mensaje de outbox.

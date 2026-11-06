@@ -32,13 +32,32 @@
 {
     <p>No hay una hoja de ruta guardada. Conectate y tocá <strong>Actualizar</strong>.</p>
 }
+else if (_hoja.RutaId == Guid.Empty)
+{
+    <p>No tenés rutas despachadas disponibles.</p>
+}
 else
 {
+    @if (_hoja.RutasDisponibles is { Count: > 1 } rutas)
+    {
+        <label class="form-label" for="ruta-seleccionada">Ruta despachada</label>
+        <select id="ruta-seleccionada" class="form-select mb-2" disabled="@(!Conexion.EnLinea || _procesando)"
+                @bind:get="_hoja.RutaId" @bind:set="CambiarRutaAsync">
+            @foreach (var ruta in rutas)
+            {
+                <option value="@ruta.RutaId">@ruta.Matricula · @ruta.DespachadaEn.ToLocalTime().ToString("dd/MM HH:mm") · @ruta.ParadasPendientes pendientes</option>
+            }
+        </select>
+    }
     <p class="text-muted small">@_sesion?.Email · descargada @_hoja.DescargadaEn.ToLocalTime().ToString("dd/MM HH:mm")</p>
+    @if (_hoja.Paradas.Count == 0)
+    {
+        <p>Esta ruta no tiene paradas pendientes.</p>
+    }
     <ul class="list-group">
         @foreach (var parada in _hoja.Paradas.OrderBy(p => p.Orden))
         {
-            var accion = UltimaAccion(parada.EnvioId);
+            var accion = UltimaAccion(parada);
             <li class="list-group-item">
                 <div class="d-flex justify-content-between">
                     <strong>@parada.Orden. @parada.Destinatario</strong>
@@ -46,7 +65,11 @@ else
                 </div>
                 <div>@parada.Direccion</div>
                 <div class="small text-muted">Ventana @parada.VentanaDesde.ToLocalTime().ToString("HH:mm")–@parada.VentanaHasta.ToLocalTime().ToString("HH:mm")</div>
-                @if (PuedeRegistrar(parada, accion))
+                @if (parada.Bultos is { Count: > 0 } bultos)
+                {
+                    <div class="small text-muted">Bultos · @string.Join(", ", bultos.Select(bulto => bulto.Codigo))</div>
+                }
+                @if (parada.AdmiteRegistro && accion is null or { Estado: EstadoAccion.Rechazada })
                 {
                     <a class="btn btn-sm btn-primary mt-2" href="parada/@parada.EnvioId">Registrar visita</a>
                 }
@@ -81,9 +104,9 @@ else
     // Todo se lee del dispositivo: funciona igual con o sin conexión.
     private async Task CargarAsync()
     {
-        _sesion = await Datos.ObtenerSesionAsync() ?? _sesion;
+        _sesion = await Datos.ObtenerSesionAsync();
         _hoja = await Datos.ObtenerHojaAsync();
-        _cola = await Cola.ListarAsync();
+        _cola = _sesion is null ? [] : await Cola.ListarAsync(_sesion.RepartidorId);
     }
 
     private void AlCambiar() => _ = InvokeAsync(async () =>
@@ -92,25 +115,26 @@ else
         StateHasChanged();
     });
 
-    private AccionPendiente? UltimaAccion(Guid envioId) =>
-        _cola.Where(a => a.Accion.EnvioId == envioId).MaxBy(a => a.Accion.OcurridoEn);
+    private AccionPendiente? UltimaAccion(ParadaDto parada) =>
+        _cola.Where(a => a.Accion.CorrespondeA(parada.EnvioId, parada.ParadaId)).MaxBy(a => a.Accion.OcurridoEn);
 
-    // Se puede registrar si el envío está en tránsito y no tiene ya una acción pendiente o sincronizada.
-    private static bool PuedeRegistrar(ParadaDto parada, AccionPendiente? accion) =>
-        parada.Estado == EstadoEnvio.EnTransito && accion is null or { Estado: EstadoAccion.Rechazada };
+    private Task ActualizarAsync() => DescargarAsync(_hoja?.RutaId);
 
-    private async Task ActualizarAsync()
+    private Task CambiarRutaAsync(Guid rutaId) => DescargarAsync(rutaId);
+
+    private async Task DescargarAsync(Guid? rutaId)
     {
+        if (_sesion is not { } sesion) return;
         _mensaje = null;
         _procesando = true;
         try
         {
-            await Datos.GuardarHojaAsync(await Api.ObtenerHojaDeRutaAsync(_sesion!));
+            await Datos.GuardarHojaAsync(sesion, await Api.ObtenerHojaDeRutaAsync(sesion, rutaId));
             await CargarAsync();
         }
         catch (SesionExpiradaException)
         {
-            await Datos.MarcarSesionVencidaAsync(_sesion!);
+            await Datos.MarcarSesionVencidaAsync(sesion);
             await CargarAsync();
         }
         catch (HttpRequestException)

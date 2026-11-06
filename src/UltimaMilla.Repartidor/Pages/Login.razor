@@ -4,6 +4,7 @@
 @inject EstadoConexion Conexion
 @inject NavigationManager Navegacion
 @inject ColaAcciones Cola
+@inject SincronizacionAutomatica Automatica
 
 <PageTitle>Ingresar</PageTitle>
 
@@ -47,17 +48,24 @@
 
             // Las acciones pendientes son del repartidor que las registró: otro no puede enviarlas.
             var anterior = await Datos.ObtenerSesionAsync();
-            var pendientes = (await Cola.ListarAsync()).Any(a => a.Estado == EstadoAccion.Pendiente);
-            if (pendientes && anterior is not null && anterior.RepartidorId != sesion.RepartidorId)
+            if (anterior is not null && anterior.RepartidorId != sesion.RepartidorId &&
+                (await Cola.ListarAsync(anterior.RepartidorId)).Any(a => a.Estado == EstadoAccion.Pendiente))
             {
                 _error = $"Hay acciones sin sincronizar de {anterior.Email}. Ese repartidor debe ingresar para enviarlas.";
                 return;
             }
 
-            await Datos.GuardarSesionAsync(sesion);
             // La hoja se descarga ya, mientras hay señal, para poder trabajar sin conexión después.
-            await Datos.GuardarHojaAsync(await Api.ObtenerHojaDeRutaAsync(sesion));
+            var anteriorHoja = anterior?.RepartidorId == sesion.RepartidorId ? await Datos.ObtenerHojaAsync() : null;
+            var hoja = await Api.ObtenerHojaDeRutaAsync(sesion, anteriorHoja?.RutaId);
+            await Datos.GuardarSesionAsync(sesion);
+            await Datos.GuardarHojaAsync(sesion, hoja);
+            _ = Automatica.SincronizarAhoraAsync();
             Navegacion.NavigateTo("");
+        }
+        catch (SesionExpiradaException)
+        {
+            _error = "El servidor no aceptó la sesión. Volvé a ingresar.";
         }
         catch (HttpRequestException)
         {

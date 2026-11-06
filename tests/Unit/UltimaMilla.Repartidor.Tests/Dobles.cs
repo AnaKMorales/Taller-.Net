@@ -35,7 +35,7 @@ internal sealed class ServidorEnMemoria : IApiRepartidor
     public Task<SesionRepartidor?> IniciarSesionAsync(string email, string contrasena, CancellationToken ct = default) =>
         throw new NotSupportedException();
 
-    public Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(SesionRepartidor sesion, CancellationToken ct = default) =>
+    public Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(SesionRepartidor sesion, Guid? rutaPreferida = null, CancellationToken ct = default) =>
         throw new NotSupportedException();
 
     public async Task<RespuestaAccion> EnviarAccionAsync(SesionRepartidor sesion, AccionEntregaDto accion, CancellationToken ct = default)
@@ -87,4 +87,27 @@ internal static class Datos
 
     public static AccionEntregaDto Fallo(Guid envioId, Guid? motivoId, params PruebaDto[] pruebas) =>
         new(Guid.NewGuid(), envioId, ResultadoIntento.Fallido, motivoId, pruebas, Inicio, null);
+
+    public static (HojaDeRutaDto Hoja, AccionEntregaDto Accion) VisitaParcial()
+    {
+        var hoja = Hoja(EstadoEnvio.EnTransito);
+        var bultos = new BultoParadaDto[]
+        {
+            new(Guid.NewGuid(), "B-1", "EnTransito", 1, 1),
+            new(Guid.NewGuid(), "B-2", "EnTransito", 1, 1)
+        };
+        var parada = hoja.Paradas[0] with
+        {
+            ParadaId = Guid.NewGuid(), VersionEsperadaEnvio = Guid.NewGuid(), Bultos = bultos,
+            Reglas = new(Guid.NewGuid(), [TipoPrueba.Nombre], [Ausente], true)
+        };
+        var evidencia = new EvidenciaIntentoDto(Guid.NewGuid(), TipoPrueba.Nombre, Inicio.UtcDateTime, Posicion, Texto: "Ana");
+        var intento = new IntentoPorBultoDto(parada.EnvioId, parada.ParadaId.Value, parada.VersionEsperadaEnvio.Value,
+            Guid.NewGuid(), Inicio.UtcDateTime,
+            [new(bultos[0].BultoId, ResultadoIntento.Entregado, null, [evidencia.Referencia]),
+             new(bultos[1].BultoId, ResultadoIntento.Fallido, Ausente.Id, [])],
+            [evidencia], Posicion);
+        var accion = new AccionEntregaDto(intento.IdOperacion, parada.EnvioId, ResultadoIntento.Parcial, null, [], Inicio, Posicion, intento);
+        return (hoja with { Paradas = [parada], VersionRuta = Guid.NewGuid() }, accion);
+    }
 }

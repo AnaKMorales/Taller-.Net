@@ -4,6 +4,7 @@ using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Configuracion;
 using UltimaMilla.Application.Despacho;
 using UltimaMilla.Domain.Usuarios;
+using UltimaMilla.Web.Seguridad;
 
 namespace UltimaMilla.Web.Api;
 
@@ -40,6 +41,7 @@ public static class ApiOperativa
         }).RequireAuthorization().WithMetadata(new ApiOperativaMetadata());
 
         var rutas = app.MapGroup("/api/repartidor/rutas")
+            .RequireCors(ApiRepartidor.Cors)
             .WithMetadata(new ApiOperativaMetadata())
             .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Repartidor)))
             .AddEndpointFilter<ErroresApiFilter>();

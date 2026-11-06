@@ -15,6 +15,7 @@ using UltimaMilla.Infrastructure.Persistence;
 using UltimaMilla.Infrastructure.Persistence.Backoffice;
 using UltimaMilla.Infrastructure.Persistence.Configuracion;
 using UltimaMilla.Infrastructure.Persistence.Despacho;
+using UltimaMilla.Infrastructure.Persistence.Intentos;
 using UltimaMilla.Infrastructure.Persistence.Tablero;
 using UltimaMilla.Web.Components;
 using UltimaMilla.Web.Api;
@@ -83,6 +84,7 @@ builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AgregarHojasRuta();
+builder.Services.AgregarRegistroIntentos();
 builder.Services.AgregarConfiguracionVersionada();
 
 // Caché del tarifario y del seguimiento (ADR-004).
@@ -141,6 +143,9 @@ if (app.Environment.IsDevelopment())
 
     dev.MapPost("/datos-demo", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
         Results.Ok(await DatosDemo.CrearAsync(options, ct)));
+
+    dev.MapPost("/datos-demo-pwa", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
+        Results.Ok(await DatosDemo.CrearAsync(options, ct, incluirVisitaParcial: true)));
 
     dev.MapGet("/tarifario/{operadorId:guid}", async (Guid operadorId, ITarifarioVigente tarifario, CancellationToken ct) =>
         await tarifario.ObtenerAsync(operadorId, ct) is { } cuadro ? Results.Ok(cuadro) : Results.NotFound());

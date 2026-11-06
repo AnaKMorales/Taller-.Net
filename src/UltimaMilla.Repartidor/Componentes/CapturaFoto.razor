@@ -1,0 +1,43 @@
+@inject Navegador Dispositivo
+
+<label class="d-block">
+    Foto
+    <input class="form-control" type="file" accept="image/*" capture="environment" @ref="_entrada" @onchange="CapturarAsync" />
+</label>
+@if (Valor is not null)
+{
+    <img class="img-thumbnail" style="max-height: 8rem" src="@Valor" alt="Foto capturada" />
+    <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="LimpiarAsync">Quitar foto</button>
+}
+@if (_error)
+{
+    <span class="text-danger small" role="alert">No se pudo leer la imagen. Probá con otra foto.</span>
+}
+
+@code {
+    [Parameter] public string? Valor { get; set; }
+    [Parameter] public EventCallback<string?> ValorChanged { get; set; }
+
+    private ElementReference _entrada;
+    private bool _error;
+    private int _captura;
+
+    private async Task CapturarAsync()
+    {
+        var captura = ++_captura;
+        _error = false;
+        await ValorChanged.InvokeAsync(null);
+        var foto = await Dispositivo.LeerFotoAsync(_entrada);
+        if (_captura != captura) return;
+        _error = foto is null;
+        await ValorChanged.InvokeAsync(foto);
+    }
+
+    private async Task LimpiarAsync()
+    {
+        _captura++;
+        _error = false;
+        await Dispositivo.LimpiarFotoAsync(_entrada);
+        await ValorChanged.InvokeAsync(null);
+    }
+}

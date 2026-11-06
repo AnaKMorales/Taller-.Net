@@ -20,7 +20,7 @@ public sealed class SincronizadorTests
     private async Task<AccionEntregaDto> EncolarEntregaAsync(HojaDeRutaDto hoja, int parada)
     {
         var accion = Datos.Entrega(hoja.Paradas[parada].EnvioId, Datos.Inicio.AddMinutes(parada));
-        Assert.Empty(await _cola.EncolarAsync(accion, hoja));
+        Assert.Empty(await _cola.EncolarAsync(accion, hoja, Datos.Sesion.RepartidorId));
         return accion;
     }
 
@@ -35,7 +35,7 @@ public sealed class SincronizadorTests
 
         var sinRed = await _sincronizador.SincronizarAsync(Datos.Sesion);
         Assert.True(sinRed.SinConexion);
-        Assert.All(await _cola.ListarAsync(), a => Assert.Equal(EstadoAccion.Pendiente, a.Estado));
+        Assert.All(await _cola.ListarAsync(Datos.Sesion.RepartidorId), a => Assert.Equal(EstadoAccion.Pendiente, a.Estado));
 
         _servidor.EnLinea = true;
         var resumen = await _sincronizador.SincronizarAsync(Datos.Sesion, ignorarEspera: true);
@@ -44,7 +44,7 @@ public sealed class SincronizadorTests
         Assert.Equal(2, resumen.Sincronizadas);
         Assert.Equal(2, _servidor.Registradas);
         Assert.Equal(0, _servidor.Duplicadas);
-        Assert.All(await _cola.ListarAsync(), a => Assert.Equal(EstadoAccion.Sincronizada, a.Estado));
+        Assert.All(await _cola.ListarAsync(Datos.Sesion.RepartidorId), a => Assert.Equal(EstadoAccion.Sincronizada, a.Estado));
     }
 
     // El servidor guardó la acción pero la respuesta se perdió: al reenviar, el mismo IdOperacion no duplica.
@@ -56,11 +56,11 @@ public sealed class SincronizadorTests
         _servidor.PerderProximaRespuesta = true;
 
         await _sincronizador.SincronizarAsync(Datos.Sesion);
-        Assert.Equal(EstadoAccion.Pendiente, Assert.Single(await _cola.ListarAsync()).Estado);
+        Assert.Equal(EstadoAccion.Pendiente, Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId)).Estado);
 
         await _sincronizador.SincronizarAsync(Datos.Sesion, ignorarEspera: true);
 
-        var item = Assert.Single(await _cola.ListarAsync());
+        var item = Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId));
         Assert.Equal(EstadoAccion.Sincronizada, item.Estado);
         Assert.Equal(1, _servidor.Registradas);
         Assert.Equal(1, _servidor.Duplicadas);
@@ -74,7 +74,7 @@ public sealed class SincronizadorTests
         _servidor.EnLinea = false;
 
         await _sincronizador.SincronizarAsync(Datos.Sesion);
-        var item = Assert.Single(await _cola.ListarAsync());
+        var item = Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId));
         Assert.Equal(1, item.Intentos);
         Assert.Equal(Datos.Inicio + TimeSpan.FromSeconds(5), item.ProximoIntentoEn);
 
@@ -86,7 +86,7 @@ public sealed class SincronizadorTests
 
         _reloj.Ahora = Datos.Inicio.AddSeconds(6);
         await _sincronizador.SincronizarAsync(Datos.Sesion);
-        Assert.Equal(EstadoAccion.Sincronizada, Assert.Single(await _cola.ListarAsync()).Estado);
+        Assert.Equal(EstadoAccion.Sincronizada, Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId)).Estado);
     }
 
     // Con 401 las acciones esperan el nuevo ingreso: no se pierden ni consumen reintentos.
@@ -102,7 +102,7 @@ public sealed class SincronizadorTests
 
         Assert.True(resumen.SesionExpirada);
         Assert.Equal(1, _servidor.Llamadas);
-        Assert.All(await _cola.ListarAsync(), a =>
+        Assert.All(await _cola.ListarAsync(Datos.Sesion.RepartidorId), a =>
         {
             Assert.Equal(EstadoAccion.Pendiente, a.Estado);
             Assert.Equal(0, a.Intentos);
@@ -148,7 +148,7 @@ public sealed class SincronizadorTests
 
         // Un rechazo no frena las demás acciones.
         Assert.Equal(new ResumenSincronizacion(1, 1, false), resumen);
-        var rechazada = (await _cola.ListarAsync()).Single(a => a.Accion.IdOperacion == conflictiva.IdOperacion);
+        var rechazada = (await _cola.ListarAsync(Datos.Sesion.RepartidorId)).Single(a => a.Accion.IdOperacion == conflictiva.IdOperacion);
         Assert.Equal(EstadoAccion.Rechazada, rechazada.Estado);
         Assert.Equal("El envío cambió de estado.", rechazada.Detalle);
         Assert.Equal(2, _servidor.Llamadas);
@@ -160,8 +160,8 @@ public sealed class SincronizadorTests
         var hoja = Datos.Hoja(EstadoEnvio.EnTransito, EstadoEnvio.EnTransito);
         var tarde = Datos.Entrega(hoja.Paradas[0].EnvioId, Datos.Inicio.AddMinutes(30));
         var temprano = Datos.Entrega(hoja.Paradas[1].EnvioId, Datos.Inicio.AddMinutes(10));
-        await _cola.EncolarAsync(tarde, hoja);
-        await _cola.EncolarAsync(temprano, hoja);
+        await _cola.EncolarAsync(tarde, hoja, Datos.Sesion.RepartidorId);
+        await _cola.EncolarAsync(temprano, hoja, Datos.Sesion.RepartidorId);
         var orden = new List<Guid>();
         var servidor = new ServidorQueAnota(orden);
 
@@ -192,7 +192,7 @@ public sealed class SincronizadorTests
     {
         public Task<SesionRepartidor?> IniciarSesionAsync(string email, string contrasena, CancellationToken ct = default) =>
             throw new NotSupportedException();
-        public Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(SesionRepartidor sesion, CancellationToken ct = default) =>
+        public Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(SesionRepartidor sesion, Guid? rutaPreferida = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
         public Task<RespuestaAccion> EnviarAccionAsync(SesionRepartidor sesion, AccionEntregaDto accion, CancellationToken ct = default)
         {

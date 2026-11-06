@@ -15,7 +15,8 @@ public enum EstadoEnvio
     Reprogramado,
     EnDevolucion,
     Devuelto,
-    Extraviado
+    Extraviado,
+    EntregadoParcialmente
 }
 
 public enum TipoPrueba
@@ -29,7 +30,8 @@ public enum TipoPrueba
 public enum ResultadoIntento
 {
     Entregado,
-    Fallido
+    Fallido,
+    Parcial
 }
 
 // Sesión guardada en el dispositivo. No incluye el operador: el servidor lo obtiene del token
@@ -55,13 +57,26 @@ public sealed record GeoPuntoDto(decimal Latitud, decimal Longitud);
 
 public sealed record MotivoNoEntregaDto(Guid Id, string Nombre, bool RequiereEvidencia);
 
+public sealed record RutaDisponibleDto(Guid RutaId, Guid Version, DateTimeOffset DespachadaEn,
+    string Matricula, int ParadasPendientes);
+public sealed record BultoParadaDto(Guid BultoId, string Codigo, string Estado, decimal PesoKg, decimal VolumenM3);
+public sealed record ReglasParadaDto(Guid VersionReglasId, IReadOnlyList<TipoPrueba> PruebasExigidas,
+    IReadOnlyList<MotivoNoEntregaDto> Motivos, bool PermiteEntregaParcial);
 public sealed record ParadaDto(Guid EnvioId, int Orden, string Destinatario, string Direccion,
-    DateTimeOffset VentanaDesde, DateTimeOffset VentanaHasta, EstadoEnvio Estado);
+    DateTimeOffset VentanaDesde, DateTimeOffset VentanaHasta, EstadoEnvio Estado, Guid? ParadaId = null,
+    Guid? VersionEsperadaEnvio = null, ReglasParadaDto? Reglas = null, IReadOnlyList<BultoParadaDto>? Bultos = null)
+{
+    public bool AdmiteRegistro => ParadaId is null
+        ? Estado == EstadoEnvio.EnTransito
+        : VersionEsperadaEnvio is not null && Reglas is not null &&
+          Estado is EstadoEnvio.EnTransito or EstadoEnvio.EntregadoParcialmente &&
+          Bultos is { Count: > 0 } && Bultos.All(bulto => bulto.Estado == "EnTransito");
+}
 
-// Todo lo que la app necesita para trabajar sin conexión: paradas, catálogo de motivos
-// y las pruebas que exige el operador para una entrega exitosa.
+// Las hojas reales guardan los requisitos por parada. La demo conserva su catálogo común.
 public sealed record HojaDeRutaDto(Guid RutaId, DateTimeOffset DescargadaEn, IReadOnlyList<ParadaDto> Paradas,
-    IReadOnlyList<MotivoNoEntregaDto> Motivos, IReadOnlyList<TipoPrueba> PruebasExigidas);
+    IReadOnlyList<MotivoNoEntregaDto> Motivos, IReadOnlyList<TipoPrueba> PruebasExigidas,
+    Guid? VersionRuta = null, IReadOnlyList<RutaDisponibleDto>? RutasDisponibles = null);
 
 // En Domain toda prueba exige posición; acá es opcional para que el validador dé un mensaje claro.
 public sealed record PruebaDto(TipoPrueba Tipo, string Valor, DateTimeOffset Hora, GeoPuntoDto? Posicion);
@@ -69,7 +84,32 @@ public sealed record PruebaDto(TipoPrueba Tipo, string Valor, DateTimeOffset Hor
 // Una acción registrada en el dispositivo. IdOperacion se genera acá y es la clave de idempotencia:
 // el servidor ignora un segundo envío con el mismo IdOperacion (Envio.RegistrarIntento).
 public sealed record AccionEntregaDto(Guid IdOperacion, Guid EnvioId, ResultadoIntento Resultado, Guid? MotivoId,
-    IReadOnlyList<PruebaDto> Pruebas, DateTimeOffset OcurridoEn, GeoPuntoDto? Posicion);
+    IReadOnlyList<PruebaDto> Pruebas, DateTimeOffset OcurridoEn, GeoPuntoDto? Posicion,
+    IntentoPorBultoDto? Intento = null)
+{
+    public bool CorrespondeA(Guid envioId, Guid? paradaId) =>
+        EnvioId == envioId && Intento?.ParadaId == paradaId;
+
+    public string ResultadoVisible => Resultado switch
+    {
+        ResultadoIntento.Entregado => "Entregado",
+        ResultadoIntento.Parcial => "Entrega parcial",
+        _ => "No entregado"
+    };
+}
+
+public sealed record IntentoPorBultoDto(Guid EnvioId, Guid ParadaId, Guid VersionEsperada, Guid IdOperacion,
+    DateTime OcurridoEn, IReadOnlyList<BultoIntentoDto> Bultos, IReadOnlyList<EvidenciaIntentoDto> Evidencias,
+    GeoPuntoDto? Posicion);
+
+public sealed record BultoIntentoDto(Guid BultoId, ResultadoIntento Resultado, Guid? MotivoId,
+    IReadOnlyList<Guid> Evidencias);
+
+public sealed record EvidenciaIntentoDto(Guid Referencia, TipoPrueba Tipo, DateTime Hora, GeoPuntoDto? Posicion,
+    string? Archivo = null, string? Texto = null);
+
+internal sealed record IntentoConfirmadoDto(Guid EnvioId, Guid IdOperacion, bool Repetido);
+internal sealed record ProblemaIntentoDto(string? Title, string? Detail);
 
 public enum ResultadoAccion
 {

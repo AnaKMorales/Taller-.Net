@@ -1,0 +1,227 @@
+@inject DatosLocales Datos
+@inject ColaAcciones Cola
+@inject Navegador Dispositivo
+@inject SincronizacionAutomatica Automatica
+@inject TimeProvider Reloj
+@inject NavigationManager Navegacion
+
+<h1 class="h4">@Parada.Orden. @Parada.Destinatario</h1>
+<p>@Parada.Direccion</p>
+
+<form class="mb-3" @onsubmit="ConfirmarCodigo" @onsubmit:preventDefault>
+    <label class="form-label" for="codigo-bulto">Código del bulto entregado</label>
+    <div class="input-group">
+        <input id="codigo-bulto" class="form-control" placeholder="Escaneá con un lector o ingresá el código"
+               autocomplete="off" @bind="_codigo" @bind:event="oninput" disabled="@_procesando" />
+        <button class="btn btn-outline-primary" type="submit" disabled="@_procesando">Marcar entregado</button>
+    </div>
+    @if (_mensajeCodigo is not null)
+    {
+        <div class="small mt-1" role="status">@_mensajeCodigo</div>
+    }
+</form>
+
+<form @onsubmit="RegistrarAsync" @onsubmit:preventDefault>
+    <fieldset disabled="@_procesando" class="d-grid gap-3">
+        @if (!Reglas.PermiteEntregaParcial)
+        {
+            <p class="small text-muted mb-0">Para este envío, todos los bultos deben tener el mismo resultado.</p>
+        }
+        @foreach (var bulto in Parada.Bultos!)
+        {
+            var captura = _capturas[bulto.BultoId];
+            <fieldset @key="bulto.BultoId" class="border rounded p-2 d-grid gap-2">
+                <legend class="float-none w-auto px-1 h6 mb-0">Bulto @bulto.Codigo</legend>
+                <label>
+                    Resultado
+                    <select class="form-select" @bind="captura.Resultado">
+                        <option value="">Elegí un resultado</option>
+                        <option value="@ResultadoIntento.Entregado">Entregado</option>
+                        <option value="@ResultadoIntento.Fallido">No entregado</option>
+                    </select>
+                </label>
+                @if (captura.Resultado == ResultadoIntento.Fallido)
+                {
+                    <label>
+                        Motivo
+                        <select class="form-select" @bind="captura.Motivo">
+                            <option value="">Elegí un motivo</option>
+                            @foreach (var motivo in Reglas.Motivos)
+                            {
+                                <option value="@motivo.Id">@motivo.Nombre@(motivo.RequiereEvidencia ? " (requiere evidencia)" : "")</option>
+                            }
+                        </select>
+                    </label>
+                    @if (Reglas.Motivos.Any(m => m.Id == captura.Motivo && m.RequiereEvidencia))
+                    {
+                        <CapturaFoto @bind-Valor="captura.Foto" />
+                    }
+                }
+            </fieldset>
+        }
+
+        @if (_capturas.Values.Any(c => c.Resultado == ResultadoIntento.Entregado) && Reglas.PruebasExigidas.Count > 0)
+        {
+            <fieldset class="border rounded p-2 d-grid gap-2">
+                <legend class="float-none w-auto px-1 h6 mb-0">Evidencias de los bultos entregados</legend>
+                @foreach (var tipo in Reglas.PruebasExigidas)
+                {
+                    @switch (tipo)
+                    {
+                        case TipoPrueba.Nombre:
+                            <label>Nombre de quien recibe <input class="form-control" @bind="_nombre" /></label>
+                            break;
+                        case TipoPrueba.Documento:
+                            <label>Documento de quien recibe <input class="form-control" @bind="_documento" /></label>
+                            break;
+                        case TipoPrueba.Foto:
+                            <CapturaFoto @bind-Valor="_foto" />
+                            break;
+                        case TipoPrueba.Firma:
+                            <CapturaFirma @ref="_firma" />
+                            break;
+                    }
+                }
+            </fieldset>
+        }
+
+        <button class="btn btn-primary" type="submit">@(_procesando ? "Guardando visita..." : "Registrar")</button>
+    </fieldset>
+</form>
+<a class="btn btn-link" href="">Cancelar</a>
+
+@foreach (var error in _errores)
+{
+    <div class="alert alert-danger py-2 mt-2 mb-0" role="alert">@error</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public ParadaDto Parada { get; set; } = null!;
+    [Parameter, EditorRequired] public HojaDeRutaDto Hoja { get; set; } = null!;
+    [Parameter, EditorRequired] public Guid RepartidorId { get; set; }
+
+    private ReglasParadaDto Reglas => Parada.Reglas!;
+    private Dictionary<Guid, CapturaBulto> _capturas = [];
+    private IReadOnlyList<string> _errores = [];
+    private string? _nombre, _documento, _foto;
+    private string _codigo = "";
+    private string? _mensajeCodigo;
+    private CapturaFirma? _firma;
+    private bool _procesando;
+
+    protected override void OnInitialized() =>
+        _capturas = Parada.Bultos!.ToDictionary(b => b.BultoId, _ => new CapturaBulto());
+
+    private void ConfirmarCodigo()
+    {
+        if (_procesando) return;
+        var bulto = Parada.Bultos!.FirstOrDefault(b => string.Equals(b.Codigo, _codigo.Trim(), StringComparison.Ordinal));
+        if (bulto is null)
+        {
+            _mensajeCodigo = "Ese código no pertenece a la visita.";
+            return;
+        }
+        _capturas[bulto.BultoId].Resultado = ResultadoIntento.Entregado;
+        _mensajeCodigo = $"Bulto {bulto.Codigo} marcado como entregado.";
+        _codigo = "";
+    }
+
+    private async Task RegistrarAsync()
+    {
+        if (_procesando) return;
+        _procesando = true;
+        try
+        {
+            if (_capturas.Values.Any(c => c.Resultado is null))
+            {
+                _errores = ["Elegí un resultado para cada bulto de la visita."];
+                return;
+            }
+
+            var ahora = Reloj.GetUtcNow();
+            var hayEntregados = _capturas.Values.Any(c => c.Resultado == ResultadoIntento.Entregado);
+            var hayFallidos = _capturas.Values.Any(c => c.Resultado == ResultadoIntento.Fallido);
+            var pruebasEntrega = hayEntregados ? await CapturarPruebasEntregaAsync() : [];
+            var posicion = await Dispositivo.ObtenerUbicacionAsync();
+            var evidencias = pruebasEntrega.Select(p => CrearEvidencia(p.Tipo, p.Valor, ahora.UtcDateTime, posicion)).ToList();
+            var referenciasEntrega = evidencias.Select(e => e.Referencia).ToArray();
+            var bultos = new List<BultoIntentoDto>();
+
+            foreach (var (id, captura) in _capturas)
+            {
+                if (captura.Resultado == ResultadoIntento.Entregado)
+                    bultos.Add(new(id, ResultadoIntento.Entregado, null, referenciasEntrega));
+                else
+                {
+                    Guid[] referencias = [];
+                    if (captura.Foto is { } foto && ExigeEvidencia(captura))
+                    {
+                        var evidencia = CrearEvidencia(TipoPrueba.Foto, foto, ahora.UtcDateTime, posicion);
+                        evidencias.Add(evidencia);
+                        referencias = [evidencia.Referencia];
+                    }
+                    bultos.Add(new(id, ResultadoIntento.Fallido, captura.Motivo, referencias));
+                }
+            }
+
+            var operacion = Guid.NewGuid();
+            var intento = new IntentoPorBultoDto(Parada.EnvioId, Parada.ParadaId!.Value, Parada.VersionEsperadaEnvio!.Value,
+                operacion, ahora.UtcDateTime, bultos, evidencias, posicion);
+            var resultado = hayEntregados ? (hayFallidos ? ResultadoIntento.Parcial : ResultadoIntento.Entregado) : ResultadoIntento.Fallido;
+            var accion = new AccionEntregaDto(operacion, Parada.EnvioId, resultado, null, [], ahora, posicion, intento);
+
+            if ((await Datos.ObtenerSesionAsync())?.RepartidorId != RepartidorId)
+            {
+                _errores = ["La sesión cambió. Volvé a abrir la hoja de ruta."];
+                return;
+            }
+
+            _errores = await Cola.EncolarAsync(accion, Hoja, RepartidorId);
+            if (_errores.Count > 0) return;
+
+            _ = Automatica.SincronizarAhoraAsync();
+            Navegacion.NavigateTo("");
+        }
+        catch (JSException)
+        {
+            _errores = ["No se pudo guardar la visita en este dispositivo. Revisá el almacenamiento y volvé a intentar."];
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private bool ExigeEvidencia(CapturaBulto captura) =>
+        captura.Resultado == ResultadoIntento.Fallido && Reglas.Motivos.Any(m => m.Id == captura.Motivo && m.RequiereEvidencia);
+
+    private async Task<List<(TipoPrueba Tipo, string Valor)>> CapturarPruebasEntregaAsync()
+    {
+        var pruebas = new List<(TipoPrueba, string)>();
+        foreach (var tipo in Reglas.PruebasExigidas)
+        {
+            var valor = tipo switch
+            {
+                TipoPrueba.Nombre => _nombre,
+                TipoPrueba.Documento => _documento,
+                TipoPrueba.Foto => _foto,
+                TipoPrueba.Firma when _firma is not null => await _firma.ObtenerAsync(),
+                _ => null
+            };
+            if (!string.IsNullOrWhiteSpace(valor)) pruebas.Add((tipo, valor.Trim()));
+        }
+        return pruebas;
+    }
+
+    private static EvidenciaIntentoDto CrearEvidencia(TipoPrueba tipo, string valor, DateTime hora, GeoPuntoDto? posicion) =>
+        tipo is TipoPrueba.Foto or TipoPrueba.Firma
+            ? new(Guid.NewGuid(), tipo, hora, posicion, Archivo: valor)
+            : new(Guid.NewGuid(), tipo, hora, posicion, Texto: valor);
+
+    private sealed class CapturaBulto
+    {
+        public ResultadoIntento? Resultado { get; set; }
+        public Guid? Motivo { get; set; }
+        public string? Foto { get; set; }
+    }
+}

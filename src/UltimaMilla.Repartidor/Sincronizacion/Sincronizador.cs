@@ -26,7 +26,7 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
         {
             int sincronizadas = 0, rechazadas = 0;
             var ahora = reloj.GetUtcNow();
-            var pendientes = (await cola.ListarAsync())
+            var pendientes = (await cola.ListarAsync(sesion.RepartidorId))
                 .Where(a => a.Estado == EstadoAccion.Pendiente)
                 .Where(a => ignorarEspera || a.ProximoIntentoEn is null || a.ProximoIntentoEn <= ahora)
                 .OrderBy(a => a.Accion.OcurridoEn);
@@ -50,7 +50,7 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
                         Intentos = intentos,
                         ProximoIntentoEn = reloj.GetUtcNow() + Espera(intentos),
                         Detalle = "No se pudo contactar al servidor; se reintentará."
-                    });
+                    }, sesion.RepartidorId);
                     return new ResumenSincronizacion(sincronizadas, rechazadas, true);
                 }
 
@@ -62,7 +62,7 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
                         Estado = EstadoAccion.Rechazada,
                         ProximoIntentoEn = null,
                         Detalle = respuesta.Detalle ?? "El servidor rechazó la acción."
-                    });
+                    }, sesion.RepartidorId);
                 }
                 else
                 {
@@ -72,7 +72,7 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
                         Estado = EstadoAccion.Sincronizada,
                         ProximoIntentoEn = null,
                         Detalle = respuesta.Resultado == ResultadoAccion.YaProcesada ? "El servidor ya la tenía registrada." : null
-                    });
+                    }, sesion.RepartidorId);
                 }
             }
 

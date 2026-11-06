@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using UltimaMilla.Repartidor.Contratos;
 using UltimaMilla.Repartidor.Sincronizacion;
@@ -24,6 +25,21 @@ public sealed class Navegador(IJSRuntime js) : IAlmacenLocal
 
     public async Task<bool> EscucharConexionAsync(DotNetObjectReference<EstadoConexion> receptor) =>
         await (await Modulo()).InvokeAsync<bool>("escucharConexion", receptor);
+
+    public async Task<string?> LeerFotoAsync(ElementReference entrada) =>
+        await (await Modulo()).InvokeAsync<string?>("leerFoto", entrada);
+
+    public async Task LimpiarFotoAsync(ElementReference entrada) =>
+        await (await Modulo()).InvokeVoidAsync("limpiarFoto", entrada);
+
+    public async Task PrepararFirmaAsync(ElementReference lienzo) =>
+        await (await Modulo()).InvokeVoidAsync("prepararFirma", lienzo);
+
+    public async Task<string?> LeerFirmaAsync(ElementReference lienzo) =>
+        await (await Modulo()).InvokeAsync<string?>("leerFirma", lienzo);
+
+    public async Task LimpiarFirmaAsync(ElementReference lienzo) =>
+        await (await Modulo()).InvokeVoidAsync("limpiarFirma", lienzo);
 
     // La posición es opcional: si no hay permiso o señal, la acción se registra igual sin ella.
     public async Task<GeoPuntoDto?> ObtenerUbicacionAsync()

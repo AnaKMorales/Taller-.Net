@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using UltimaMilla.Application.Envios.RegistrarIntento;
 using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Domain.Usuarios;
+using UltimaMilla.Web.Api;
 
 namespace UltimaMilla.Web.Seguridad;
 
@@ -49,5 +51,20 @@ public static class ApiRepartidor
                     ? Results.Ok(new PerfilRepartidor(id, usuario.Identity?.Name ?? ""))
                     : Results.Unauthorized())
             .RequireAuthorization(Politicas.Repartidor);
+
+        api.MapPost("/intentos", async (SolicitudIntentoRepartidor solicitud, ITenantActual tenant,
+            RegistrarIntentoHandler handler, CancellationToken ct) =>
+        {
+            if (tenant.Contexto is not { UsuarioId: not null }) return Results.Unauthorized();
+            var resultado = await handler.Handle(solicitud.AComando(), ct);
+            return Results.Ok(resultado);
+        })
+        .RequireAuthorization(Politicas.Repartidor)
+        .AddEndpointFilter<ErroresApiFilter>()
+        .Produces<IntentoRegistradoDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status409Conflict);
     }
 }

@@ -1,0 +1,18 @@
+@inject Navegador Dispositivo
+
+<div>
+    <p class="mb-1" id="ayuda-firma">Firma de quien recibe. Firmá con el dedo o el mouse en el recuadro.</p>
+    <canvas class="d-block border rounded w-100 bg-white" width="640" height="200"
+            style="touch-action: none; max-width: 640px" @ref="_lienzo" aria-describedby="ayuda-firma"></canvas>
+    <button class="btn btn-sm btn-outline-secondary mt-1" type="button" @onclick="LimpiarAsync">Borrar firma</button>
+</div>
+
+@code {
+    private ElementReference _lienzo;
+
+    protected override Task OnAfterRenderAsync(bool firstRender) =>
+        firstRender ? Dispositivo.PrepararFirmaAsync(_lienzo) : Task.CompletedTask;
+
+    public Task<string?> ObtenerAsync() => Dispositivo.LeerFirmaAsync(_lienzo);
+    private Task LimpiarAsync() => Dispositivo.LimpiarFirmaAsync(_lienzo);
+}

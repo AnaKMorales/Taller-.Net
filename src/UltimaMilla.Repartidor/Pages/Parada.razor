@@ -8,9 +8,17 @@
 
 <PageTitle>Registrar visita</PageTitle>
 
-@if (_parada is null || _hoja is null)
+@if (_parada is null || _hoja is null || _sesion is null)
 {
     <p>El envío no está en la hoja de ruta. <a href="">Volver</a></p>
+}
+else if (!_parada.AdmiteRegistro)
+{
+    <p>Esta visita está disponible para consulta. <a href="">Volver a la hoja de ruta</a></p>
+}
+else if (_parada.ParadaId is not null)
+{
+    <RegistrarBultos @key="_parada.ParadaId" Parada="_parada" Hoja="_hoja" RepartidorId="_sesion.RepartidorId" />
 }
 else
 {
@@ -67,14 +75,16 @@ else
 
     private HojaDeRutaDto? _hoja;
     private ParadaDto? _parada;
+    private SesionRepartidor? _sesion;
     private bool _entregado = true;
     private string _motivo = "";
     private readonly Dictionary<TipoPrueba, string> _textos = new() { [TipoPrueba.Nombre] = "", [TipoPrueba.Documento] = "" };
     private IReadOnlyList<string> _errores = [];
     private bool _procesando;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        _sesion = await Datos.ObtenerSesionAsync();
         _hoja = await Datos.ObtenerHojaAsync();
         _parada = _hoja?.Paradas.SingleOrDefault(p => p.EnvioId == EnvioId);
     }
@@ -98,7 +108,7 @@ else
                 _entregado ? ResultadoIntento.Entregado : ResultadoIntento.Fallido,
                 _entregado || !Guid.TryParse(_motivo, out var motivoId) ? null : motivoId, pruebas, ahora, posicion);
 
-            _errores = await Cola.EncolarAsync(accion, _hoja!);
+            _errores = await Cola.EncolarAsync(accion, _hoja!, _sesion!.RepartidorId);
             if (_errores.Count > 0) return;
 
             // Se guarda primero en el dispositivo; el envío al servidor es un intento aparte.

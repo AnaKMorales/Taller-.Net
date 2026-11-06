@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <Using Include="Xunit" />
     <ProjectReference Include="../../../src/UltimaMilla.Infrastructure/UltimaMilla.Infrastructure.csproj" />
+    <ProjectReference Include="../../../src/UltimaMilla.Repartidor/UltimaMilla.Repartidor.csproj" Aliases="Pwa" />
     <ProjectReference Include="../../../src/UltimaMilla.Web/UltimaMilla.Web.csproj" />
   </ItemGroup>
 </Project>

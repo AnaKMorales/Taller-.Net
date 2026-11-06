@@ -6,8 +6,7 @@ using UltimaMilla.Repartidor.Sincronizacion;
 
 namespace UltimaMilla.Repartidor.Simulacion;
 
-// DATOS DE PRUEBA para hoja de ruta e intentos: Web todavía no tiene esos endpoints (el login sí es real,
-// ver Servidor/ApiRepartidorHttp). Imita lo que hará el servidor real:
+// DATOS DE PRUEBA para la demostración de intentos. Imita lo que hará el servidor real:
 // - sin red lanza HttpRequestException, como HttpClient;
 // - descarta un IdOperacion repetido (como Envio.RegistrarIntento) y cuenta los duplicados;
 // - rechaza intentos sobre envíos que ya no están en tránsito (conflicto).
@@ -32,6 +31,8 @@ public sealed class ApiRepartidorFalsa(IAlmacenLocal almacen, EstadoConexion con
         (Guid.Parse("9b1d3c1e-0000-4000-8000-000000000e03"), "Sofía Pereyra", "Av. Pedro Goyena 1150, CABA", 12, 14),
         (EnvioQueCambiaEnServidor, "Diego Romero", "Emilio Mitre 830, CABA", 14, 16)
     ];
+
+    public static bool EsEnvioDePrueba(Guid envioId) => Paradas.Any(p => p.Envio == envioId);
 
     public async Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(CancellationToken ct = default)
     {

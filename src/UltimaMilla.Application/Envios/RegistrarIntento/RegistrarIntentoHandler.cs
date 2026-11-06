@@ -10,7 +10,7 @@ public sealed class RegistrarIntentoHandler(IRegistroIntentoRepository repositor
     {
         ct.ThrowIfCancellationRequested();
         var solicitud = ValidarYCopiar(command);
-        await using var operacion = await repository.AbrirAsync(solicitud.EnvioId, solicitud.IdOperacion, ct);
+        await using var operacion = await repository.AbrirAsync(solicitud.EnvioId, solicitud.ParadaId, solicitud.IdOperacion, ct);
         var envio = operacion.Envio;
         var repetido = envio.Intentos.Any(i => i.IdOperacion == solicitud.IdOperacion);
         // El Id de operación solo evita comprobar la versión si Domain verifica igual contenido.

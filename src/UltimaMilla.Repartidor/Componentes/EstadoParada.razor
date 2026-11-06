@@ -1,13 +1,13 @@
 @* Muestra el estado del servidor o, si hay una acción local más reciente, el de esa acción. *@
 @if (Accion is { Estado: EstadoAccion.Pendiente })
 {
-    <span class="badge bg-warning text-dark">@Texto(Accion.Accion.Resultado) · sin sincronizar</span>
+    <span class="badge bg-warning text-dark">@Accion.Accion.ResultadoVisible · sin sincronizar</span>
 }
-else if (Accion is { Estado: EstadoAccion.Sincronizada } && Parada.Estado == EstadoEnvio.EnTransito)
+else if (Accion is { Estado: EstadoAccion.Sincronizada } && Parada.AdmiteRegistro)
 {
-    <span class="badge bg-success">@Texto(Accion.Accion.Resultado) · sincronizada</span>
+    <span class="badge bg-success">@Accion.Accion.ResultadoVisible · sincronizada</span>
 }
-else if (Accion is { Estado: EstadoAccion.Rechazada } && Parada.Estado == EstadoEnvio.EnTransito)
+else if (Accion is { Estado: EstadoAccion.Rechazada } && Parada.AdmiteRegistro)
 {
     <span class="badge bg-danger">Rechazada</span>
 }
@@ -20,6 +20,4 @@ else
     [Parameter, EditorRequired] public ParadaDto Parada { get; set; } = null!;
     [Parameter] public AccionPendiente? Accion { get; set; }
 
-    private static string Texto(ResultadoIntento resultado) =>
-        resultado == ResultadoIntento.Entregado ? "Entregado" : "No entregado";
 }

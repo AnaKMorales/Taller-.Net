@@ -25,7 +25,7 @@ builder.Services.AddSingleton<SincronizacionAutomatica>();
 var api = new Uri(builder.Configuration["ApiUrl"] ?? builder.HostEnvironment.BaseAddress);
 builder.Services.AddSingleton(new HttpClient { BaseAddress = api });
 
-// Login real; hoja de ruta e intentos siguen simulados hasta que Web exponga sus endpoints (ADR-005).
+// Web recibe las visitas reales. El simulador conserva las acciones de la demo.
 builder.Services.AddSingleton<ApiRepartidorFalsa>();
 builder.Services.AddSingleton<IApiRepartidor, ApiRepartidorHttp>();
 

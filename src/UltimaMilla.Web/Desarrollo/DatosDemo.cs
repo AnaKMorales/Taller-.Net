@@ -24,9 +24,10 @@ public static class DatosDemo
 
     private const string ContrasenaDemo = "Demo1234!";
 
-    public static async Task<DatosDemoCreados> CrearAsync(DbContextOptions<AppDbContext> options, CancellationToken ct)
+    public static async Task<DatosDemoCreados> CrearAsync(DbContextOptions<AppDbContext> options, CancellationToken ct,
+        bool incluirVisitaParcial = false)
     {
-        var ahora = DateTime.UtcNow;
+        var ahora = incluirVisitaParcial ? DateTime.UtcNow.AddMinutes(-1) : DateTime.UtcNow;
         var sufijo = Guid.NewGuid().ToString("N")[..8];
 
         var operador = new Operador($"Operador demo {sufijo}");
@@ -38,7 +39,7 @@ public static class DatosDemo
         var zona = new ZonaCobertura(operador, "Centro", "11000", [new FranjaHoraria("Día", new(8, 0), new(18, 0))]);
 
         var reglas = new ReglasOperativas(operador, 1, ahora.AddDays(-1), 2, 0, [TipoPrueba.Foto],
-            new PoliticaDevolucion(1, 5, true));
+            new PoliticaDevolucion(1, 5, true), permiteEntregaParcial: incluirVisitaParcial);
         _ = new PlazoServicio(reglas, ModalidadServicio.Estandar, 24, new(16, 0));
         var ausente = new MotivoNoEntrega(reglas, "Ausente", "Nadie atendió", Responsable.Destinatario, true, true);
 
@@ -55,9 +56,32 @@ public static class DatosDemo
         fallido.RecibirEnDeposito(admin, ahora.AddSeconds(1));
         _ = new Discrepancia(fallido, bulto, TipoDiscrepancia.PesoNoCoincide, "Peso del bulto", "2.5 kg", "3.1 kg",
             ahora.AddSeconds(1));
+        Envio? visitaParcial = null;
+        if (incluirVisitaParcial)
+        {
+            visitaParcial = NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Entrega parcial de prueba", ahora,
+                [new Bulto("PARCIAL-01", 2.5m, 10, 20, 30), new Bulto("PARCIAL-02", 1m, 10, 20, 30)]);
+            foreach (var pendiente in visitaParcial.Bultos)
+                EscaneoBulto.RegistrarRecepcion(pendiente, admin, ahora.AddSeconds(1));
+            visitaParcial.RecibirEnDeposito(admin, ahora.AddSeconds(1));
+        }
+
+        // Los envíos deben existir antes de insertar las paradas que los referencian.
+        await using var db = new AppDbContext(options, TenantActual.ParaOperador(operador.Id));
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+        db.AddRange(admitido, fallido, admin, usuarioComercio, repartidor);
+        if (visitaParcial is not null) db.Add(visitaParcial);
+        foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
+            ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
+        await db.SaveChangesAsync(ct);
+
         var ruta = new Ruta(repartidor, vehiculo, 10);
-        // La llegada debe caer dentro de la ventana de entrega.
         ruta.AgregarParada(fallido, 1, fallido.VentanaDesde.AddHours(1), admin, ahora.AddSeconds(2));
+        if (visitaParcial is not null)
+            ruta.AgregarParada(visitaParcial, 2, visitaParcial.VentanaDesde.AddHours(2), admin, ahora.AddSeconds(2));
+        db.Add(ruta);
+        await db.SaveChangesAsync(ct);
+
         ruta.Despachar(admin, ahora.AddSeconds(3));
         fallido.RegistrarIntento(ResultadoIntento.Fallido, ausente,
             [new PruebaEntrega(TipoPrueba.Foto, ahora.AddSeconds(4), Montevideo, new ArchivoRef("evidencias/demo.jpg"))],
@@ -69,12 +93,11 @@ public static class DatosDemo
         aviso.RegistrarIntento(false, ahora.AddSeconds(5));
         aviso.RegistrarIntento(false, ahora.AddSeconds(6));
 
-        await using var db = new AppDbContext(options, TenantActual.ParaOperador(operador.Id));
-        db.AddRange(admitido, fallido, ruta, suscripcion, admin, usuarioComercio, repartidor);
-        foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
-            ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
+        db.Add(suscripcion);
         await db.SaveChangesAsync(ct);
-        return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, repartidor.Email, ContrasenaDemo, admitido.CodigoSeguimiento);
+        await transaccion.CommitAsync(ct);
+        return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, repartidor.Email, ContrasenaDemo,
+            (visitaParcial ?? admitido).CodigoSeguimiento);
     }
 
     public static async Task SimularAltaAsync(DbContextOptions<AppDbContext> options, Guid operadorId, CancellationToken ct)
@@ -135,10 +158,10 @@ public static class DatosDemo
         db.Set<Usuario>().FirstAsync(u => u.Rol == RolUsuario.Administrador && u.Activo, ct);
 
     private static Envio NuevoEnvio(CuentaComercial cuenta, ZonaCobertura zona, ReglasOperativas reglas,
-        CuadroTarifario cuadro, Usuario responsable, string destinatario, DateTime ahora) =>
+        CuadroTarifario cuadro, Usuario responsable, string destinatario, DateTime ahora, IReadOnlyList<Bulto>? bultos = null) =>
         new(cuenta, new Destinatario(destinatario, "099123456", "destinatario@example.com",
                 new Direccion("Av. 18 de Julio", "1234", "Montevideo", "11100")),
-            [new Bulto("B001", 2.5m, 10, 20, 30)], ModalidadServicio.Estandar, zona, reglas, cuadro, 165,
+            bultos ?? [new Bulto("B001", 2.5m, 10, 20, 30)], ModalidadServicio.Estandar, zona, reglas, cuadro, 165,
             ahora, ahora.AddHours(1),
             ProgramacionEntrega.Crear(zona.Franjas.Single(), DateOnly.FromDateTime(ahora.AddDays(1)), TimeSpan.FromHours(-3)),
             responsable);

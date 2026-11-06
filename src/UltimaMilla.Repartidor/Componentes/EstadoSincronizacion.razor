@@ -56,10 +56,11 @@
 
     private async Task ContarAsync()
     {
-        var cola = await Cola.ListarAsync();
+        var sesion = await Datos.ObtenerSesionAsync();
+        var cola = sesion is null ? [] : await Cola.ListarAsync(sesion.RepartidorId);
         _pendientes = cola.Count(a => a.Estado == EstadoAccion.Pendiente);
         _rechazadas = cola.Count(a => a.Estado == EstadoAccion.Rechazada);
-        _sesionVencida = (await Datos.ObtenerSesionAsync())?.Vencida(Reloj.GetUtcNow()) == true;
+        _sesionVencida = sesion?.Vencida(Reloj.GetUtcNow()) == true;
     }
 
     public void Dispose()

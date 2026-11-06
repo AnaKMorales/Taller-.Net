@@ -2,8 +2,8 @@
 
 Implementado el 03/11/2026. Conecta el núcleo de resultados por bulto con Application
 y la persistencia. Aplica al flujo original y al requisito 32 del documento nuevo.
-No agrega endpoints, pantallas, PWA ni Worker. El caso de uso no requiere otra migración;
-la composición de visitas de pendientes requiere BultosPorParada, documentada por separado.
+El caso de uso está disponible desde la API del repartidor. La composición de visitas de
+pendientes requiere BultosPorParada, documentada por separado.
 
 ## Entrada y respuesta
 
@@ -70,25 +70,34 @@ La unidad se dispone siempre, también al rechazar una versión, fallar la valid
 guardado. Un nuevo intento del caso de uso usa otro contexto, sin cambios fallidos pendientes.
 La cancelación se propaga a carga y persistencia; no se informa éxito si falla el guardado.
 
-## Registro e integración pendiente
+## Endpoint del repartidor
 
-El registro optativo en el host es:
+`POST /api/repartidor/intentos` recibe JSON con los campos de la tabla de entrada en camelCase.
+Usa `Authorization: Bearer <token>` obtenido de `POST /api/repartidor/sesion` y la política
+CORS `PwaRepartidor`. El operador y el repartidor se resuelven desde la sesión autenticada.
+Web registra el caso de uso y su repositorio mediante `AgregarRegistroIntentos()`.
 
-```csharp
-services.AgregarRegistroIntentos();
-```
+| Respuesta | Significado |
+| --- | --- |
+| 200 | Intento registrado o reconocido. `repetido` distingue ambos casos. |
+| 400 | JSON incorrecto, campo obligatorio ausente o datos inválidos. |
+| 401 | Sesión ausente, inválida o revocada. |
+| 403 | El repartidor carece de permiso para el envío solicitado. |
+| 409 | La versión cambió, se reutilizó la operación con otro contenido o la visita ya no permite el intento. |
 
-Requiere DbContextOptions<AppDbContext> e ITenantActual con la identidad resuelta. Se registran
-el handler y su repositorio. Program.cs todavía no registra este servicio ni expone
-un endpoint de intentos; sí incorpora por separado la descarga de hojas y la configuración.
-La API futura debe autenticar, resolver tenant y traducir errores de solicitud/permisos/
-concurrencia sin aceptar identidad del body. La PWA deberá conservar versión, parada e
-IdOperacion y mapear sus capturas al contrato. Archivo es una referencia a evidencia ya
-almacenada: este caso de uso no recibe ni sube bytes de archivos.
+Si la visita ya se cerró, el repartidor asignado a esa parada puede recibir el 409 al
+enviar una operación nueva con la versión anterior. La autorización comprueba el vínculo
+entre el repartidor, la parada y el envío. Una operación nueva requiere una parada activa
+para poder guardarse.
+
+La PWA conserva la versión, la parada y el `idOperacion` original en IndexedDB y reenvía
+el mismo cuerpo JSON. `archivo` admite una referencia existente o una imagen incluida
+como URL de datos. La PWA envía las fotos como JPEG y las firmas como PNG. El máximo es
+256 KiB por imagen y 4 MiB para las URLs de datos de la visita. La referencia autocontenida
+se persiste con la evidencia en PostgreSQL dentro de la misma transacción.
 
 El repositorio ya carga Parada.Bultos.Bulto y admite el registro de la visita de pendientes
 con o sin recargo. La solicitud contiene solo esos bultos; los entregados antes no se repiten.
 La carga incluye el recargo de la parada y los históricos del envío. Continúan pendientes las
 API de asignación. La [descarga autenticada de hoja](api-monitoreos.md) ya incluye su
 composición y versión esperada. Ver [políticas de pendientes](politicas-pendientes.md).
-Esta implementación no sustituye la sincronización offline ni la demo del 12/11.

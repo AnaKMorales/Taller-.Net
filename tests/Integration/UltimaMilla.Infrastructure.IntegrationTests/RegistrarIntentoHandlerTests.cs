@@ -100,7 +100,7 @@ public sealed partial class PostgresTests
         }
         var identidad = await IdentidadRepartidor(e);
         await using var operacion = await new RegistroIntentoRepository(Options(), new TenantActual(identidad))
-            .AbrirAsync(command.EnvioId, command.IdOperacion, CancellationToken.None);
+            .AbrirAsync(command.EnvioId, command.ParadaId, command.IdOperacion, CancellationToken.None);
         await using (var db = Context(e.Operador.Id))
         {
             var usuario = await db.Set<Repartidor>().SingleAsync(u => u.Id == e.Repartidor.Id);
@@ -162,9 +162,9 @@ public sealed partial class PostgresTests
     {
         private int _llegadas;
         private readonly TaskCompletionSource _ambos = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public async Task<IOperacionRegistroIntento> AbrirAsync(Guid envioId, Guid idOperacion, CancellationToken ct)
+        public async Task<IOperacionRegistroIntento> AbrirAsync(Guid envioId, Guid paradaId, Guid idOperacion, CancellationToken ct)
         {
-            var operacion = await inner.AbrirAsync(envioId, idOperacion, ct);
+            var operacion = await inner.AbrirAsync(envioId, paradaId, idOperacion, ct);
             if (Interlocked.Increment(ref _llegadas) == 2) _ambos.TrySetResult();
             try { await _ambos.Task.WaitAsync(TimeSpan.FromSeconds(20), ct); return operacion; }
             catch { await operacion.DisposeAsync(); throw; }
