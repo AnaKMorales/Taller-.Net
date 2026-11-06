@@ -56,6 +56,7 @@ builder.Services.AddAuthentication(Politicas.EsquemaSelector)
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Politicas.Backoffice, p => p.RequireRole(Politicas.RolesBackoffice))
     .AddPolicy(Politicas.Portal, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Comercio)))
+    .AddPolicy(Politicas.Administracion, p => p.RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Administrador)))
     .AddPolicy(Politicas.Repartidor, p => p.AddAuthenticationSchemes(ApiRepartidor.Esquema)
         .RequireRole(nameof(UltimaMilla.Domain.Usuarios.RolUsuario.Repartidor)));
 

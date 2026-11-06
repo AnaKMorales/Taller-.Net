@@ -1,0 +1,25 @@
+@model (string Titulo, string Columna, IReadOnlyList<UltimaMilla.Application.Backoffice.Cumplimiento> Filas)
+
+<h2>@Model.Titulo</h2>
+<table>
+    <thead>
+        <tr><th>@Model.Columna</th><th>Envíos</th><th>Entregados</th><th>A tiempo</th><th>Cumplimiento</th><th>Intentos fallidos</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var c in Model.Filas)
+        {
+            <tr>
+                <td>@c.Nombre</td>
+                <td>@c.Envios</td>
+                <td>@c.Entregados</td>
+                <td>@c.EntregadosATiempo</td>
+                <td>@Textos.Porcentaje(c.TasaCumplimiento)</td>
+                <td>@c.IntentosFallidos</td>
+            </tr>
+        }
+        @if (Model.Filas.Count == 0)
+        {
+            <tr><td colspan="6" class="vacio">Sin envíos en el período.</td></tr>
+        }
+    </tbody>
+</table>

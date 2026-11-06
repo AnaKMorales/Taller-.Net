@@ -1,0 +1,81 @@
+@page "/backoffice/reportes"
+@model UltimaMilla.Web.Pages.Backoffice.ReportesModel
+@{
+    ViewData["Title"] = "Reportes";
+    ViewData["Seccion"] = "reportes";
+    Layout = "_Layout";
+}
+
+<h1>Reportes de gestión</h1>
+<p class="nota">Envíos admitidos en el período (hora de Uruguay). A tiempo: entregado antes de la fecha comprometida.</p>
+
+<form method="get" class="filtros">
+    <label>Desde <input type="date" name="Desde" value="@Model.Desde?.ToString("yyyy-MM-dd")" /></label>
+    <label>Hasta <input type="date" name="Hasta" value="@Model.Hasta?.ToString("yyyy-MM-dd")" /></label>
+    <button type="submit">Ver</button>
+</form>
+
+@if (Model.Error is not null)
+{
+    <p class="error">@Model.Error</p>
+}
+@if (Model.Reporte is { } r)
+{
+    <div class="contadores">
+        <div><span>@r.Resumen.Envios</span>Envíos</div>
+        <div><span>@r.Resumen.Entregados</span>Entregados (@Textos.Porcentaje(r.Resumen.TasaEntrega))</div>
+        <div><span>@Textos.Porcentaje(r.Resumen.TasaCumplimiento)</span>Cumplimiento</div>
+        <div><span>@Textos.Porcentaje(r.Resumen.TasaPrimerIntento)</span>Entregas al primer intento</div>
+        <div><span>@Textos.Importe(r.Resumen.Facturacion)</span>Facturación</div>
+    </div>
+
+    <h2>Volumen por día</h2>
+    <table>
+        <thead><tr><th>Día</th><th>Envíos</th></tr></thead>
+        <tbody>
+            @foreach (var v in r.VolumenPorDia)
+            {
+                <tr><td>@v.Dia.ToString("dd/MM/yyyy")</td><td>@v.Envios</td></tr>
+            }
+            @if (r.VolumenPorDia.Count == 0)
+            {
+                <tr><td colspan="2" class="vacio">Sin envíos en el período.</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <partial name="_TablaCumplimiento" model="@(("Cumplimiento por zona", "Zona", r.PorZona))" />
+    <partial name="_TablaCumplimiento" model="@(("Cumplimiento por repartidor", "Repartidor", r.PorRepartidor))" />
+    <partial name="_TablaCumplimiento" model="@(("Cumplimiento por comercio", "Comercio", r.PorComercio))" />
+
+    <h2>Motivos de no entrega</h2>
+    <table>
+        <thead><tr><th>Motivo</th><th>Intentos fallidos</th></tr></thead>
+        <tbody>
+            @foreach (var m in r.MotivosNoEntrega)
+            {
+                <tr><td>@m.Motivo</td><td>@m.Cantidad</td></tr>
+            }
+            @if (r.MotivosNoEntrega.Count == 0)
+            {
+                <tr><td colspan="2" class="vacio">Sin intentos fallidos.</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Liquidación por comercio</h2>
+    <p class="nota">Suma de la tarifa calculada en el alta de cada envío: si el tarifario cambia después, el importe no cambia.</p>
+    <table>
+        <thead><tr><th>Comercio</th><th>Envíos</th><th>Importe</th></tr></thead>
+        <tbody>
+            @foreach (var l in r.Liquidacion)
+            {
+                <tr><td>@l.Comercio</td><td>@l.Envios</td><td>@Textos.Importe(l.Importe)</td></tr>
+            }
+            @if (r.Liquidacion.Count == 0)
+            {
+                <tr><td colspan="3" class="vacio">Sin envíos en el período.</td></tr>
+            }
+        </tbody>
+    </table>
+}

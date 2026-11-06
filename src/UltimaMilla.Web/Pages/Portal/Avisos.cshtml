@@ -1,0 +1,93 @@
+@page "/portal/avisos"
+@model UltimaMilla.Web.Pages.Portal.AvisosModel
+@{
+    ViewData["Title"] = "Avisos";
+    ViewData["Seccion"] = "avisos";
+    Layout = "_Layout";
+}
+
+<h1>Avisos</h1>
+<p class="nota">Direcciones de tu sistema donde te avisamos automáticamente los cambios de tus envíos.</p>
+
+@if (Model.Creada is { } creada)
+{
+    <div class="secreto">
+        <strong>Dirección agregada.</strong> Guardá este secreto ahora: no se vuelve a mostrar.
+        Con él tu sistema verifica que cada aviso viene de UltimaMilla.
+        <p><code>@creada.Secreto</code></p>
+    </div>
+}
+
+<h2>Agregar dirección de avisos</h2>
+<form method="post" asp-page-handler="Crear" class="formulario">
+    @if (Model.Error is not null)
+    {
+        <p class="error">@Model.Error</p>
+    }
+    <label>Dirección <input name="Destino" value="@Model.Destino" placeholder="https://mitienda.com/avisos" size="50" required /></label>
+    <fieldset>
+        <legend>Eventos a recibir</legend>
+        @foreach (var (tipo, nombre) in Textos.Eventos)
+        {
+            <label class="opcion"><input type="checkbox" name="Eventos" value="@tipo" checked="@Model.Eventos.Contains(tipo)" /> @nombre</label>
+        }
+    </fieldset>
+    <button type="submit">Agregar dirección</button>
+</form>
+
+<h2>Mis direcciones de avisos</h2>
+<table>
+    <thead>
+        <tr><th>Destino</th><th>Eventos</th><th>Estado</th><th>Entregados</th><th>Fallidos</th><th>Pendientes</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var s in Model.Suscripciones)
+        {
+            <tr>
+                <td><code>@s.Destino</code></td>
+                <td>@string.Join(", ", s.Eventos.Select(Textos.Evento))</td>
+                <td>@(s.Activa ? "Activo" : "Desactivado")</td>
+                <td>@s.Entregados</td>
+                <td>@s.Fallidos</td>
+                <td>@s.Pendientes</td>
+                <td>
+                    @if (s.Activa)
+                    {
+                        <form method="post" asp-page-handler="Desactivar" asp-route-id="@s.Id">
+                            <button type="submit">Desactivar</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Suscripciones.Count == 0)
+        {
+            <tr><td colspan="7" class="vacio">Todavía no agregaste ninguna dirección.</td></tr>
+        }
+    </tbody>
+</table>
+<p class="nota">Desactivar es definitivo: deja de recibir avisos. Para volver a recibirlos, agregá una dirección nueva.</p>
+
+<h2>Últimos avisos</h2>
+<table>
+    <thead>
+        <tr><th>Envío</th><th>Evento</th><th>Ocurrió</th><th>Estado</th><th>Intentos</th><th>Último intento</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var a in Model.Avisos)
+        {
+            <tr>
+                <td><code>@a.CodigoSeguimiento</code></td>
+                <td>@Textos.Evento(a.Evento)</td>
+                <td>@Textos.Fecha(a.OcurridoEn)</td>
+                <td>@Textos.Aviso(a.Estado)</td>
+                <td>@a.Intentos</td>
+                <td>@Textos.Fecha(a.UltimoIntentoEn)</td>
+            </tr>
+        }
+        @if (Model.Avisos.Count == 0)
+        {
+            <tr><td colspan="6" class="vacio">Todavía no hay avisos.</td></tr>
+        }
+    </tbody>
+</table>

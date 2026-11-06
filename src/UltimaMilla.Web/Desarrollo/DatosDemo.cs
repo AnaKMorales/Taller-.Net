@@ -82,18 +82,32 @@ public static class DatosDemo
         db.Add(ruta);
         await db.SaveChangesAsync(ct);
 
+        // Entregado antes de la fecha comprometida: cuenta como cumplido en los reportes.
+        var entregado = NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Ana Gómez", ahora);
+        EscaneoBulto.RegistrarRecepcion(entregado.Bultos.Single(), admin, ahora.AddSeconds(1));
+        entregado.RecibirEnDeposito(admin, ahora.AddSeconds(1));
+        ruta.AgregarParada(entregado, 2, entregado.VentanaDesde.AddHours(2), admin, ahora.AddSeconds(2));
+
         ruta.Despachar(admin, ahora.AddSeconds(3));
         fallido.RegistrarIntento(ResultadoIntento.Fallido, ausente,
             [new PruebaEntrega(TipoPrueba.Foto, ahora.AddSeconds(4), Montevideo, new ArchivoRef("evidencias/demo.jpg"))],
             repartidor, ahora.AddSeconds(4), Guid.NewGuid(), Montevideo);
+        entregado.RegistrarIntento(ResultadoIntento.Entregado, null,
+            [new PruebaEntrega(TipoPrueba.Foto, ahora.AddSeconds(4), Montevideo, new ArchivoRef("evidencias/demo-ok.jpg"))],
+            repartidor, ahora.AddSeconds(4), Guid.NewGuid(), Montevideo);
 
-        var suscripcion = new SuscripcionAviso(cuenta, [TipoEvento.FalloEntrega], "secreto-demo",
+        var suscripcion = new SuscripcionAviso(cuenta, [TipoEvento.FalloEntrega, TipoEvento.EntregaExitosa], "secreto-demo",
             new Uri("https://comercio-demo.example/webhooks/envios"));
         var aviso = new EntregaAviso(suscripcion, fallido.Eventos.Last());
         aviso.RegistrarIntento(false, ahora.AddSeconds(5));
         aviso.RegistrarIntento(false, ahora.AddSeconds(6));
+        new EntregaAviso(suscripcion, entregado.Eventos.Last()).RegistrarIntento(true, ahora.AddSeconds(5));
 
         db.Add(suscripcion);
+        await using var db = new AppDbContext(options, TenantActual.ParaOperador(operador.Id));
+        db.AddRange(admitido, fallido, entregado, ruta, suscripcion, admin, usuarioComercio, repartidor);
+        foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
+            ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
         await db.SaveChangesAsync(ct);
         await transaccion.CommitAsync(ct);
         return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, repartidor.Email, ContrasenaDemo,
