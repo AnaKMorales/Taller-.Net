@@ -17,6 +17,15 @@
         .nota { color: #52606d; font-size: .9rem; }
         .vacio { color: #7b8794; font-style: italic; }
         button { cursor: pointer; }
+        .formulario { background: #fff; padding: 1rem; display: grid; gap: .75rem; }
+        .formulario fieldset { border: 1px solid #d9e2ec; }
+        .opcion { display: inline-block; margin-right: 1rem; font-size: .9rem; }
+        .error { color: #b42318; }
+        .filtros { display: flex; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+        .contadores { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .75rem; margin: 1rem 0; }
+        .contadores div { background: #fff; border: 1px solid #d9e2ec; border-radius: .5rem; padding: .75rem; font-size: .85rem; }
+        .contadores span { display: block; font-size: 1.5rem; font-weight: 600; }
+        .secreto { background: #fff7e0; border: 1px solid #f0c36d; padding: 1rem; margin-bottom: 1rem; }
     </style>
 </head>
 <body>
@@ -28,9 +37,14 @@
             <a href="/backoffice/incidencias" class="@(ViewData["Seccion"] as string == "incidencias" ? "activo" : "")">Incidencias</a>
             <a href="/backoffice/fallidos" class="@(ViewData["Seccion"] as string == "fallidos" ? "activo" : "")">Avisos fallidos</a>
         }
+        @if (User.IsInRole("Administrador"))
+        {
+            <a href="/backoffice/reportes" class="@(ViewData["Seccion"] as string == "reportes" ? "activo" : "")">Reportes</a>
+        }
         @if (User.IsInRole("Comercio"))
         {
             <a href="/portal" class="@(ViewData["Seccion"] as string == "portal" ? "activo" : "")">Mis envíos</a>
+            <a href="/portal/avisos" class="@(ViewData["Seccion"] as string == "avisos" ? "activo" : "")">Avisos</a>
         }
         @if (User.Identity?.IsAuthenticated == true)
         {

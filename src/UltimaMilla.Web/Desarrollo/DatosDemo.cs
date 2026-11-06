@@ -58,19 +58,30 @@ public static class DatosDemo
         var ruta = new Ruta(repartidor, vehiculo, 10);
         // La llegada debe caer dentro de la ventana de entrega.
         ruta.AgregarParada(fallido, 1, fallido.VentanaDesde.AddHours(1), admin, ahora.AddSeconds(2));
+
+        // Entregado antes de la fecha comprometida: cuenta como cumplido en los reportes.
+        var entregado = NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Ana Gómez", ahora);
+        EscaneoBulto.RegistrarRecepcion(entregado.Bultos.Single(), admin, ahora.AddSeconds(1));
+        entregado.RecibirEnDeposito(admin, ahora.AddSeconds(1));
+        ruta.AgregarParada(entregado, 2, entregado.VentanaDesde.AddHours(2), admin, ahora.AddSeconds(2));
+
         ruta.Despachar(admin, ahora.AddSeconds(3));
         fallido.RegistrarIntento(ResultadoIntento.Fallido, ausente,
             [new PruebaEntrega(TipoPrueba.Foto, ahora.AddSeconds(4), Montevideo, new ArchivoRef("evidencias/demo.jpg"))],
             repartidor, ahora.AddSeconds(4), Guid.NewGuid(), Montevideo);
+        entregado.RegistrarIntento(ResultadoIntento.Entregado, null,
+            [new PruebaEntrega(TipoPrueba.Foto, ahora.AddSeconds(4), Montevideo, new ArchivoRef("evidencias/demo-ok.jpg"))],
+            repartidor, ahora.AddSeconds(4), Guid.NewGuid(), Montevideo);
 
-        var suscripcion = new SuscripcionAviso(cuenta, [TipoEvento.FalloEntrega], "secreto-demo",
+        var suscripcion = new SuscripcionAviso(cuenta, [TipoEvento.FalloEntrega, TipoEvento.EntregaExitosa], "secreto-demo",
             new Uri("https://comercio-demo.example/webhooks/envios"));
         var aviso = new EntregaAviso(suscripcion, fallido.Eventos.Last());
         aviso.RegistrarIntento(false, ahora.AddSeconds(5));
         aviso.RegistrarIntento(false, ahora.AddSeconds(6));
+        new EntregaAviso(suscripcion, entregado.Eventos.Last()).RegistrarIntento(true, ahora.AddSeconds(5));
 
         await using var db = new AppDbContext(options, TenantActual.ParaOperador(operador.Id));
-        db.AddRange(admitido, fallido, ruta, suscripcion, admin, usuarioComercio, repartidor);
+        db.AddRange(admitido, fallido, entregado, ruta, suscripcion, admin, usuarioComercio, repartidor);
         foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
             ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
         await db.SaveChangesAsync(ct);

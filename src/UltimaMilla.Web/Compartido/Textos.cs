@@ -1,6 +1,7 @@
+using UltimaMilla.Application.Portal;
 using UltimaMilla.Domain.Envios;
 
-namespace UltimaMilla.Web.Backoffice;
+namespace UltimaMilla.Web.Compartido;
 
 public static class Textos
 {
@@ -39,6 +40,17 @@ public static class Textos
     public static string Estado(EstadoEnvio? estado) => estado is { } e ? Estados[e] : "—";
 
     public static string Evento(TipoEvento tipo) => Eventos[tipo];
+
+    public static string Aviso(EstadoAviso estado) => estado switch
+    {
+        EstadoAviso.Entregado => "Entregado",
+        EstadoAviso.Fallido => "Falló",
+        _ => "Pendiente"
+    };
+
+    public static string Porcentaje(double valor) => valor.ToString("0.0") + " %";
+
+    public static string Importe(decimal valor) => "$ " + valor.ToString("N2");
 
     public static string Corto(Guid id) => id.ToString("N")[..8];
 

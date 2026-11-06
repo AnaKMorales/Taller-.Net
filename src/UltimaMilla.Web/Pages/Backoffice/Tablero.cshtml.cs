@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using UltimaMilla.Application.Backoffice;
 using UltimaMilla.Domain.Envios;
-using UltimaMilla.Web.Backoffice;
+using UltimaMilla.Web.Compartido;
 using UltimaMilla.Web.Seguridad;
 
 namespace UltimaMilla.Web.Pages.Backoffice;

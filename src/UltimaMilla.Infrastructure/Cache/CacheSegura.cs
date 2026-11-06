@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace UltimaMilla.Infrastructure.Cache;
 
 // Patrón cache-aside sobre IDistributedCache (Redis, o memoria si no hay Redis configurado).
-// Si la caché falla, se registra el error y se lee de la base: la caché nunca debe tirar abajo una consulta.
+// Si la caché falla, se registra el error y se lee de la base
 public sealed class CacheSegura(IDistributedCache cache, CacheMetricas metricas, ILogger<CacheSegura> logger,
     TimeProvider reloj)
 {
