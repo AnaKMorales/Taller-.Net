@@ -7,18 +7,18 @@
 }
 
 <h1>Avisos</h1>
-<p class="nota">Direcciones de tu sistema (webhooks) donde te avisamos los cambios de tus envíos.</p>
+<p class="nota">Direcciones de tu sistema donde te avisamos automáticamente los cambios de tus envíos.</p>
 
 @if (Model.Creada is { } creada)
 {
     <div class="secreto">
-        <strong>Webhook creado.</strong> Guardá este secreto ahora: no se vuelve a mostrar.
+        <strong>Dirección agregada.</strong> Guardá este secreto ahora: no se vuelve a mostrar.
         Con él tu sistema verifica que cada aviso viene de UltimaMilla.
         <p><code>@creada.Secreto</code></p>
     </div>
 }
 
-<h2>Nuevo webhook</h2>
+<h2>Agregar dirección de avisos</h2>
 <form method="post" asp-page-handler="Crear" class="formulario">
     @if (Model.Error is not null)
     {
@@ -32,10 +32,10 @@
             <label class="opcion"><input type="checkbox" name="Eventos" value="@tipo" checked="@Model.Eventos.Contains(tipo)" /> @nombre</label>
         }
     </fieldset>
-    <button type="submit">Crear webhook</button>
+    <button type="submit">Agregar dirección</button>
 </form>
 
-<h2>Mis webhooks</h2>
+<h2>Mis direcciones de avisos</h2>
 <table>
     <thead>
         <tr><th>Destino</th><th>Eventos</th><th>Estado</th><th>Entregados</th><th>Fallidos</th><th>Pendientes</th><th></th></tr>
@@ -62,11 +62,11 @@
         }
         @if (Model.Suscripciones.Count == 0)
         {
-            <tr><td colspan="7" class="vacio">Todavía no tenés webhooks.</td></tr>
+            <tr><td colspan="7" class="vacio">Todavía no agregaste ninguna dirección.</td></tr>
         }
     </tbody>
 </table>
-<p class="nota">Desactivar es definitivo: deja de recibir avisos. Para volver a recibirlos, creá un webhook nuevo.</p>
+<p class="nota">Desactivar es definitivo: deja de recibir avisos. Para volver a recibirlos, agregá una dirección nueva.</p>
 
 <h2>Últimos avisos</h2>
 <table>
