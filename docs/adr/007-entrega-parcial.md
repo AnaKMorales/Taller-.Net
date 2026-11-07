@@ -92,6 +92,29 @@ evidencias antes de enviarlos al endpoint autenticado de intentos. En cada reenv
 la parada, la versión del envío y el identificador de operación originales.
 Ver [ADR-005](005-sincronizacion-offline-repartidor.md).
 
+## Conflictos al sincronizar resultados por bulto
+
+Cada intento incluye todos los bultos en tránsito de la parada descargada. El resultado,
+motivo y evidencias se validan por bulto. La visita se confirma como una sola operación,
+porque cerrarla también cambia el estado del envío, la ruta y el evento del outbox.
+
+| Caso | Comportamiento actual |
+| --- | --- |
+| Se pierde la respuesta y la PWA reenvía exactamente el mismo intento | Se reconoce el intento original y se devuelven sus resultados por bulto. |
+| Dos solicitudes con el mismo identificador intentan guardar al mismo tiempo | Se compara la huella con la operación confirmada. Si coincide, se devuelve como repetida; si difiere, se rechaza. |
+| Dos operaciones distintas llegan para los mismos bultos de una visita | La primera confirmada se conserva. La otra recibe un conflicto si pertenece al repartidor autorizado para esa parada. |
+| La composición de una nueva visita incluye solo algunos bultos del envío | La operación antigua no se traslada a la nueva parada. El repartidor debe descargar la hoja y registrar los bultos que figuran en esa visita. |
+| Faltan bultos de la parada, sobran bultos o hay evidencia inválida | Se rechaza la visita completa antes de modificar sus resultados. |
+
+Se evaluó aplicar automáticamente solo los resultados que todavía parecieran válidos.
+Esa alternativa puede dejar incompleta la evidencia de la visita y producir un cierre o
+aviso distinto del que el repartidor registró. La versión del envío protege el cierre
+conjunto. El servidor devuelve el diagnóstico por bulto de la composición autorizada,
+tanto si la versión ya era obsoleta al leer el envío como si cambió durante el guardado.
+En el segundo caso, se consulta el estado confirmado en un contexto nuevo. La PWA asocia
+el conflicto HTTP con la visita de su cola y pide que se actualice la hoja. Queda pendiente
+presentar ese detalle en la PWA.
+
 ## Pendientes para completar el cambio
 
 - API de asignación de pendientes e integración del despacho/devolución. La descarga

@@ -10,12 +10,27 @@ public sealed class RegistrarIntentoHandler(IRegistroIntentoRepository repositor
     {
         ct.ThrowIfCancellationRequested();
         var solicitud = ValidarYCopiar(command);
+        try
+        {
+            return await RegistrarAsync(solicitud, ct);
+        }
+        catch (ConflictoConcurrenciaException error) when (error is not ConflictoIntentoException)
+        {
+            // El contexto anterior ya se descartó. Solo podemos reconocer una operación confirmada.
+            return await RegistrarAsync(solicitud, ct, conflictoDeGuardado: error);
+        }
+    }
+
+    private async Task<IntentoRegistradoDto> RegistrarAsync(RegistrarIntentoCommand solicitud, CancellationToken ct,
+        ConflictoConcurrenciaException? conflictoDeGuardado = null)
+    {
         await using var operacion = await repository.AbrirAsync(solicitud.EnvioId, solicitud.ParadaId, solicitud.IdOperacion, ct);
         var envio = operacion.Envio;
         var repetido = envio.Intentos.Any(i => i.IdOperacion == solicitud.IdOperacion);
         // El Id de operación solo evita comprobar la versión si Domain verifica igual contenido.
-        if (!repetido && operacion.VersionActual != solicitud.VersionEsperada)
-            throw new ConflictoConcurrenciaException(new InvalidOperationException("La versión esperada del envío ya no está vigente."));
+        if (!repetido && (conflictoDeGuardado is not null || operacion.VersionActual != solicitud.VersionEsperada))
+            throw DescribirConflicto(solicitud, operacion,
+                conflictoDeGuardado ?? new InvalidOperationException("La versión esperada del envío ya no está vigente."));
 
         var pruebas = solicitud.Evidencias.ToDictionary(e => e.Referencia,
             e => new PruebaEntrega(e.Tipo, e.Hora, e.Posicion,
@@ -33,6 +48,25 @@ public sealed class RegistrarIntentoHandler(IRegistroIntentoRepository repositor
         return new(intento.Id, envio.Id, intento.IdOperacion, intento.Resultado, envio.Estado,
             operacion.VersionActual, repetido, intento.Detalles.OrderBy(d => d.Bulto.Id)
                 .Select(d => new ResultadoBultoRegistradoDto(d.Bulto.Id, d.Resultado, d.Motivo?.Id)).ToArray());
+    }
+
+    private static ConflictoIntentoException DescribirConflicto(RegistrarIntentoCommand solicitud,
+        IOperacionRegistroIntento operacion, Exception causa)
+    {
+        var parada = operacion.ParadaOrigen;
+        var activa = parada?.Activa == true && operacion.Envio.Parada?.Id == parada.Id;
+        var composicion = parada?.Bultos.ToDictionary(b => b.Bulto.Id, b => b.Bulto) ?? [];
+        var bultos = solicitud.Bultos.Select(resultado =>
+        {
+            if (!composicion.TryGetValue(resultado.BultoId, out var bulto))
+                return new BultoEnConflictoDto(resultado.BultoId, null, null, MotivoConflictoBulto.FueraDeParada);
+
+            var motivo = bulto.Estado != EstadoBulto.EnTransito
+                ? MotivoConflictoBulto.EstadoCambio
+                : activa ? MotivoConflictoBulto.SinCambioDeEstado : MotivoConflictoBulto.ParadaCerrada;
+            return new BultoEnConflictoDto(bulto.Id, bulto.Codigo, bulto.Estado, motivo);
+        }).ToArray();
+        return new(new(solicitud.ParadaId, operacion.VersionActual, activa, bultos), causa);
     }
 
     private static RegistrarIntentoCommand ValidarYCopiar(RegistrarIntentoCommand command)

@@ -53,7 +53,7 @@ Domain. La transacción de escritura es la existente de SaveChanges.
 ## Versiones, repetición y guardado
 
 Si el identificador de operación es nuevo, VersionEsperada debe coincidir con la versión
-cargada. Una diferencia genera ConflictoConcurrenciaException antes de modificar Domain.
+cargada. Una diferencia genera ConflictoIntentoException antes de modificar Domain.
 Si coincide, se registra por bulto y un único SaveChangesAsync guarda estados, intento,
 detalles, pruebas, evento y outbox V2 con las garantías transaccionales existentes.
 La versión original de EF sigue controlando carreras ocurridas después de la carga,
@@ -62,6 +62,9 @@ tanto en el envío como en la ruta afectada al finalizar la parada.
 Si la operación ya existe, Domain debe reconocer su contenido exacto antes de devolverla.
 Ese reenvío puede llevar la versión original, ahora vieja: no se vuelve a guardar ni a
 renovar el token. El mismo identificador con otro contenido se rechaza.
+Si dos solicitudes con el mismo identificador compiten por guardar, la que pierde lee
+el intento confirmado y pasa por la misma comparación de contenido. Un reenvío idéntico
+devuelve el intento existente con `repetido: true`; el contenido diferente devuelve 409.
 No se hace un reintento automático de decisiones concurrentes ni se fusionan resultados.
 Después de un conflicto se consulta nuevamente o se reenvía la misma operación para
 reconocerla, según corresponda.
@@ -84,6 +87,23 @@ Web registra el caso de uso y su repositorio mediante `AgregarRegistroIntentos()
 | 401 | Sesión ausente, inválida o revocada. |
 | 403 | El repartidor carece de permiso para el envío solicitado. |
 | 409 | La versión cambió, se reutilizó la operación con otro contenido o la visita ya no permite el intento. |
+
+El 409 de concurrencia de un intento incluye la extensión
+`conflicto` con `paradaId`, `versionActualEnvio`, `paradaActiva` y `bultos`. Cada bulto
+enviado recibe un diagnóstico que compara su estado confirmado con el estado en tránsito
+exigido para registrar la visita:
+
+| Motivo | Significado |
+| --- | --- |
+| `EstadoCambio` | El bulto pertenece a la visita y su estado actual ya no es `EnTransito`. |
+| `ParadaCerrada` | El bulto está en tránsito, pero la parada de origen ya no es la visita activa. |
+| `FueraDeParada` | El bulto no pertenece a la composición autorizada. Se omiten su código y estado. |
+| `SinCambioDeEstado` | El bulto sigue en tránsito en esa parada. La versión del agregado cambió y corresponde revisar la visita completa. |
+
+La respuesta conserva el formato de problema HTTP. El intento se rechaza completo y la
+versión devuelta es informativa. Si la carrera ocurre durante el guardado, se descarta
+el contexto de escritura y se consulta otra vez la visita con las mismas comprobaciones
+de acceso. El diagnóstico describe los resultados confirmados en PostgreSQL.
 
 Si la visita ya se cerró, el repartidor asignado a esa parada puede recibir el 409 al
 enviar una operación nueva con la versión anterior. La autorización comprueba el vínculo

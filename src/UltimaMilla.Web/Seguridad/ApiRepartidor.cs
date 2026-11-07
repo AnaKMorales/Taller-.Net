@@ -56,8 +56,17 @@ public static class ApiRepartidor
             RegistrarIntentoHandler handler, CancellationToken ct) =>
         {
             if (tenant.Contexto is not { UsuarioId: not null }) return Results.Unauthorized();
-            var resultado = await handler.Handle(solicitud.AComando(), ct);
-            return Results.Ok(resultado);
+            try
+            {
+                var resultado = await handler.Handle(solicitud.AComando(), ct);
+                return Results.Ok(resultado);
+            }
+            catch (ConflictoIntentoException error)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                    title: "La versión ya no está vigente. Vuelve a consultar antes de guardar.",
+                    extensions: new Dictionary<string, object?> { ["conflicto"] = error.Conflicto });
+            }
         })
         .RequireAuthorization(Politicas.Repartidor)
         .AddEndpointFilter<ErroresApiFilter>()

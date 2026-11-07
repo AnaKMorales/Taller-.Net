@@ -63,7 +63,7 @@ public sealed partial class PostgresTests
         var e = await PrepararVisitaParcial();
         var command = await ComandoRegistro(e);
         var handler = RegistroHandler(await IdentidadRepartidor(e));
-        await Assert.ThrowsAsync<ConflictoConcurrenciaException>(() => handler.Handle(command with { VersionEsperada = Guid.NewGuid() }));
+        await Assert.ThrowsAsync<ConflictoIntentoException>(() => handler.Handle(command with { VersionEsperada = Guid.NewGuid() }));
         await using var reader = Context(e.Operador.Id);
         var envio = await reader.Envios.Include(x => x.Bultos).SingleAsync();
         Assert.Equal(command.VersionEsperada, reader.Entry(envio).Property<Guid>("RowVersion").CurrentValue);
@@ -136,25 +136,93 @@ public sealed partial class PostgresTests
     }
 
     [PostgresFact]
-    public async Task DosCasosDeUsoConLaMismaVersionSoloConfirmanUno()
+    public async Task DosCasosDeUsoConLaMismaVersionConfirmanUnoYElOtroVeLosBultosGuardados()
     {
         var e = await PrepararVisitaParcial();
         var command = await ComandoRegistro(e);
         var repository = new RegistroIntentoRepository(Options(), new TenantActual(await IdentidadRepartidor(e)));
         var barrera = new RepositoryConBarrera(repository);
         var handler = new RegistrarIntentoHandler(barrera);
-        var resultados = await Task.WhenAll(Registrar(command), Registrar(command with { IdOperacion = Guid.NewGuid() }));
-        Assert.Single(resultados, x => x);
-        Assert.Single(resultados, x => !x);
+        var competidor = command with
+        {
+            IdOperacion = Guid.NewGuid(),
+            Bultos =
+            [
+                command.Bultos[2] with { BultoId = command.Bultos[0].BultoId },
+                command.Bultos[1],
+                command.Bultos[0] with { BultoId = command.Bultos[2].BultoId }
+            ]
+        };
+        var resultados = await Task.WhenAll(Registrar(command), Registrar(competidor));
+        var ganador = Assert.Single(resultados, x => x.Registrado is not null).Registrado!;
+        var conflicto = Assert.Single(resultados, x => x.Conflicto is not null).Conflicto!;
+        Assert.Equal(command.ParadaId, conflicto.ParadaId);
+        Assert.False(conflicto.ParadaActiva);
+        Assert.Equal(ganador.VersionActualEnvio, conflicto.VersionActualEnvio);
+        Assert.Equal(3, conflicto.Bultos.Count);
+        foreach (var bulto in conflicto.Bultos)
+        {
+            var confirmado = Assert.Single(ganador.Bultos, b => b.BultoId == bulto.BultoId);
+            Assert.Equal(MotivoConflictoBulto.EstadoCambio, bulto.Motivo);
+            Assert.Equal(confirmado.Resultado == ResultadoIntento.Entregado ? EstadoBulto.Entregado : EstadoBulto.NoEntregado,
+                bulto.EstadoActual);
+        }
+
         await using var db = Context(e.Operador.Id);
-        Assert.Single(await db.Set<IntentoEntrega>().ToListAsync());
+        Assert.Equal(ganador.IntentoId, (await db.Set<IntentoEntrega>().SingleAsync()).Id);
         Assert.Equal(3, await db.Set<DetalleIntentoBulto>().CountAsync());
         Assert.Equal(5, await db.Set<MensajeOutbox>().CountAsync());
 
-        async Task<bool> Registrar(RegistrarIntentoCommand solicitud)
+        async Task<(IntentoRegistradoDto? Registrado, ConflictoIntentoDto? Conflicto)> Registrar(RegistrarIntentoCommand solicitud)
         {
-            try { await handler.Handle(solicitud); return true; }
-            catch (ConflictoConcurrenciaException) { return false; }
+            try { return (await handler.Handle(solicitud), null); }
+            catch (ConflictoIntentoException error) { return (null, error.Conflicto); }
+        }
+    }
+
+    [PostgresFact]
+    public Task DosReenviosSimultaneosIdenticosReconocenElMismoIntento() =>
+        ComprobarReenviosSimultaneos(mismoContenido: true);
+
+    [PostgresFact]
+    public Task DosReenviosSimultaneosConContenidoDistintoRechazanElPerdedor() =>
+        ComprobarReenviosSimultaneos(mismoContenido: false);
+
+    private async Task ComprobarReenviosSimultaneos(bool mismoContenido)
+    {
+        var e = await PrepararVisitaParcial();
+        var comando = await ComandoRegistro(e);
+        var repository = new RegistroIntentoRepository(Options(), new TenantActual(await IdentidadRepartidor(e)));
+        var handler = new RegistrarIntentoHandler(new RepositoryConBarrera(repository));
+        var segundo = mismoContenido ? comando : comando with { OcurridoEn = comando.OcurridoEn.AddSeconds(1) };
+
+        var resultados = await Task.WhenAll(Registrar(comando), Registrar(segundo));
+        var original = Assert.Single(resultados, r => r.Respuesta is { Repetido: false });
+        if (mismoContenido)
+        {
+            var repetido = Assert.Single(resultados, r => r.Respuesta is { Repetido: true });
+            Assert.Equal(original.Respuesta!.IntentoId, repetido.Respuesta!.IntentoId);
+            Assert.Equal(original.Respuesta.VersionActualEnvio, repetido.Respuesta.VersionActualEnvio);
+        }
+        else
+        {
+            var rechazado = Assert.Single(resultados, r => r.Error is not null);
+            Assert.IsType<InvalidOperationException>(rechazado.Error);
+            Assert.Contains("otro contenido", rechazado.Error!.Message);
+        }
+
+        await using var db = Context(e.Operador.Id);
+        var intento = await db.Set<IntentoEntrega>().SingleAsync();
+        Assert.Equal(original.Respuesta!.IntentoId, intento.Id);
+        Assert.Equal(original.Solicitud.OcurridoEn, intento.OcurridoEn);
+        Assert.Equal(3, await db.Set<DetalleIntentoBulto>().CountAsync());
+        Assert.Equal(1, await db.Set<MensajeOutbox>().CountAsync(m => m.Evento.IdOperacion == comando.IdOperacion));
+
+        async Task<(RegistrarIntentoCommand Solicitud, IntentoRegistradoDto? Respuesta, InvalidOperationException? Error)>
+            Registrar(RegistrarIntentoCommand solicitud)
+        {
+            try { return (solicitud, await handler.Handle(solicitud), null); }
+            catch (InvalidOperationException error) { return (solicitud, null, error); }
         }
     }
 

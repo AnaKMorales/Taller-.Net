@@ -1,3 +1,4 @@
+using UltimaMilla.Domain.Despacho;
 using UltimaMilla.Domain.Envios;
 using UltimaMilla.Domain.Usuarios;
 
@@ -12,6 +13,7 @@ public interface IRegistroIntentoRepository
 public interface IOperacionRegistroIntento : IAsyncDisposable
 {
     Envio Envio { get; }
+    Parada? ParadaOrigen { get; }
     Repartidor Responsable { get; }
     Guid VersionActual { get; }
     Task GuardarAsync(CancellationToken ct);

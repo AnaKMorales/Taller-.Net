@@ -44,6 +44,62 @@ etc.) también van por V2, para conservar el vocabulario anterior de V1. IdOpera
 es nullable: estos eventos llevan null y Bultos vacío, mientras los intentos llevan IdOperacion
 y resultados de los bultos de su visita. No se reconstruyen resultados desde estados posteriores.
 
+## Contrato para integrar el Worker
+
+El publicador pasa al transporte el tipo, el identificador y el JSON persistidos.
+El adaptador RabbitMQ usa el tipo como clave de enrutamiento y el identificador como
+`message-id`. Los tipos y las versiones se exponen en los contratos de Application.
+
+| Tipo del mensaje | Versión JSON | Contenido |
+| --- | --- | --- |
+| `envio.evento.v1` | 1 | Transición con el vocabulario tradicional, sin el campo `bultos`. |
+| `envio.evento.v2` | 2 | Transición con resultados por bulto si corresponde a un intento. Las transiciones administrativas de un envío parcial llevan `bultos: []` e `idOperacion: null`. |
+
+Cada evento tiene una sola fila de outbox. `mensajeId` y `eventoId` coinciden y se
+conservan ante reenvíos. `idOperacion` identifica la visita registrada por el cliente.
+`bultos` contiene los resultados de esa visita, incluso si el envío tuvo visitas previas.
+`pruebas` contiene identificadores internos de evidencias. Una evidencia compartida
+puede aparecer en varios bultos entregados. `motivoId` es nulo para un bulto entregado.
+
+Ejemplo de evento interno de una entrega parcial:
+
+```json
+{
+  "mensajeId": "10000000-0000-4000-8000-000000000001",
+  "version": 2,
+  "operadorId": "10000000-0000-4000-8000-000000000002",
+  "cuentaComercialId": "10000000-0000-4000-8000-000000000003",
+  "envioId": "10000000-0000-4000-8000-000000000004",
+  "eventoId": "10000000-0000-4000-8000-000000000001",
+  "tipoEvento": "EntregaParcial",
+  "origen": "AppRepartidor",
+  "estadoAnterior": "EnTransito",
+  "estadoNuevo": "EntregadoParcialmente",
+  "ocurridoEn": "2026-11-06T15:00:00Z",
+  "idOperacion": "10000000-0000-4000-8000-000000000005",
+  "bultos": [
+    {
+      "bultoId": "10000000-0000-4000-8000-000000000006",
+      "resultado": "Entregado",
+      "motivoId": null,
+      "pruebas": ["10000000-0000-4000-8000-000000000009"]
+    },
+    {
+      "bultoId": "10000000-0000-4000-8000-000000000007",
+      "resultado": "Fallido",
+      "motivoId": "10000000-0000-4000-8000-000000000008",
+      "pruebas": []
+    }
+  ]
+}
+```
+
+Este JSON es el contrato interno entre el productor y el Worker. La configuración de
+RabbitMQ enlaza ambas versiones con `envio.#`. El consumidor actual acepta V1 y descarta
+V2. Para completar la integración, el Worker debe reconocer V2, validar su ámbito e
+identificador y elegir el formato de webhook compatible con el receptor. Esa selección
+es independiente de la versión interna del evento.
+
 ## Aislamiento e integración
 
 Las filas llevan `TenantId` y filtros por operador y cuenta. La cuenta se resuelve mediante
@@ -62,9 +118,9 @@ editar un tarifario, todavía no producen mensajes de integración.
 para eventos históricos: evita emitir avisos antiguos al actualizar la base. Aplicar con
 `scripts/Test-LocalPersistence.ps1` o el procedimiento habitual de migraciones.
 
-El registro transaccional y el componente que coordina la publicación ya están implementados.
-El adaptador real de RabbitMQ y su conexión desde un proceso ejecutable siguen pendientes.
-No se publica a un broker real hasta integrar ese adaptador.
+El registro transaccional y el componente que coordina la publicación están implementados.
+El Worker usa el adaptador RabbitMQ para publicar en el broker. El consumo de V2 queda
+pendiente de integrar.
 
 El mecanismo cubre las escrituras a través de SaveChanges con eventos nuevos. SQL directo,
 ExecuteUpdate/ExecuteDelete, cambios que evitan los métodos de Domain y modificaciones

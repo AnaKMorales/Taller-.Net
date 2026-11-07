@@ -30,8 +30,14 @@ public sealed class RegistroIntentoRepository(DbContextOptions<AppDbContext> opt
                  db.Set<Parada>().Any(p => p.Id == paradaId && p.Envio.Id == e.Id &&
                      !p.Activa && p.Ruta.Repartidor.Id == responsable.Id)), ct)
                 ?? throw new AislamientoOperadorException();
+            var paradaOrigen = envio.Parada is { } parada && parada.Id == paradaId &&
+                parada.Ruta.Repartidor.Id == responsable.Id
+                ? parada
+                : await db.Set<Parada>().Include(p => p.Bultos).ThenInclude(b => b.Bulto)
+                    .SingleOrDefaultAsync(p => p.Id == paradaId && p.Envio.Id == envio.Id &&
+                        p.Ruta.Repartidor.Id == responsable.Id, ct);
             await lectura.CommitAsync(ct);
-            return new Operacion(db, envio, responsable);
+            return new Operacion(db, envio, responsable, paradaOrigen);
         }
         catch { await db.DisposeAsync(); throw; }
     }
@@ -53,9 +59,11 @@ public sealed class RegistroIntentoRepository(DbContextOptions<AppDbContext> opt
         .Include(e => e.Intentos).ThenInclude(i => i.Detalles).ThenInclude(d => d.Motivo)
         .Include(e => e.Intentos).ThenInclude(i => i.Detalles).ThenInclude(d => d.Evidencias).ThenInclude(p => p.Prueba);
 
-    private sealed class Operacion(AppDbContext db, Envio envio, Repartidor responsable) : IOperacionRegistroIntento
+    private sealed class Operacion(AppDbContext db, Envio envio, Repartidor responsable, Parada? paradaOrigen)
+        : IOperacionRegistroIntento
     {
         public Envio Envio => envio;
+        public Parada? ParadaOrigen => paradaOrigen;
         public Repartidor Responsable => responsable;
         public Guid VersionActual => db.Entry(envio).Property<Guid>("RowVersion").CurrentValue;
 
