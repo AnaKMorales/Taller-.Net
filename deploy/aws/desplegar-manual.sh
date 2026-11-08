@@ -64,9 +64,41 @@ id=$(aws ssm send-command --instance-ids "$INSTANCIA" --document-name AWS-RunShe
   --query Command.CommandId --output text)
 echo "    Comando $id (puede tardar varios minutos la primera vez: descarga de imágenes y migraciones)"
 
-if aws ssm wait command-executed --command-id "$id" --instance-id "$INSTANCIA"; then resultado=0; else resultado=1; fi
-aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCIA" \
-  --query '{Estado: Status, Salida: StandardOutputContent, Errores: StandardErrorContent}' --output yaml
+# Se sondea el estado en vez de usar "aws ssm wait command-executed": ese espera como máximo ~100 s y el primer despliegue
+# (descarga de imágenes y migraciones) tarda más. Compatible con la AWS CLI v1 y v2: solo usa --output json/text.
+echo "==> Esperando el resultado (hasta 21 min)"
+inicio=$SECONDS
+estado="Pending"
+while :; do
+  estado=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCIA" \
+    --query Status --output text 2>/dev/null || echo "Pending")
+  case "$estado" in
+    Pending | InProgress | Delayed) ;;
+    *) break ;;
+  esac
+  transcurrido=$((SECONDS - inicio))
+  if [ "$transcurrido" -ge 1260 ]; then
+    estado="SinRespuesta"
+    break
+  fi
+  printf '    ... %s (%ss)\n' "$estado" "$transcurrido"
+  sleep 15
+done
+
+# Estado final y log completo del comando, tanto si salió bien como si falló.
+invocacion=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCIA" --output json 2>/dev/null || echo '{}')
+echo
+echo "==> Estado final: $(jq -r --arg e "$estado" '.Status // $e' <<<"$invocacion")"
+echo "----- Salida del comando (StandardOutputContent) -----"
+jq -r '.StandardOutputContent // ""' <<<"$invocacion"
+echo "----- Errores del comando (StandardErrorContent) -----"
+jq -r '.StandardErrorContent // ""' <<<"$invocacion"
+echo "-----"
+
+if [ "$estado" != "Success" ]; then
+  echo "ERROR: el despliegue terminó con estado '$estado' (comando $id). El log completo está arriba." >&2
+  exit 1
+fi
+
 dominio=$(terraform -chdir="$ENV_DIR" output -raw dominio)
-[ "$resultado" -eq 0 ] && echo "==> Listo: https://$dominio"
-exit "$resultado"
+echo "==> Listo: https://$dominio"
