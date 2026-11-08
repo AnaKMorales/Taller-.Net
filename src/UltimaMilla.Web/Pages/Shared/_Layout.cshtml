@@ -21,6 +21,8 @@
         .formulario fieldset { border: 1px solid #d9e2ec; }
         .opcion { display: inline-block; margin-right: 1rem; font-size: .9rem; }
         .error { color: #b42318; }
+        .exito { color: #05603a; background: #ecfdf3; border: 1px solid #a6f4c5; padding: .75rem; }
+        .formulario label { margin-right: 1rem; font-size: .9rem; }
         .filtros { display: flex; gap: 1rem; align-items: end; margin-bottom: 1rem; }
         .contadores { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .75rem; margin: 1rem 0; }
         .contadores div { background: #fff; border: 1px solid #d9e2ec; border-radius: .5rem; padding: .75rem; font-size: .85rem; }
@@ -40,6 +42,8 @@
         @if (User.IsInRole("Administrador"))
         {
             <a href="/backoffice/reportes" class="@(ViewData["Seccion"] as string == "reportes" ? "activo" : "")">Reportes</a>
+            <a href="/backoffice/configuracion/tarifas" class="@(ViewData["Seccion"] as string == "tarifas" ? "activo" : "")">Tarifas</a>
+            <a href="/backoffice/configuracion/reglas" class="@(ViewData["Seccion"] as string == "reglas" ? "activo" : "")">Reglas</a>
         }
         @if (User.IsInRole("Comercio"))
         {
