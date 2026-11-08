@@ -22,7 +22,8 @@ builder.Services.AddSingleton<Sincronizador>();
 builder.Services.AddSingleton<SincronizacionAutomatica>();
 
 // Dirección de la API de Web (wwwroot/appsettings.json). No es un secreto: el acceso lo da el token.
-var api = new Uri(builder.Configuration["ApiUrl"] ?? builder.HostEnvironment.BaseAddress);
+// Puede ser absoluta (otro origen) o relativa al sitio ("/": la API de Web, mismo origen que la PWA en /repartidor/).
+var api = new Uri(new Uri(builder.HostEnvironment.BaseAddress), builder.Configuration["ApiUrl"] ?? "/");
 builder.Services.AddSingleton(new HttpClient { BaseAddress = api });
 
 // Web recibe las visitas reales. El simulador conserva las acciones de la demo.
