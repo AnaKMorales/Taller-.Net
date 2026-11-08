@@ -16,6 +16,9 @@ RUN dotnet publish src/UltimaMilla.Worker/UltimaMilla.Worker.csproj -c Release -
 # El Worker es un host genérico (sin ASP.NET): alcanza la imagen "runtime".
 FROM mcr.microsoft.com/dotnet/runtime:10.0
 WORKDIR /app
+# Npgsql intenta cargar GSSAPI (Kerberos) al conectar; sin esta librería el log muestra un "Error:" inofensivo pero confuso.
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app .
 # Sin secretos en la imagen: la conexión a Postgres y la clave de RabbitMQ llegan por variables de entorno.
 USER $APP_UID

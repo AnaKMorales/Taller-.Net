@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Envios.CrearEnvio;
@@ -27,6 +28,17 @@ using UltimaMilla.Web.Tiempo;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+// Detrás de Traefik: esquema/host/IP reales solo desde la red confiable (ForwardedHeaders:RedConfiable).
+builder.Services.AgregarCabecerasReenviadas();
+
+// Claves de Data Protection (cookies, antiforgery): en una ruta persistente para que sobrevivan a reinicios.
+var rutaClaves = builder.Configuration["DataProtection:RutaClaves"];
+if (string.IsNullOrWhiteSpace(rutaClaves) && builder.Environment.IsDevelopment())
+    rutaClaves = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UltimaMilla", "claves-dp");
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("UltimaMilla");
+if (!string.IsNullOrWhiteSpace(rutaClaves))
+    dataProtection.PersistKeysToFileSystem(Directory.CreateDirectory(rutaClaves));
 // Enums como texto en la API.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -107,7 +119,11 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// HTTPS lo termina Traefik en AWS.
+if (string.IsNullOrWhiteSpace(rutaClaves))
+    app.Logger.LogWarning("DataProtection:RutaClaves no está configurada: las claves de las cookies se pierden al reiniciar.");
+
+// HTTPS lo termina Traefik en AWS: primero se toma el esquema/IP reales de X-Forwarded-*.
+app.UseForwardedHeaders();
 app.UsarCabecerasSeguras();
 app.UseCors();
 app.UseAuthentication();
@@ -136,7 +152,12 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.UseAntiforgery();
 
+// PWA del repartidor: la publicación se copia a wwwroot/repartidor (Dockerfile de Web), fuera del manifiesto
+// de MapStaticAssets, por eso se sirve con UseStaticFiles (solo bajo /repartidor, para no tapar a MapStaticAssets).
+// Las rutas internas de la PWA caen en su index.html.
+app.UseWhen(c => c.Request.Path.StartsWithSegments("/repartidor"), pwa => pwa.UseStaticFiles(StaticFilesPwa.Opciones()));
 app.MapStaticAssets();
+app.MapFallbackToFile("/repartidor/{*ruta:nonfile}", "repartidor/index.html");
 app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);

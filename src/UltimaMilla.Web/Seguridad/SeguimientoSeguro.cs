@@ -37,7 +37,10 @@ public static class SeguimientoSeguro
             h.XContentTypeOptions = "nosniff";
             h.XFrameOptions = "DENY";
             h["Referrer-Policy"] = "no-referrer";
-            h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+            // La PWA del repartidor necesita la ubicación; el resto del sitio no.
+            h["Permissions-Policy"] = context.Request.Path.StartsWithSegments("/repartidor")
+                ? "camera=(), microphone=(), geolocation=(self)"
+                : "camera=(), microphone=(), geolocation=()";
             if (context.Request.Path.StartsWithSegments("/seguimiento") ||
                 context.Request.Path.StartsWithSegments("/api/seguimiento"))
             {
