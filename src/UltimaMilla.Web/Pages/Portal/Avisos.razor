@@ -1,0 +1,159 @@
+@page "/portal/avisos"
+@* Panel de avisos del comercio (sección 6.9): direcciones suscriptas, historial de entregas y alta/baja.
+   Blazor con renderizado estático en el servidor: cada formulario es un POST normal con antiforgery,
+   y el operador y la cuenta salen del usuario autenticado, nunca del formulario. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Domain.Envios
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject IPanelAvisos Panel
+@inject NavigationManager Navegacion
+
+<PageTitle>Avisos - Portal UltimaMilla</PageTitle>
+
+<h1>Avisos</h1>
+<p class="nota">Direcciones de tu sistema donde te avisamos automáticamente los cambios de tus envíos.</p>
+
+@if (creada is not null)
+{
+    <div class="secreto">
+        <strong>Dirección agregada.</strong> Guardá este secreto ahora: no se vuelve a mostrar.
+        Con él tu sistema verifica que cada aviso viene de UltimaMilla.
+        <p><code>@creada.Secreto</code></p>
+    </div>
+}
+
+<h2>Agregar dirección de avisos</h2>
+<form method="post" @formname="crear" @onsubmit="CrearAsync" class="formulario">
+    <AntiforgeryToken />
+    @if (error is not null)
+    {
+        <p class="error">@error</p>
+    }
+    <label>Dirección <input name="Destino" value="@Destino" placeholder="https://mitienda.com/avisos" size="50" required /></label>
+    <fieldset>
+        <legend>Eventos a recibir</legend>
+        @foreach (var (tipo, nombre) in Textos.Eventos)
+        {
+            <label class="opcion"><input type="checkbox" name="Eventos" value="@tipo" checked="@eventosElegidos.Contains(tipo)" /> @nombre</label>
+        }
+    </fieldset>
+    <button type="submit">Agregar dirección</button>
+</form>
+
+<h2>Mis direcciones de avisos</h2>
+<table>
+    <thead>
+        <tr><th>Destino</th><th>Eventos</th><th>Estado</th><th>Entregados</th><th>Fallidos</th><th>Pendientes</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var s in suscripciones)
+        {
+            <tr>
+                <td><code>@s.Destino</code></td>
+                <td>@string.Join(", ", s.Eventos.Select(Textos.Evento))</td>
+                <td>@(s.Activa ? "Activo" : "Desactivado")</td>
+                <td>@s.Entregados</td>
+                <td>@s.Fallidos</td>
+                <td>@s.Pendientes</td>
+                <td>
+                    @if (s.Activa)
+                    {
+                        var id = s.Id;
+                        <form method="post" @formname="@($"desactivar-{id}")" @onsubmit="() => DesactivarAsync(id)">
+                            <AntiforgeryToken />
+                            <button type="submit">Desactivar</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (suscripciones.Count == 0)
+        {
+            <tr><td colspan="7" class="vacio">Todavía no agregaste ninguna dirección.</td></tr>
+        }
+    </tbody>
+</table>
+<p class="nota">Desactivar es definitivo: deja de recibir avisos. Para volver a recibirlos, agregá una dirección nueva.</p>
+
+<h2>Últimos avisos</h2>
+<table>
+    <thead>
+        <tr><th>Envío</th><th>Evento</th><th>Ocurrió</th><th>Estado</th><th>Intentos</th><th>Último intento</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var a in avisos)
+        {
+            <tr>
+                <td><code>@a.CodigoSeguimiento</code></td>
+                <td>@Textos.Evento(a.Evento)</td>
+                <td>@Textos.Fecha(a.OcurridoEn)</td>
+                <td>@Textos.Aviso(a.Estado)</td>
+                <td>@a.Intentos</td>
+                <td>@Textos.Fecha(a.UltimoIntentoEn)</td>
+            </tr>
+        }
+        @if (avisos.Count == 0)
+        {
+            <tr><td colspan="6" class="vacio">Todavía no hay avisos.</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromForm(FormName = "crear")] public string? Destino { get; set; }
+
+    private IReadOnlyList<SuscripcionDto> suscripciones = [];
+    private IReadOnlyList<AvisoDto> avisos = [];
+    private SuscripcionCreada? creada;
+    private string? error;
+    private List<TipoEvento> eventosElegidos = [];
+
+    private CancellationToken Cancelacion => HttpContext?.RequestAborted ?? default;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CrearAsync()
+    {
+        // Los eventos son checkboxes con el mismo nombre: se leen todos los valores enviados.
+        eventosElegidos = (HttpContext?.Request.Form["Eventos"] ?? default)
+            .Select(v => Enum.TryParse<TipoEvento>(v, out var tipo) && Enum.IsDefined(tipo) ? (TipoEvento?)tipo : null)
+            .OfType<TipoEvento>().Distinct().ToList();
+
+        if (!Uri.TryCreate(Destino?.Trim(), UriKind.Absolute, out var destino))
+        {
+            error = "La dirección no es válida. Ejemplo: https://mitienda.com/avisos";
+            return;
+        }
+        try
+        {
+            // Sin redirección: el secreto se muestra en esta respuesta y no se guarda en ningún otro lado.
+            creada = await Panel.CrearSuscripcionAsync(destino, eventosElegidos, Cancelacion);
+            Destino = null;
+            eventosElegidos = [];
+            await CargarAsync();
+        }
+        catch (ArgumentException)
+        {
+            error = "Revisá la dirección (http o https) y elegí al menos un evento.";
+        }
+    }
+
+    private async Task DesactivarAsync(Guid id)
+    {
+        await Panel.DesactivarSuscripcionAsync(id, Cancelacion);
+        // Post-Redirect-Get: recargar la página no repite la baja.
+        Navegacion.NavigateTo("/portal/avisos");
+    }
+
+    private async Task CargarAsync()
+    {
+        suscripciones = await Panel.SuscripcionesAsync(Cancelacion);
+        avisos = await Panel.UltimosAvisosAsync(50, Cancelacion);
+    }
+}

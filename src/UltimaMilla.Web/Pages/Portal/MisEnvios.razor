@@ -1,0 +1,48 @@
+@page "/portal"
+@* Portal del comercio: listado de sus envíos. Blazor con renderizado estático en el servidor (sin @rendermode):
+   cada pedido pasa por el middleware que resuelve el operador y la cuenta comercial del usuario, así que el
+   aislamiento funciona igual que en el resto de la Web y el servidor no guarda estado por usuario. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject IConsultasPortal Consultas
+
+<PageTitle>Mis envíos - Portal UltimaMilla</PageTitle>
+
+<h1>Mis envíos</h1>
+<p class="nota">Envíos de tu comercio con este operador. El enlace de seguimiento es el que recibe el destinatario.</p>
+
+<table>
+    <thead>
+        <tr><th>Código de seguimiento</th><th>Destinatario</th><th>Estado</th><th>Fecha de admisión</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var e in envios)
+        {
+            <tr>
+                <td><code>@e.CodigoSeguimiento</code></td>
+                <td>@e.Destinatario</td>
+                <td>@Textos.Estado(e.Estado)</td>
+                <td>@Textos.Fecha(e.FechaAdmision)</td>
+                <td><a href="/seguimiento/@e.CodigoSeguimiento" target="_blank" rel="noopener">Ver seguimiento</a></td>
+            </tr>
+        }
+        @if (envios.Count == 0)
+        {
+            <tr><td colspan="5" class="vacio">Todavía no hay envíos.</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<EnvioPortalDto> envios = [];
+
+    protected override async Task OnInitializedAsync() =>
+        envios = await Consultas.EnviosAsync(HttpContext?.RequestAborted ?? default);
+}
