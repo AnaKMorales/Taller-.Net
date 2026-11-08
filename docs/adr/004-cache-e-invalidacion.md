@@ -22,8 +22,8 @@ La lógica vive en Infrastructure (`Cache/`) y los casos de uso usan los puertos
 | --- | --- | --- |
 | Clave | `op:{operador}:tarifario:vigente` | `seguimiento:{SHA-256 del token}` |
 | Duración | 30 min, o hasta que entre en vigor el próximo cuadro ya cargado, lo que ocurra antes | 30 s |
-| Invalidación | Explícita con `IInvalidacionTarifario` al crear o activar una versión | Ninguna: vence sola |
-| Desfase máximo visible | Ninguno si se invalida; si no, 30 min | 30 s |
+| Invalidación | Explícita con `IInvalidacionTarifario` al crear o activar una versión | Por evento: `InvalidarSeguimientoInterceptor` borra la entrada al guardar un cambio del envío |
+| Desfase máximo visible | Ninguno si se invalida; si no, 30 min | Ninguno si se invalida; si la invalidación falla, 30 s |
 
 - **Tarifario.** Es un dato del operador, no de un usuario: la clave usa `TenantCacheKey.PrefijoOperador`,
   y la lectura de la base usa un contexto acotado al operador, así un operador nunca recibe el
@@ -33,8 +33,13 @@ La lógica vive en Infrastructure (`Cache/`) y los casos de uso usan los puertos
   el token. No hace falta: el token es aleatorio y único en la plataforma, así que cada clave
   corresponde a un solo envío. Se guarda un hash del token y no el token, para que quien vea las
   claves de Redis no pueda consultar envíos. El DTO guardado es el mismo DTO público, sin datos internos.
-  Invalidarlo con cada evento del envío requeriría el outbox (29/10); 30 s es un desfase aceptable
-  para un destinatario.
+  Se invalida en el momento del cambio: `InvalidarSeguimientoInterceptor` (un interceptor de
+  `SaveChanges` del DbContext de la Web) anota los envíos con un evento nuevo, el envío modificado o
+  un bulto modificado (entrega parcial), y después de confirmar el guardado borra sus entradas.
+  Se invalida después y no antes de guardar: si se borrara antes, una consulta concurrente podría
+  volver a cachear el estado viejo. Se eligió el interceptor y no el Worker porque es inmediato y no
+  depende de que RabbitMQ esté disponible. Los 30 s quedan como red de seguridad: si Redis falla al
+  invalidar, el guardado no se ve afectado y la entrada vieja vive como máximo esa duración.
 - **No se guarda "no existe".** Así un envío o un tarifario recién creados se ven de inmediato.
 - **Si Redis falla**, se lee de la base y se cuenta un error: la caché nunca hace fallar una consulta.
   Después de una falla, la caché se saltea durante 30 s, porque cada intento contra un Redis caído
@@ -68,5 +73,7 @@ observabilidad (5/11). Mientras tanto, la tasa de aciertos por caché se consult
   disponible para levantar solo Redis.
 - Los endpoints `/dev/*` no tienen autenticación y existen solo en Development; se quitan o se protegen
   cuando esté el login.
-- Pruebas: 7 unitarias (aciertos, operadores separados, invalidación, duración, Redis caído) y 2 de
-  integración contra PostgreSQL real.
+- Pruebas: 7 unitarias (aciertos, operadores separados, invalidación, duración, Redis caído) y 3 de
+  integración contra PostgreSQL real, una de ellas para la invalidación del seguimiento por evento.
+- El Worker no usa el interceptor: hoy no cambia estados de envíos. Si en el futuro lo hace, hay que
+  agregarlo también a su DbContext.

@@ -3,7 +3,7 @@ using UltimaMilla.Application.Tenancy;
 
 namespace UltimaMilla.Infrastructure.Cache;
 
-// Perfil "seguimiento": duración corta y sin invalidación. Es la consulta pública más frecuente
+// Perfil "seguimiento": duración corta e invalidación por evento (InvalidarSeguimientoInterceptor). Es la consulta pública más frecuente
 // y la que más se beneficia, porque un destinatario recarga la página varias veces.
 public sealed class SeguimientoPublicoCacheado(ISeguimientoPublico origen, CacheSegura cache, CacheOpciones opciones)
     : ISeguimientoPublico

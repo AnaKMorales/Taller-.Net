@@ -48,6 +48,8 @@ public static class CacheServiceCollectionExtensions
         services.AddScoped<ISeguimientoPublico>(sp => new SeguimientoPublicoCacheado(
             sp.GetRequiredService<SeguimientoPublico>(), sp.GetRequiredService<CacheSegura>(),
             sp.GetRequiredService<CacheOpciones>()));
+        // Se agrega al DbContext de la Web para invalidar el seguimiento en cada cambio del envío.
+        services.AddSingleton<InvalidarSeguimientoInterceptor>();
         return services;
     }
 }

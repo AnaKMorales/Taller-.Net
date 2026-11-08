@@ -76,7 +76,8 @@ builder.Services.AddSignalR()
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) => options
     .UseNpgsql(builder.Configuration.GetConnectionString("UltimaMilla"))
-    .AddInterceptors(sp.GetRequiredService<PublicarCambiosInterceptor>()));
+    .AddInterceptors(sp.GetRequiredService<PublicarCambiosInterceptor>(),
+        sp.GetRequiredService<InvalidarSeguimientoInterceptor>()));
 
 // Cola de fallidos (avisos.dlq) para /backoffice/fallidos. Clave: RabbitMq__Clave (variable de entorno).
 builder.Services.AgregarColaFallidos(builder.Configuration);
