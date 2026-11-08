@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Envios.CrearEnvio;
+using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
 using UltimaMilla.Application.Tarifas;
 using UltimaMilla.Application.Tenancy;
@@ -81,6 +82,9 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) => options
 
 // Cola de fallidos (avisos.dlq) para /backoffice/fallidos. Clave: RabbitMq__Clave (variable de entorno).
 builder.Services.AgregarColaFallidos(builder.Configuration);
+// Reenvío de avisos fallidos desde el portal del comercio: publica directo en la cola (no cambia la base).
+builder.Services.AgregarPublicacionDirecta(builder.Configuration);
+builder.Services.AddScoped<ReenviarAvisoHandler>();
 
 builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();

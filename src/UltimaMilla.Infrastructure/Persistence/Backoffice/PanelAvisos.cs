@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using UltimaMilla.Application.Abstractions;
+using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Application.Portal;
 
 namespace UltimaMilla.Infrastructure.Persistence.Backoffice;
@@ -50,6 +51,32 @@ public sealed class PanelAvisos(AppDbContext db) : IPanelAvisos
         db.Add(suscripcion);
         await db.SaveChangesAsync(cancellationToken);
         return new SuscripcionCreada(suscripcion.Id, secreto);
+    }
+
+    public async Task<AvisoReenviable?> AvisoParaReenviarAsync(Guid avisoId, CancellationToken cancellationToken = default)
+    {
+        // El filtro de cuenta deja afuera los avisos de otros comercios: para ellos es como si no existieran.
+        if (db.CuentaComercialIdActual is not Guid cuentaId) return null;
+        var fila = await db.Set<EntregaAviso>().AsNoTracking().Where(a => a.Id == avisoId)
+            .Select(a => new
+            {
+                a.Exitoso,
+                EventoId = a.Evento.Id,
+                EnvioId = EF.Property<Guid>(a.Evento, "EnvioKey"),
+                a.Evento.Tipo,
+                a.Evento.Origen,
+                a.Evento.EstadoAnterior,
+                a.Evento.EstadoNuevo,
+                a.Evento.OcurridoEn,
+                a.Evento.IdOperacion
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (fila is null) return null;
+        // Mismo contrato V1 que publica el outbox; el operador y la cuenta salen del contexto autenticado.
+        var evento = new EventoEnvioV1(Guid.Empty, EventoEnvioV1.VersionContrato, db.OperadorIdActual, cuentaId,
+            fila.EnvioId, fila.EventoId, fila.Tipo.ToString(), fila.Origen.ToString(), fila.EstadoAnterior?.ToString(),
+            fila.EstadoNuevo.ToString(), fila.OcurridoEn, fila.IdOperacion);
+        return new AvisoReenviable(fila.Exitoso, evento);
     }
 
     public async Task<bool> DesactivarSuscripcionAsync(Guid id, CancellationToken cancellationToken = default)

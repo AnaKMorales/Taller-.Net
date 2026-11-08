@@ -12,6 +12,7 @@
 @layout PortalLayout
 @inject IPanelAvisos Panel
 @inject NavigationManager Navegacion
+@inject ReenviarAvisoHandler Reenviar
 
 <PageTitle>Avisos - Portal UltimaMilla</PageTitle>
 
@@ -80,10 +81,16 @@
 </table>
 <p class="nota">Desactivar es definitivo: deja de recibir avisos. Para volver a recibirlos, agregá una dirección nueva.</p>
 
-<h2>Últimos avisos</h2>
+<h2 id="ultimos">Últimos avisos</h2>
+<p class="nota">Un aviso que falló se reintenta solo, con esperas crecientes. Si tu sistema estuvo caído,
+    podés reenviarlo apenas vuelva: solo se manda a las direcciones que no lo recibieron.</p>
+@if (Reenvio is { } resultado)
+{
+    <p class="@(resultado == ResultadoReenvio.Reenviado ? "exito" : "error")">@TextoReenvio(resultado)</p>
+}
 <table>
     <thead>
-        <tr><th>Envío</th><th>Evento</th><th>Ocurrió</th><th>Estado</th><th>Intentos</th><th>Último intento</th></tr>
+        <tr><th>Envío</th><th>Evento</th><th>Ocurrió</th><th>Estado</th><th>Intentos</th><th>Último intento</th><th></th></tr>
     </thead>
     <tbody>
         @foreach (var a in avisos)
@@ -95,11 +102,21 @@
                 <td>@Textos.Aviso(a.Estado)</td>
                 <td>@a.Intentos</td>
                 <td>@Textos.Fecha(a.UltimoIntentoEn)</td>
+                <td>
+                    @if (a.Estado == EstadoAviso.Fallido)
+                    {
+                        var id = a.Id;
+                        <form method="post" @formname="@($"reenviar-{id}")" @onsubmit="() => ReenviarAsync(id)">
+                            <AntiforgeryToken />
+                            <button type="submit">Reenviar</button>
+                        </form>
+                    }
+                </td>
             </tr>
         }
         @if (avisos.Count == 0)
         {
-            <tr><td colspan="6" class="vacio">Todavía no hay avisos.</td></tr>
+            <tr><td colspan="7" class="vacio">Todavía no hay avisos.</td></tr>
         }
     </tbody>
 </table>
@@ -150,6 +167,26 @@
         // Post-Redirect-Get: recargar la página no repite la baja.
         Navegacion.NavigateTo("/portal/avisos");
     }
+
+    // Resultado del último reenvío, que llega por la URL después de redirigir (Post-Redirect-Get).
+    // (SupplyParameterFromQuery no admite enums: se recibe el texto y se valida.)
+    [SupplyParameterFromQuery(Name = "reenvio")] public string? ReenvioTexto { get; set; }
+    private ResultadoReenvio? Reenvio =>
+        Enum.TryParse<ResultadoReenvio>(ReenvioTexto, out var r) && Enum.IsDefined(r) ? r : null;
+
+    private async Task ReenviarAsync(Guid id)
+    {
+        var resultado = await Reenviar.Handle(id, Cancelacion);
+        Navegacion.NavigateTo($"/portal/avisos?reenvio={resultado}#ultimos");
+    }
+
+    private static string TextoReenvio(ResultadoReenvio resultado) => resultado switch
+    {
+        ResultadoReenvio.Reenviado => "Listo: el aviso se volvió a encolar y se enviará en unos segundos.",
+        ResultadoReenvio.YaEntregado => "Ese aviso ya se había entregado; no hacía falta reenviarlo.",
+        ResultadoReenvio.NoDisponible => "No se pudo encolar el reenvío en este momento. Probá de nuevo en unos minutos.",
+        _ => "No encontramos ese aviso."
+    };
 
     private async Task CargarAsync()
     {
