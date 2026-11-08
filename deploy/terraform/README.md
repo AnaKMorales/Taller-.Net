@@ -62,6 +62,12 @@ Sin `dominio` propio se usa `<ip-con-guiones>.sslip.io` (resuelve solo a esa IP 
 3. Hacer *push* a `main`: el pipeline compila, prueba, sube las 4 imágenes a ECR (etiqueta = SHA) y ejecuta
    `desplegar.sh` en la instancia por SSM Run Command. Sin SSH y sin claves de larga duración.
 
+**Datos de demostración en la instancia:** `deploy/aws/sembrar-demo.sh` enciende Development unos instantes, crea los dos
+operadores demo (una sola llamada a `/dev/datos-demo`), lo apaga, verifica que `/dev/datos-demo` vuelve a dar 404 y guarda las
+cuentas en `~/demo-cuentas.txt` (permisos 600, fuera del repositorio). La clave de las cuentas es **aleatoria en cada ejecución**
+(`openssl rand`), no la `Demo1234!` de desarrollo: queda solo en ese archivo y no se imprime ni viaja en argumentos de comandos.
+Requiere `openssl`, `jq` y `curl`.
+
 **Primer despliegue sin pasar por GitHub** (construye y sube las imágenes desde tu máquina y ordena el despliegue por SSM):
 `deploy/aws/desplegar-manual.sh` desde la raíz del repositorio. Sirve también para depurar.
 

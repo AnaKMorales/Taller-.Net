@@ -124,16 +124,35 @@ public sealed class ClienteWebhookHttpTests : IDisposable
     [Fact]
     public async Task UnServidorLentoFallaPorTimeoutCortoSinReintentar()
     {
-        _responder = async ctx => await Task.Delay(TimeSpan.FromSeconds(3));
-        using var cliente = Cliente(segundos: 0.4);
-        var reloj = System.Diagnostics.Stopwatch.StartNew();
+        using var cliente = Cliente(segundos: 1);
+        // Calentamiento: el JIT, el DNS y la conexión (que queda en el pool) se pagan acá, fuera de la ventana del timeout,
+        // para que en una máquina cargada el pedido medido llegue al servidor mucho antes de que venza.
+        Assert.True((await cliente.EnviarAsync(Solicitud("calentar"))).Exitoso);
+        // El servidor recibe el pedido y no responde nunca: la única forma de terminar es el timeout del cliente,
+        // sin depender de cuánto tarda el servidor ni de un cronómetro.
+        _responder = ctx => Task.Delay(Timeout.Infinite, _fin.Token);
 
-        var resultado = await cliente.EnviarAsync(Solicitud());
+        // WaitAsync solo acota un cuelgue (si el timeout no funcionara); no mide tiempos finos.
+        var resultado = await cliente.EnviarAsync(Solicitud()).WaitAsync(TimeSpan.FromSeconds(30));
 
         Assert.False(resultado.Exitoso);
         Assert.Equal("Tiempo de espera agotado", resultado.Motivo);
-        Assert.True(reloj.Elapsed < TimeSpan.FromSeconds(2.5), $"Tardó {reloj.Elapsed}");
-        Assert.Single(_recibidos);
+        // El servidor registra el pedido en otra tarea: se espera la condición (no un tiempo fijo) antes de contar.
+        await EsperarAsync(() => Recibidos("/hook") >= 1);
+        await Task.Delay(TimeSpan.FromMilliseconds(500)); // un reintento llegaría dentro de este margen
+        Assert.Equal(1, Recibidos("/hook")); // un solo intento
+    }
+
+    private int Recibidos(string ruta) { lock (_recibidos) return _recibidos.Count(r => r.Ruta == ruta); }
+
+    private static async Task EsperarAsync(Func<bool> condicion, int maximoMs = 10_000)
+    {
+        var limite = Environment.TickCount64 + maximoMs;
+        while (!condicion())
+        {
+            if (Environment.TickCount64 > limite) throw new TimeoutException("La condición esperada no ocurrió.");
+            await Task.Delay(20);
+        }
     }
 
     [Fact]
