@@ -92,6 +92,9 @@ builder.Services.AgregarConfiguracionVersionada();
 builder.Services.AgregarCacheUltimaMilla(builder.Configuration.GetConnectionString("Redis"),
     builder.Configuration.GetSection("Cache").Get<CacheOpciones>());
 
+// Seguimiento público: limitación de tasa por IP contra la enumeración de envíos.
+builder.Services.AgregarLimitesSeguimiento(builder.Configuration);
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -100,6 +103,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // HTTPS lo termina Traefik en AWS.
+app.UsarCabecerasSeguras();
 app.UseCors();
 app.UseAuthentication();
 
@@ -124,6 +128,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -133,9 +138,10 @@ app.MapHub<TableroHub>(TableroHub.Ruta);
 app.MapearApiOperativa();
 app.MapApiRepartidor();
 
-// Seguimiento público (sin login).
+// Seguimiento público (sin login). La página del destinatario es /seguimiento/{token} (Pages/Seguimiento.razor).
 app.MapGet("/api/seguimiento/{token}", async (string token, ISeguimientoPublico seguimiento, CancellationToken ct) =>
-    await seguimiento.ConsultarAsync(token, ct) is { } envio ? Results.Ok(envio) : Results.NotFound());
+        await seguimiento.ConsultarAsync(token, ct) is { } envio ? Results.Ok(envio) : Results.NotFound())
+    .RequireRateLimiting(SeguimientoSeguro.PoliticaTasa);
 
 if (app.Environment.IsDevelopment())
 {

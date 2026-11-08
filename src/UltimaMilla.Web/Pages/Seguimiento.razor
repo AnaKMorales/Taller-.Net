@@ -1,0 +1,159 @@
+@page "/seguimiento/{Token}"
+@* Seguimiento público del destinatario. Sin login y sin @rendermode:
+   se renderiza estático en el servidor (SSR), sin circuito SignalR por visitante, porque es
+   la página con más tráfico y solo muestra datos. *@
+@using System.Globalization
+@using Microsoft.AspNetCore.RateLimiting
+@using UltimaMilla.Application.Tenancy
+@using UltimaMilla.Domain.Envios
+@using UltimaMilla.Web.Seguridad
+@attribute [EnableRateLimiting(SeguimientoSeguro.PoliticaTasa)]
+@inject ISeguimientoPublico Consulta
+
+<PageTitle>@(envio is null ? "Seguimiento de envío" : $"Tu envío con {envio.Operador}")</PageTitle>
+<HeadContent>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <style>
+        :root { --tinta: #1d2530; --suave: #5b6675; --linea: #dfe4ea; --fondo: #f5f7f9; --acento: #1f6feb; --ok: #1a7f37; --alerta: #b35900; --error: #c62828; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--tinta); background: var(--fondo); }
+        main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+        .operador { font-size: .9rem; color: var(--suave); margin: 0 0 16px; }
+        .tarjeta { background: #fff; border: 1px solid var(--linea); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .estado { font-size: 1.6rem; font-weight: 700; margin: 0 0 6px; }
+        .estado.ok { color: var(--ok); } .estado.alerta { color: var(--alerta); } .estado.error { color: var(--error); }
+        .detalle { margin: 0; color: var(--suave); }
+        h2 { font-size: 1rem; margin: 0 0 12px; }
+        .barra { height: 10px; background: var(--linea); border-radius: 5px; overflow: hidden; margin-top: 8px; }
+        .barra span { display: block; height: 100%; background: var(--ok); }
+        ol { list-style: none; margin: 0; padding: 0; }
+        li { position: relative; padding: 0 0 16px 22px; border-left: 2px solid var(--linea); margin-left: 6px; }
+        li:last-child { border-left-color: transparent; padding-bottom: 0; }
+        li::before { content: ""; position: absolute; left: -7px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--linea); }
+        li.actual::before { background: var(--acento); }
+        .hito { font-weight: 600; } .cuando { font-size: .85rem; color: var(--suave); }
+        .pie { font-size: .8rem; color: var(--suave); text-align: center; }
+    </style>
+</HeadContent>
+
+<main>
+    @if (envio is null)
+    {
+        <div class="tarjeta">
+            <p class="estado">No encontramos el envío</p>
+            <p class="detalle">Revisá que el enlace esté completo, tal como lo recibiste por correo o mensaje.</p>
+        </div>
+    }
+    else
+    {
+        <p class="operador">Envío gestionado por <strong>@envio.Operador</strong></p>
+
+        <section class="tarjeta">
+            <p class="estado @Tono(envio.Estado)">@Titulo(envio.Estado)</p>
+            <p class="detalle">@Descripcion(envio)</p>
+        </section>
+
+        @if (envio.Bultos.Total > 1)
+        {
+            <section class="tarjeta">
+                <h2>Avance de la entrega</h2>
+                <p class="detalle">@envio.Bultos.Entregados de @envio.Bultos.Total bultos entregados@(envio.Bultos.EnDevolucion > 0 ? $" · {envio.Bultos.EnDevolucion} en devolución" : "")</p>
+                <div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="@envio.Bultos.Total" aria-valuenow="@envio.Bultos.Entregados">
+                    <span style="width:@(envio.Bultos.Entregados * 100 / envio.Bultos.Total)%"></span>
+                </div>
+            </section>
+        }
+
+        <section class="tarjeta">
+            <h2>Historial</h2>
+            <ol>
+                @foreach (var (hito, i) in envio.Historial.Reverse().Select((h, i) => (h, i)))
+                {
+                    <li class="@(i == 0 ? "actual" : "")">
+                        <div class="hito">@Hito(hito.Tipo)</div>
+                        <div class="cuando">@Local(hito.OcurridoEn).ToString("dddd d 'de' MMMM, HH:mm", Cultura)</div>
+                    </li>
+                }
+            </ol>
+        </section>
+    }
+    <p class="pie">Este enlace es personal. No lo compartas con otras personas.</p>
+</main>
+
+@code {
+    private static readonly CultureInfo Cultura = CultureInfo.GetCultureInfo("es-UY");
+
+    [Parameter] public string Token { get; set; } = "";
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private SeguimientoPublicoDto? envio;
+
+    protected override async Task OnInitializedAsync()
+    {
+        envio = await Consulta.ConsultarAsync(Token, HttpContext?.RequestAborted ?? default);
+        if (envio is null && HttpContext is not null) HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+    }
+
+    // Los instantes se guardan en UTC; se muestran con el desfase horario del operador (el de la ventana).
+    private DateTimeOffset Local(DateTime utc) =>
+        new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)).ToOffset(envio!.VentanaDesde.Offset);
+
+    private string Descripcion(SeguimientoPublicoDto e) => e.Estado switch
+    {
+        EstadoEnvio.Entregado => $"Se entregó el {Local(UltimoCambio(e)).ToString("dddd d 'de' MMMM 'a las' HH:mm", Cultura)}.",
+        EstadoEnvio.Devuelto => "El envío volvió al comercio. Contactate con la tienda donde compraste.",
+        EstadoEnvio.EnDevolucion => "El envío está volviendo al comercio.",
+        EstadoEnvio.Extraviado => "Tuvimos un problema con tu envío. El comercio se va a comunicar con vos.",
+        EstadoEnvio.EntregadoParcialmente =>
+            $"Recibiste parte del envío. Lo pendiente llega {Ventana(e)}.",
+        _ => $"Llega {Ventana(e)}."
+    };
+
+    private string Ventana(SeguimientoPublicoDto e) =>
+        $"el {e.VentanaDesde.ToString("dddd d 'de' MMMM", Cultura)}, entre las {e.VentanaDesde:HH:mm} y las {e.VentanaHasta:HH:mm}";
+
+    private static DateTime UltimoCambio(SeguimientoPublicoDto e) => e.Historial.Count > 0 ? e.Historial[^1].OcurridoEn : e.FechaComprometida;
+
+    private static string Titulo(EstadoEnvio estado) => estado switch
+    {
+        EstadoEnvio.Admitido => "Envío registrado",
+        EstadoEnvio.EnDeposito => "En nuestro depósito",
+        EstadoEnvio.AsignadoARuta => "Preparando la salida",
+        EstadoEnvio.EnTransito => "En camino",
+        EstadoEnvio.Entregado => "Entregado",
+        EstadoEnvio.EntregadoParcialmente => "Entregado en parte",
+        EstadoEnvio.NoEntregado => "No pudimos entregarlo",
+        EstadoEnvio.Reprogramado => "Entrega reprogramada",
+        EstadoEnvio.EnDevolucion => "En devolución",
+        EstadoEnvio.Devuelto => "Devuelto al comercio",
+        EstadoEnvio.Extraviado => "Con un problema",
+        _ => "En proceso"
+    };
+
+    private static string Tono(EstadoEnvio estado) => estado switch
+    {
+        EstadoEnvio.Entregado => "ok",
+        EstadoEnvio.EntregadoParcialmente or EstadoEnvio.NoEntregado or EstadoEnvio.Reprogramado or EstadoEnvio.EnDevolucion => "alerta",
+        EstadoEnvio.Devuelto or EstadoEnvio.Extraviado => "error",
+        _ => ""
+    };
+
+    private static string Hito(TipoEvento tipo) => tipo switch
+    {
+        TipoEvento.Admitir => "El comercio registró el envío",
+        TipoEvento.Validar => "Recibimos el paquete en el depósito",
+        TipoEvento.Asignar or TipoEvento.Reasignar => "Lo asignamos a un recorrido",
+        TipoEvento.Rechazar => "Volvió al depósito para un nuevo recorrido",
+        TipoEvento.Aplazar => "Postergamos la entrega",
+        TipoEvento.IniciarEntrega => "Salió a reparto",
+        TipoEvento.EntregaExitosa => "Entregado",
+        TipoEvento.EntregaParcial => "Entregamos parte del envío",
+        TipoEvento.FalloEntrega => "Visitamos el domicilio pero no pudimos entregarlo",
+        TipoEvento.Reintentar => "Programamos una nueva visita",
+        TipoEvento.Devolver or TipoEvento.Cancelar => "Inició la devolución al comercio",
+        TipoEvento.DevolucionExitosa => "Devuelto al comercio",
+        TipoEvento.EventoAnomalo => "Registramos un problema con el paquete",
+        _ => "Actualización del envío"
+    };
+}
