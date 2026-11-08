@@ -1,0 +1,10 @@
+# Copiar a terraform.tfvars (ignorado por Git) y completar. No hay secretos aqui: los genera Terraform.
+dominio     = "ultimamilla.example.com"
+correo_acme = "equipo@example.com"
+
+# Opcionales (valores por defecto entre parentesis)
+# region                  = "us-east-2"   # la SCP de la cuenta solo permite us-east-2
+# tipo_instancia          = "c7i-flex.large"   # m7i-flex.large (8 GB) si hace falta mas memoria; deben ser x86_64
+# presupuesto_mensual_usd = 40
+# crear_proveedor_oidc    = true          # false si la cuenta ya tiene el proveedor de GitHub
+# zona_route53_id         = ""            # id de la zona para crear el registro A automaticamente

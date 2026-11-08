@@ -36,3 +36,11 @@ Thumbs.db
 !.env.example
 deploy/.env
 deploy/.env.*
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+**/backend.hcl

@@ -1,0 +1,18 @@
+# Ruta estática hacia Web en AWS: solo HTTPS (el entrypoint "web" redirige todo a https, ver compose.aws.yaml),
+# con certificado de Let's Encrypt (resolver "le"). DOMINIO es obligatorio y lo baja desplegar.sh de SSM.
+# WebSockets y X-Forwarded-*: igual que en local (Traefik reemplaza las del cliente y agrega las propias).
+http:
+  routers:
+    web:
+      rule: 'Host(`{{ env "DOMINIO" }}`)'
+      entryPoints:
+        - websecure
+      service: web
+      tls:
+        certResolver: le
+  services:
+    web:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://web:8080"

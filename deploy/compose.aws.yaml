@@ -1,0 +1,48 @@
+# Complemento de compose.yaml para la EC2 de AWS (lo usa deploy/aws/desplegar.sh):
+#   docker compose --env-file .env -f compose.yaml -f compose.aws.yaml --profile app up -d --no-build
+# Solo Traefik publica puertos (80 y 443); el resto queda en la red interna. TLS con Let's Encrypt (desafío HTTP-01).
+# Requiere DOMINIO y ACME_EMAIL en .env (los baja desplegar.sh de SSM Parameter Store) y el DNS apuntando a la Elastic IP.
+# Para probar sin gastar cuota de Let's Encrypt: ACME_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+  services:
+    traefik:
+      ports: !override
+        - "0.0.0.0:${TRAEFIK_HTTP_PORT:-80}:80"
+        - "0.0.0.0:${TRAEFIK_HTTPS_PORT:-443}:443"
+      # La lista de flags reemplaza a la de compose.yaml (se repiten las comunes), porque el nombre del resolver
+      # ("le") distingue mayúsculas y por variables de entorno Traefik lo registra en mayúsculas.
+      # Rutas: deploy/traefik/aws/web.yml (solo HTTPS con el resolver "le").
+      command: !override
+        - --providers.file.directory=/etc/traefik/dynamic
+        - --providers.file.watch=true
+        - --entrypoints.web.address=:80
+        - --entrypoints.websecure.address=:443
+        - --api.dashboard=false
+        - --log.level=INFO
+        - --accesslog=true
+        - --certificatesresolvers.le.acme.email=${ACME_EMAIL:?Falta ACME_EMAIL}
+        - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+        - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+        - --certificatesresolvers.le.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+        # Todo lo que llega por HTTP se redirige a HTTPS (el desafío de Let's Encrypt se atiende antes).
+        - --entrypoints.web.http.redirections.entrypoint.to=websecure
+        - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      environment:
+        DOMINIO: ${DOMINIO:?Falta DOMINIO}
+      volumes:
+        - ./traefik/aws:/etc/traefik/dynamic:ro # mismo destino que en compose.yaml: reemplaza las rutas locales
+        - letsencrypt_data:/letsencrypt
+
+    web:
+      ports: !reset []
+
+    receptor:
+      ports: !reset []
+    postgres:
+      ports: !reset []
+    redis:
+      ports: !reset []
+    rabbitmq:
+      ports: !reset []
+
+  volumes:
+    letsencrypt_data:

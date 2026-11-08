@@ -4,7 +4,8 @@
   #   docker compose --env-file .env up -d
   # Perfil "app": migrador, web, worker y receptor (web y worker esperan a que el migrador termine bien):
   #   docker compose --env-file .env --profile app up -d --build
-  # Todo escucha solo en 127.0.0.1. Límites de memoria pensados para una EC2 de 4 a 8 GB (suman ~2,4 GB).
+  # Todo escucha solo en 127.0.0.1 (Traefik: http://localhost:${TRAEFIK_HTTP_PORT:-8000}). Límites de memoria pensados para
+  # una EC2 de 4 a 8 GB (suman ~2,5 GB). En AWS se agrega compose.aws.yaml: solo Traefik publica 80 y 443 (con TLS).
   services:
     postgres:
       image: postgres:17-alpine
@@ -53,6 +54,30 @@
         timeout: 5s
         retries: 20
         start_period: 15s
+
+    # Traefik: punto de entrada (reverse proxy). Local: HTTP en 127.0.0.1 sin certificado.
+    # AWS: compose.aws.yaml le agrega los puertos 80/443 y Let's Encrypt; es el único que publica puertos hacia afuera.
+    # Las rutas son archivos estáticos (provider "file", carpeta deploy/traefik): no se monta el socket de Docker,
+    # que daría control de todo el anfitrión a quien comprometa el proxy. El panel de Traefik está apagado.
+    traefik:
+      profiles: ["app"]
+      image: traefik:v3.6
+      command:
+        - --providers.file.directory=/etc/traefik/dynamic
+        - --providers.file.watch=true
+        - --entrypoints.web.address=:80
+        - --entrypoints.websecure.address=:443
+        - --api.dashboard=false
+        - --log.level=INFO
+        - --accesslog=true
+      environment:
+        DOMINIO: ${DOMINIO:-localhost}
+      ports:
+        - "127.0.0.1:${TRAEFIK_HTTP_PORT:-8000}:80"
+      volumes:
+        - ./traefik/local:/etc/traefik/dynamic:ro
+      mem_limit: 128m
+      restart: unless-stopped
 
     # Migrador: aplica las migraciones pendientes y termina (bundle de EF self-contained, ver deploy/migrador/Dockerfile).
     # Idempotente: si la base ya está al día no hace nada y sale con 0. Imagen configurable (ECR): MIGRADOR_IMAGE.
@@ -110,6 +135,7 @@
     # Worker: publica el outbox y consume la cola "avisos" (envía los webhooks firmados).
     worker:
       profiles: ["app"]
+      image: ${WORKER_IMAGE:-ultimamilla-worker:local}
       build:
         context: ..
         dockerfile: src/UltimaMilla.Worker/Dockerfile
@@ -136,6 +162,7 @@
     # Dentro de Docker se llama http://receptor:8080; desde tu máquina, http://127.0.0.1:${RECEPTOR_PORT:-58080}.
     receptor:
       profiles: ["app"]
+      image: ${RECEPTOR_IMAGE:-ultimamilla-receptor:local}
       build:
         context: ../tools/UltimaMilla.ReceptorWebhooks
       environment:
