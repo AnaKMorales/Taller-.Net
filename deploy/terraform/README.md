@@ -34,7 +34,7 @@ deploy/terraform/
 
 ```bash
 cd deploy/terraform/bootstrap
-terraform init && terraform apply
+terraform init && terraform apply -var region=us-east-2   # us-east-2: la única región que la SCP de la cuenta permite
 terraform output -raw bucket_name
 ```
 
@@ -43,23 +43,27 @@ terraform output -raw bucket_name
 ```bash
 cd deploy/terraform/envs/dev
 cp backend.hcl.example backend.hcl            # bucket y región del estado (del paso anterior)
-cp terraform.tfvars.example terraform.tfvars  # dominio y correo
+cp terraform.tfvars.example terraform.tfvars  # correo (y dominio propio, si hay)
 terraform init -backend-config=backend.hcl
 terraform plan                                 # qué se va a crear
 terraform apply                                # crea el ambiente (~37 recursos)
 ```
 
-Salidas importantes: `ip_publica` y `github_variables`.
+Salidas importantes: `dominio`, `ip_publica` y `github_variables`.
+Sin `dominio` propio se usa `<ip-con-guiones>.sslip.io` (resuelve solo a esa IP y Let's Encrypt lo acepta).
 
 ## 3. Conectar GitHub y el dominio
 
 1. **Variables de GitHub** (Settings → Secrets and variables → Actions → *Variables*; no son secretos):
    `AWS_REGION`, `AWS_ROLE_ARN`, `AWS_INSTANCE_ID`, `DEPLOY_BUCKET`, `ECR_REGISTRY` (valores en la salida `github_variables`).
    Mientras `AWS_ROLE_ARN` no exista, el pipeline solo compila y prueba.
-2. **DNS:** registro A del dominio → `ip_publica` (o `zona_route53_id` para que Terraform lo cree).
-   Let's Encrypt valida por HTTP-01: el DNS tiene que resolver **antes** del primer despliegue.
+2. **DNS:** con dominio propio, registro A → `ip_publica` (o `zona_route53_id` para que Terraform lo cree).
+   Let's Encrypt valida por HTTP-01: el DNS tiene que resolver **antes** del primer despliegue (con `sslip.io` ya resuelve).
 3. Hacer *push* a `main`: el pipeline compila, prueba, sube las 4 imágenes a ECR (etiqueta = SHA) y ejecuta
    `desplegar.sh` en la instancia por SSM Run Command. Sin SSH y sin claves de larga duración.
+
+**Primer despliegue sin pasar por GitHub** (construye y sube las imágenes desde tu máquina y ordena el despliegue por SSM):
+`deploy/aws/desplegar-manual.sh` desde la raíz del repositorio. Sirve también para depurar.
 
 Para probar sin gastar cuota de Let's Encrypt: poner `ACME_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory`
 (el navegador mostrará el certificado como no confiable).
@@ -86,9 +90,12 @@ Logs del arranque: `/var/log/cloud-init-output.log`.
 
 - **SCP de la organización:** si `apply` falla con `explicit deny in a service control policy`, hay que pedir
   al administrador de la cuenta que habilite esa acción. Con la SCP actual, EC2/ECR solo funcionan en `us-east-2`.
-- **OIDC bloqueado:** sin proveedor OIDC no hay despliegue sin claves. Alternativa de último recurso (no cumple el
-  diseño): usuario IAM con claves como *secrets* de GitHub.
-- **El proveedor OIDC ya existe** en la cuenta (otro proyecto): `crear_proveedor_oidc = false`.
+- **OIDC bloqueado por la SCP** (`iam:CreateOpenIDConnectProvider` / `ListOpenIDConnectProviders`): `habilitar_cicd = false` en
+  `terraform.tfvars` omite por completo el módulo `cicd` (no se crea ni se busca nada de OIDC). Consecuencias:
+  la salida `github_variables` no trae `AWS_ROLE_ARN` y el pipeline de GitHub solo compila y prueba; el despliegue se hace con
+  `deploy/aws/desplegar-manual.sh`, que exige el árbol de Git limpio (las etiquetas de ECR son el SHA del commit e inmutables).
+  Alternativa de último recurso (no cumple el diseño): usuario IAM con claves como *secrets* de GitHub.
+- **El proveedor OIDC ya existe** en la cuenta (otro proyecto): `crear_proveedor_oidc = false` (solo aplica con `habilitar_cicd = true`).
 - **Cambiar las claves de Postgres/RabbitMQ** en SSM después del primer despliegue no cambia las ya inicializadas
   en los volúmenes de Docker.
 - `lifecycle.ignore_changes` en la instancia: un cambio de `user_data` o de AMI no la recrea (se perderían los datos).

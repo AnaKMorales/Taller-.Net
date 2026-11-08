@@ -1,5 +1,7 @@
 locals {
-  nombre   = "ultimamilla-${var.ambiente}"
+  nombre = "ultimamilla-${var.ambiente}"
+  # Sin dominio propio: sslip.io devuelve la IP escrita en el nombre (3.4.5.6 -> 3-4-5-6.sslip.io).
+  dominio  = var.dominio != "" ? var.dominio : "${replace(module.instancia.ip_publica, ".", "-")}.sslip.io"
   ruta_ssm = "/ultimamilla/${var.ambiente}"
   # Una imagen propia por contenedor; los repositorios se llaman ultimamilla-<imagen>.
   imagenes = ["web", "worker", "receptor", "migrador"]
@@ -26,7 +28,7 @@ module "artefactos" {
 module "parametros" {
   source      = "../../modules/parametros"
   ruta        = local.ruta_ssm
-  dominio     = var.dominio
+  dominio     = local.dominio
   correo_acme = var.correo_acme
 }
 
@@ -46,7 +48,9 @@ module "instancia" {
   ruta_ssm          = module.parametros.ruta
 }
 
+# Se puede omitir entero (habilitar_cicd = false): con count = 0 no se evalua ningun recurso ni data de OIDC.
 module "cicd" {
+  count                = var.habilitar_cicd ? 1 : 0
   source               = "../../modules/cicd"
   nombre               = local.nombre
   region               = var.region
@@ -56,6 +60,12 @@ module "cicd" {
   arns_ecr             = module.ecr.arns
   bucket_arn           = module.artefactos.arn
   instancia_arn        = module.instancia.arn
+}
+
+# El modulo paso de no tener count a tenerlo: sin esto, habilitarlo despues recrearia lo que ya exista en su estado.
+moved {
+  from = module.cicd
+  to   = module.cicd[0]
 }
 
 module "presupuesto" {
@@ -69,7 +79,7 @@ module "presupuesto" {
 resource "aws_route53_record" "dominio" {
   count   = var.zona_route53_id != "" ? 1 : 0
   zone_id = var.zona_route53_id
-  name    = var.dominio
+  name    = local.dominio
   type    = "A"
   ttl     = 300
   records = [module.instancia.ip_publica]

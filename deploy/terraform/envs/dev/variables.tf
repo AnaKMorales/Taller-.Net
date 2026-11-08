@@ -12,7 +12,8 @@ variable "ambiente" {
 
 variable "dominio" {
   type        = string
-  description = "Dominio propio de la plataforma (ej. ultimamilla.example.com). Su registro A debe apuntar a la Elastic IP."
+  default     = ""
+  description = "Dominio propio (ej. ultimamilla.example.com); su registro A debe apuntar a la Elastic IP. Si queda vacio se usa <ip-con-guiones>.sslip.io, que resuelve solo a esa IP y permite sacar el certificado de Lets Encrypt sin comprar un dominio."
 }
 
 variable "correo_acme" {
@@ -53,10 +54,16 @@ variable "correo_presupuesto" {
   description = "Destino de las alertas de costo; si queda vacio se usa correo_acme."
 }
 
+variable "habilitar_cicd" {
+  type        = bool
+  default     = true
+  description = "false omite por completo el modulo cicd (proveedor OIDC de GitHub y rol del pipeline): no se crea ni se busca nada de OIDC. Para cuentas cuya SCP niega iam:CreateOpenIDConnectProvider / ListOpenIDConnectProviders. Sin cicd no hay despliegue desde GitHub: se usa deploy/aws/desplegar-manual.sh."
+}
+
 variable "crear_proveedor_oidc" {
   type        = bool
   default     = true
-  description = "false si la cuenta ya tiene el proveedor token.actions.githubusercontent.com (solo admite uno)."
+  description = "Solo si habilitar_cicd = true. false si la cuenta ya tiene el proveedor token.actions.githubusercontent.com (solo admite uno)."
 }
 
 variable "zona_route53_id" {

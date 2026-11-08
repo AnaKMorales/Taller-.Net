@@ -105,7 +105,7 @@ jobs:
       - name: Ordenar el despliegue por SSM
         run: |
           parametros=$(jq -nc --arg bucket "${{ vars.DEPLOY_BUCKET }}" --arg tag "${GITHUB_SHA}" \
-            '{commands: ["/usr/local/bin/aws s3 sync s3://\($bucket)/deploy/ /opt/ultimamilla/deploy/ --only-show-errors", "bash /opt/ultimamilla/deploy/desplegar.sh \($tag)"]}')
+            '{commands: ["cloud-init status --wait || true", "/usr/local/bin/aws s3 sync s3://\($bucket)/deploy/ /opt/ultimamilla/deploy/ --only-show-errors", "bash /opt/ultimamilla/deploy/desplegar.sh \($tag)"]}')
           id=$(aws ssm send-command \
             --instance-ids "${{ vars.AWS_INSTANCE_ID }}" \
             --document-name AWS-RunShellScript \

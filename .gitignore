@@ -44,3 +44,4 @@ deploy/.env.*
 *.tfvars
 crash.log
 **/backend.hcl
+*.tfplan
