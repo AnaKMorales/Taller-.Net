@@ -1,4 +1,3 @@
-using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Envios.RegistrarIntento;
 using UltimaMilla.Domain.Comercios;
 using UltimaMilla.Domain.Common;
@@ -32,8 +31,16 @@ public sealed class RegistrarIntentoTests
     public async Task VersionViejaNoInvocaDominioNiGuardaYLiberaLaOperacion()
     {
         var e = new Caso();
-        await Assert.ThrowsAsync<ConflictoConcurrenciaException>(() => new RegistrarIntentoHandler(e)
+        var error = await Assert.ThrowsAsync<ConflictoIntentoException>(() => new RegistrarIntentoHandler(e)
             .Handle(e.Command with { VersionEsperada = Guid.NewGuid() }));
+        Assert.True(error.Conflicto.ParadaActiva);
+        Assert.Equal(e.Version, error.Conflicto.VersionActualEnvio);
+        Assert.Equal(e.Command.Bultos.Select(b => b.BultoId), error.Conflicto.Bultos.Select(b => b.BultoId));
+        Assert.All(error.Conflicto.Bultos, b =>
+        {
+            Assert.Equal(EstadoBulto.EnTransito, b.EstadoActual);
+            Assert.Equal(MotivoConflictoBulto.SinCambioDeEstado, b.Motivo);
+        });
         Assert.Empty(e.Envio.Intentos);
         Assert.Equal(EstadoEnvio.EnTransito, e.Envio.Estado);
         Assert.Equal(0, e.Guardados);
@@ -150,6 +157,7 @@ public sealed class RegistrarIntentoTests
         private sealed class Operacion(Caso caso) : IOperacionRegistroIntento
         {
             public Envio Envio => caso.Envio;
+            public Parada? ParadaOrigen => caso.Envio.Parada;
             public Repartidor Responsable => caso.Actor;
             public Guid VersionActual => caso.Version;
             public Task GuardarAsync(CancellationToken ct)

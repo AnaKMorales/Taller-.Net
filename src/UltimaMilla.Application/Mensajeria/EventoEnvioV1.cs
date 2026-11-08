@@ -13,4 +13,8 @@ public sealed record EventoEnvioV1(
     string? EstadoAnterior,
     string EstadoNuevo,
     DateTime OcurridoEn,
-    Guid? IdOperacion);
+    Guid? IdOperacion)
+{
+    public const string TipoMensaje = "envio.evento.v1";
+    public const int VersionContrato = 1;
+}

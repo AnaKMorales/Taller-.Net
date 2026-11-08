@@ -39,7 +39,7 @@ public sealed partial class PostgresTests
     [PostgresFact]
     public async Task EntregaMixtaPersisteDetalleEvidenciasYOutboxV2YReenvioNoDuplica()
     {
-        await PrepararVisitaParcial();
+        var escenario = await PrepararVisitaParcial();
         var operacion = Guid.NewGuid();
         await using (var db = Context())
         {
@@ -62,17 +62,55 @@ public sealed partial class PostgresTests
         Assert.NotNull(intento.Detalles.Single(d => d.Resultado == ResultadoIntento.Fallido).Motivo);
         var mensaje = await reader.Set<MensajeOutbox>().SingleAsync(m => m.Tipo == "envio.evento.v2");
         var payload = JsonSerializer.Deserialize<EventoEnvioV2>(mensaje.Contenido, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        Assert.Equal(mensaje.Id, payload.MensajeId);
+        Assert.Equal(mensaje.Id, payload.EventoId);
+        Assert.Equal(escenario.Operador.Id, payload.OperadorId);
+        Assert.Equal(actual.CuentaComercialId, payload.CuentaComercialId);
+        Assert.Equal(actual.Id, payload.EnvioId);
         Assert.Equal(2, payload.Version);
         Assert.Equal(3, payload.Bultos.Count);
         Assert.Equal(operacion, payload.IdOperacion);
         Assert.Equal("EntregaParcial", payload.TipoEvento);
+        Assert.Equal("AppRepartidor", payload.Origen);
+        Assert.Equal("EnTransito", payload.EstadoAnterior);
+        Assert.Equal("EntregadoParcialmente", payload.EstadoNuevo);
+        Assert.Equal(intento.OcurridoEn, payload.OcurridoEn);
+        foreach (var detalle in intento.Detalles)
+        {
+            var bulto = Assert.Single(payload.Bultos, b => b.BultoId == detalle.Bulto.Id);
+            Assert.Equal(detalle.Resultado.ToString(), bulto.Resultado);
+            Assert.Equal(detalle.Motivo?.Id, bulto.MotivoId);
+            Assert.Equal(detalle.Evidencias.Select(p => p.Prueba.Id).Order(), bulto.Pruebas);
+        }
         Assert.DoesNotContain(actual.Destinatario.Email, mensaje.Contenido);
         Assert.DoesNotContain(actual.CodigoSeguimiento, mensaje.Contenido);
+        Assert.DoesNotContain("evidencias/", mensaje.Contenido);
         Assert.Equal(4, await reader.Set<MensajeOutbox>().CountAsync(m => m.Tipo == "envio.evento.v1"));
         Assert.Same(intento, actual.RegistrarIntentoPorBulto(actual.Parada?.Id ?? actual.Intentos.Single().ParadaId, SolicitudParcial(actual).Reverse(),
             await reader.Set<Repartidor>().SingleAsync(), EscenarioPersistencia.Fecha.AddHours(1), operacion));
         Assert.Equal(0, await reader.SaveChangesAsync());
         Assert.Equal(5, await reader.Set<MensajeOutbox>().CountAsync());
+
+        // El publicador entrega las dos versiones tal como quedaron persistidas.
+        var publicados = new List<MensajeParaPublicar>();
+        await using var publicacion = Context();
+        var transporte = new TransportePrueba((salida, _) =>
+        {
+            publicados.Add(salida);
+            return Task.CompletedTask;
+        });
+        Assert.Equal(5, await Publicador(publicacion, transporte).PublicarLoteAsync());
+        var parcial = Assert.Single(publicados, p => p.Tipo == "envio.evento.v2");
+        Assert.Equal(mensaje.Id, parcial.MensajeId);
+        Assert.Equal(mensaje.Contenido, parcial.Contenido);
+        var tradicionales = publicados.Where(p => p.Tipo == "envio.evento.v1").ToArray();
+        Assert.Equal(4, tradicionales.Length);
+        foreach (var tradicional in tradicionales)
+        {
+            using var json = JsonDocument.Parse(tradicional.Contenido);
+            Assert.Equal(1, json.RootElement.GetProperty("version").GetInt32());
+            Assert.False(json.RootElement.TryGetProperty("bultos", out _));
+        }
     }
 
     [PostgresFact]

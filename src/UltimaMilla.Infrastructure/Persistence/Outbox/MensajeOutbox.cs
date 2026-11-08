@@ -1,3 +1,4 @@
+using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Domain.Envios;
 
 namespace UltimaMilla.Infrastructure.Persistence.Outbox;
@@ -7,7 +8,7 @@ public sealed class MensajeOutbox
 {
     private MensajeOutbox() { Evento = null!; Tipo = null!; Contenido = null!; }
 
-    internal MensajeOutbox(EventoDeEnvio evento, string contenido, string tipo = "envio.evento.v1")
+    internal MensajeOutbox(EventoDeEnvio evento, string contenido, string tipo = EventoEnvioV1.TipoMensaje)
     {
         Id = evento.Id; // Estable también si se vuelve a intentar el mismo guardado.
         Evento = evento;

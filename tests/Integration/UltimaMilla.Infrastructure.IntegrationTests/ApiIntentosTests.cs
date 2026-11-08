@@ -69,6 +69,9 @@ public sealed partial class PostgresTests
         using var obsoleta = await cliente.PostAsJsonAsync(RutaIntentosApi,
             comando with { VersionEsperada = Guid.NewGuid() }, JsonApi);
         Assert.Equal(HttpStatusCode.Conflict, obsoleta.StatusCode);
+        var activa = (await obsoleta.Content.ReadFromJsonAsync<JsonObject>())!["conflicto"]!;
+        Assert.True(activa["paradaActiva"]!.GetValue<bool>());
+        Assert.All(activa["bultos"]!.AsArray(), b => Assert.Equal("SinCambioDeEstado", b!["motivo"]!.GetValue<string>()));
 
         using var nueva = await cliente.PostAsJsonAsync(RutaIntentosApi, comando, JsonApi);
         Assert.Equal(HttpStatusCode.OK, nueva.StatusCode);
@@ -85,6 +88,31 @@ public sealed partial class PostgresTests
         Assert.True(repetida.Repetido);
         Assert.Equal(registrada.IntentoId, repetida.IntentoId);
         Assert.Equal(registrada.VersionActualEnvio, repetida.VersionActualEnvio);
+
+        var bultoFueraDeParada = Guid.NewGuid();
+        using var atrasada = await cliente.PostAsJsonAsync(RutaIntentosApi, comando with
+        {
+            IdOperacion = Guid.NewGuid(),
+            Bultos = [.. comando.Bultos, new(bultoFueraDeParada, ResultadoIntento.Fallido, null, [])]
+        }, JsonApi);
+        Assert.Equal(HttpStatusCode.Conflict, atrasada.StatusCode);
+        var cerrada = (await atrasada.Content.ReadFromJsonAsync<JsonObject>())!["conflicto"]!;
+        Assert.False(cerrada["paradaActiva"]!.GetValue<bool>());
+        Assert.Equal(comando.ParadaId, cerrada["paradaId"]!.GetValue<Guid>());
+        Assert.Equal(registrada.VersionActualEnvio, cerrada["versionActualEnvio"]!.GetValue<Guid>());
+        var bultos = cerrada["bultos"]!.AsArray();
+        Assert.Equal(comando.Bultos.Count + 1, bultos.Count);
+        foreach (var resultado in comando.Bultos)
+        {
+            var bulto = Assert.Single(bultos, b => b!["bultoId"]!.GetValue<Guid>() == resultado.BultoId)!;
+            Assert.Equal("EstadoCambio", bulto["motivo"]!.GetValue<string>());
+            Assert.Equal(resultado.Resultado == ResultadoIntento.Entregado ? "Entregado" : "NoEntregado",
+                bulto["estadoActual"]!.GetValue<string>());
+        }
+        var ajeno = Assert.Single(bultos, b => b!["bultoId"]!.GetValue<Guid>() == bultoFueraDeParada)!;
+        Assert.Equal("FueraDeParada", ajeno["motivo"]!.GetValue<string>());
+        Assert.Null(ajeno["codigo"]);
+        Assert.Null(ajeno["estadoActual"]);
 
         var distinto = comando with { OcurridoEn = comando.OcurridoEn.AddSeconds(1) };
         using var reutilizado = await cliente.PostAsJsonAsync(RutaIntentosApi, distinto, JsonApi);

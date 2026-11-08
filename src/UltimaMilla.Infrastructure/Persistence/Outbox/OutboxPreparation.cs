@@ -26,15 +26,15 @@ internal static class OutboxPreparation
             if (intento is not null || evento.EstadoAnterior == EstadoEnvio.EntregadoParcialmente ||
                 evento.EstadoNuevo == EstadoEnvio.EntregadoParcialmente)
             {
-                var v2 = new EventoEnvioV2(evento.Id, 2, db.OperadorIdActual, cuentaId, evento.EnvioId,
+                var v2 = new EventoEnvioV2(evento.Id, EventoEnvioV2.VersionContrato, db.OperadorIdActual, cuentaId, evento.EnvioId,
                     evento.Id, evento.Tipo.ToString(), evento.Origen.ToString(), evento.EstadoAnterior?.ToString(),
                     evento.EstadoNuevo.ToString(), evento.OcurridoEn, intento?.IdOperacion,
                     intento is null ? [] : intento.Detalles.OrderBy(d => d.Bulto.Id).Select(d => new ResultadoBultoV2(d.Bulto.Id,
                         d.Resultado.ToString(), d.Motivo?.Id, d.Evidencias.Select(p => p.Prueba.Id).Order().ToArray())).ToArray());
-                db.Add(new MensajeOutbox(evento, JsonSerializer.Serialize(v2, JsonOptions), "envio.evento.v2"));
+                db.Add(new MensajeOutbox(evento, JsonSerializer.Serialize(v2, JsonOptions), EventoEnvioV2.TipoMensaje));
                 continue;
             }
-            var payload = new EventoEnvioV1(evento.Id, 1, db.OperadorIdActual, cuentaId,
+            var payload = new EventoEnvioV1(evento.Id, EventoEnvioV1.VersionContrato, db.OperadorIdActual, cuentaId,
                 evento.EnvioId, evento.Id, evento.Tipo.ToString(), evento.Origen.ToString(),
                 evento.EstadoAnterior?.ToString(), evento.EstadoNuevo.ToString(), evento.OcurridoEn,
                 evento.IdOperacion);
