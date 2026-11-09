@@ -23,6 +23,17 @@ jobs:
       - name: Probar
         run: dotnet test UltimaMilla.slnx -c Release --no-build
 
+      - name: Medir cobertura de Domain y Application
+        shell: pwsh
+        run: ./scripts/Test-Coverage.ps1 -NoBuild -ResultsDirectory '${{ runner.temp }}/ultimamilla-cobertura'
+
+      - name: Publicar reportes de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-domain-application
+          path: ${{ runner.temp }}/ultimamilla-cobertura/**/coverage.cobertura.xml
+
   # Etapas 3 a 5 del pipeline (diseño, 3.4): solo sobre main, después de compilar y probar.
   # Se activan cuando el repositorio tiene la variable AWS_ROLE_ARN (salida de Terraform: ver deploy/terraform/README.md).
   imagenes:

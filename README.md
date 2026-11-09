@@ -25,6 +25,15 @@ dotnet test UltimaMilla.slnx
 
 En Rider se abre `UltimaMilla.slnx`; las pruebas se pueden ejecutar desde su explorador de tests.
 
+Para medir la cobertura de líneas de Domain y Application desde PowerShell:
+
+```powershell
+./scripts/Test-Coverage.ps1
+```
+
+Cada capa debe superar el 70 %. GitHub Actions muestra ambos resultados en el resumen
+del job y publica los XML de Cobertura en el artefacto `cobertura-domain-application`.
+
 ## Logs estructurados de Web y Worker
 
 Web usa Serilog y escribe un objeto JSON por evento en la consola. Los mensajes de
