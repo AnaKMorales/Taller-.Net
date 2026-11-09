@@ -14,8 +14,8 @@ json() { python3 -c "import sys,json;print(json.load(sys.stdin)$1)"; }
 
 echo "1) Creando operador demo y entrando como administrador..."
 DEMO=$(curl -fsS -X POST "$WEB/dev/datos-demo")
-EMAIL=$(echo "$DEMO" | json "['emailAdministrador']")
-CLAVE=$(echo "$DEMO" | json "['contrasena']")
+EMAIL=$(echo "$DEMO" | json "['operadores'][0]['emailAdministrador']")   # el primer operador del escenario
+CLAVE=$(echo "$DEMO" | json "['operadores'][0]['contrasena']")
 TOKEN=$(curl -fsS -c "$JAR" "$WEB/login" | grep -o 'name="__RequestVerificationToken"[^>]*value="[^"]*"' | sed 's/.*value="//;s/"$//')
 curl -fsS -b "$JAR" -c "$JAR" -o /dev/null -X POST "$WEB/login" \
   --data-urlencode "__RequestVerificationToken=$TOKEN" --data-urlencode "Email=$EMAIL" --data-urlencode "Contrasena=$CLAVE"

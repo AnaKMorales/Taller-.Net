@@ -18,6 +18,7 @@ public sealed record DatosDemoCreados(Guid OperadorId, string EmailAdministrador
     string EmailRepartidor, string Contrasena, string CodigoSeguimiento);
 
 // Datos de prueba, solo para desarrollo. Cada llamada crea un operador nuevo.
+// (/dev/datos-demo usa EscenarioDemo, con dos operadores de configuración distinta; este se usa en /dev/datos-demo-pwa.)
 public static class DatosDemo
 {
     private static readonly GeoPunto Montevideo = new(-34.9011m, -56.1645m);
@@ -168,12 +169,14 @@ public static class DatosDemo
     private static Task<Usuario> Administrador(AppDbContext db, CancellationToken ct) =>
         db.Set<Usuario>().FirstAsync(u => u.Rol == RolUsuario.Administrador && u.Activo, ct);
 
-    private static Envio NuevoEnvio(CuentaComercial cuenta, ZonaCobertura zona, ReglasOperativas reglas,
-        CuadroTarifario cuadro, Usuario responsable, string destinatario, DateTime ahora, IReadOnlyList<Bulto>? bultos = null) =>
+    internal static Envio NuevoEnvio(CuentaComercial cuenta, ZonaCobertura zona, ReglasOperativas reglas,
+        CuadroTarifario cuadro, Usuario responsable, string destinatario, DateTime ahora, IReadOnlyList<Bulto>? bultos = null,
+        FranjaHoraria? franja = null, ModalidadServicio modalidad = ModalidadServicio.Estandar, decimal tarifa = 165,
+        Direccion? direccion = null) =>
         new(cuenta, new Destinatario(destinatario, "099123456", "destinatario@example.com",
-                new Direccion("Av. 18 de Julio", "1234", "Montevideo", "11100")),
-            bultos ?? [new Bulto("B001", 2.5m, 10, 20, 30)], ModalidadServicio.Estandar, zona, reglas, cuadro, 165,
+                direccion ?? new Direccion("Av. 18 de Julio", "1234", "Montevideo", "11100")),
+            bultos ?? [new Bulto("B001", 2.5m, 10, 20, 30)], modalidad, zona, reglas, cuadro, tarifa,
             ahora, ahora.AddHours(1),
-            ProgramacionEntrega.Crear(zona.Franjas.Single(), DateOnly.FromDateTime(ahora.AddDays(1)), TimeSpan.FromHours(-3)),
+            ProgramacionEntrega.Crear(franja ?? zona.Franjas.Single(), DateOnly.FromDateTime(ahora.AddDays(1)), TimeSpan.FromHours(-3)),
             responsable);
 }

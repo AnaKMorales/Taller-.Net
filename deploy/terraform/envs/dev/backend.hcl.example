@@ -1,0 +1,4 @@
+# Copiar a backend.hcl (ignorado por Git si se agrega) y completar con la salida de deploy/terraform/bootstrap:
+#   terraform -chdir=../bootstrap output -raw bucket_name
+bucket = "ultimamilla-tfstate-<ID_DE_LA_CUENTA>"
+region = "us-east-1"

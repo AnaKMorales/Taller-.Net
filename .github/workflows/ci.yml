@@ -22,3 +22,102 @@ jobs:
 
       - name: Probar
         run: dotnet test UltimaMilla.slnx -c Release --no-build
+
+  # Etapas 3 a 5 del pipeline (diseño, 3.4): solo sobre main, después de compilar y probar.
+  # Se activan cuando el repositorio tiene la variable AWS_ROLE_ARN (salida de Terraform: ver deploy/terraform/README.md).
+  imagenes:
+    name: Imágenes a ECR (${{ matrix.imagen }})
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC: credenciales temporales de AWS, sin claves guardadas
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { imagen: web, contexto: ., dockerfile: src/UltimaMilla.Web/Dockerfile }
+          - { imagen: worker, contexto: ., dockerfile: src/UltimaMilla.Worker/Dockerfile }
+          - { imagen: migrador, contexto: ., dockerfile: deploy/migrador/Dockerfile }
+          - { imagen: receptor, contexto: tools/UltimaMilla.ReceptorWebhooks, dockerfile: tools/UltimaMilla.ReceptorWebhooks/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      # Las etiquetas de ECR son inmutables: si se vuelve a correr el mismo commit, la imagen ya está y no se repite.
+      - name: ¿Ya existe la imagen con este commit?
+        id: existe
+        run: |
+          if aws ecr describe-images --repository-name "ultimamilla-${{ matrix.imagen }}" --image-ids imageTag="${GITHUB_SHA}" >/dev/null 2>&1; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.existe.outputs.existe == 'false'
+
+      - name: Construir y subir
+        if: steps.existe.outputs.existe == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.contexto }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ vars.ECR_REGISTRY }}/ultimamilla-${{ matrix.imagen }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.imagen }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.imagen }}
+
+  desplegar:
+    name: Desplegar en la EC2 (SSM Run Command)
+    needs: imagenes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    concurrency:
+      group: despliegue
+      cancel-in-progress: false # un despliegue en curso no se corta a la mitad
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # La instancia no tiene acceso al repositorio: baja estos archivos del bucket de despliegue.
+      - name: Subir archivos de despliegue a S3
+        run: |
+          aws s3 cp deploy/compose.yaml     "s3://${{ vars.DEPLOY_BUCKET }}/deploy/compose.yaml"
+          aws s3 cp deploy/compose.aws.yaml "s3://${{ vars.DEPLOY_BUCKET }}/deploy/compose.aws.yaml"
+          aws s3 cp deploy/aws/desplegar.sh "s3://${{ vars.DEPLOY_BUCKET }}/deploy/desplegar.sh"
+          aws s3 cp deploy/traefik "s3://${{ vars.DEPLOY_BUCKET }}/deploy/traefik" --recursive
+
+      - name: Ordenar el despliegue por SSM
+        run: |
+          parametros=$(jq -nc --arg bucket "${{ vars.DEPLOY_BUCKET }}" --arg tag "${GITHUB_SHA}" \
+            '{commands: ["cloud-init status --wait || true", "/usr/local/bin/aws s3 sync s3://\($bucket)/deploy/ /opt/ultimamilla/deploy/ --only-show-errors", "bash /opt/ultimamilla/deploy/desplegar.sh \($tag)"]}')
+          id=$(aws ssm send-command \
+            --instance-ids "${{ vars.AWS_INSTANCE_ID }}" \
+            --document-name AWS-RunShellScript \
+            --comment "Despliegue ${GITHUB_SHA::7}" \
+            --parameters "$parametros" \
+            --timeout-seconds 900 \
+            --query Command.CommandId --output text)
+          echo "COMMAND_ID=$id" >> "$GITHUB_ENV"
+          aws ssm wait command-executed --command-id "$id" --instance-id "${{ vars.AWS_INSTANCE_ID }}"
+
+      - name: Resultado del despliegue
+        if: always() && env.COMMAND_ID != ''
+        run: |
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ vars.AWS_INSTANCE_ID }}" \
+            --query '{Estado: Status, Salida: StandardOutputContent, Errores: StandardErrorContent}' --output yaml

@@ -174,8 +174,13 @@ if (app.Environment.IsDevelopment())
     // Endpoints de prueba (solo desarrollo).
     var dev = app.MapGroup("/dev");
 
-    dev.MapPost("/datos-demo", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
-        Results.Ok(await DatosDemo.CrearAsync(options, ct)));
+    // Dos operadores con configuración distinta (EscenarioDemo); /datos-demo-pwa conserva el operador único para la PWA.
+    // Cuerpo opcional {"contrasena": "..."}: sin él se usa la clave por defecto (solo local); en un servidor público
+    // sembrar-demo.sh manda una clave aleatoria que no se devuelve en la respuesta.
+    dev.MapPost("/datos-demo", async (DbContextOptions<AppDbContext> options, SolicitudDatosDemo? solicitud, CancellationToken ct) =>
+        solicitud?.Contrasena is { Length: < SolicitudDatosDemo.LargoMinimo }
+            ? Results.BadRequest(new { error = $"La contraseña debe tener al menos {SolicitudDatosDemo.LargoMinimo} caracteres." })
+            : Results.Ok(await EscenarioDemo.CrearAsync(options, solicitud?.Contrasena, ct)));
 
     dev.MapPost("/datos-demo-pwa", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
         Results.Ok(await DatosDemo.CrearAsync(options, ct, incluirVisitaParcial: true)));
