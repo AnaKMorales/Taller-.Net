@@ -40,6 +40,7 @@ public sealed class ColaAcciones(IAlmacenLocal almacen)
                 errores.Add("El envío ya tiene una acción registrada.");
             if (errores.Count > 0) return errores;
 
+            accion = accion with { TraceParent = accion.TraceParent ?? CrearTraceParent() };
             cola.Add(new AccionPendiente(accion));
             await GuardarAsync(repartidorId, cola);
         }
@@ -91,4 +92,6 @@ public sealed class ColaAcciones(IAlmacenLocal almacen)
 
     private static string ClaveDe(Guid? repartidorId) =>
         repartidorId is { } id ? $"{Clave}:{id}" : Clave;
+
+    internal static string CrearTraceParent() => $"00-{Guid.NewGuid():N}-{Guid.NewGuid().ToString("N")[..16]}-01";
 }

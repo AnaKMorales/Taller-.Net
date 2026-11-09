@@ -9,8 +9,8 @@ de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIEN
 
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
 Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
-de persistencia y pruebas de arquitectura, y la PWA del repartidor (MVP con API de prueba).
-Worker y el despliegue que se enumeran abajo son la estructura prevista.
+de persistencia y pruebas de arquitectura, la PWA del repartidor conectada a la API y el
+Worker de mensajería. El despliegue se integra desde la infraestructura del equipo.
 
 Domain contiene las entidades y relaciones de los cuatro diagramas UML, agrupadas por
 área funcional. El detalle, las convenciones adoptadas y los límites de esta implementación
@@ -24,6 +24,112 @@ dotnet test UltimaMilla.slnx
 ```
 
 En Rider se abre `UltimaMilla.slnx`; las pruebas se pueden ejecutar desde su explorador de tests.
+
+## Logs estructurados de Web y Worker
+
+Web usa Serilog y escribe un objeto JSON por evento en la consola. Los mensajes de
+`ILogger<T>` pasan por el mismo proveedor. Cada petición completada registra método,
+plantilla de ruta, estado HTTP y duración en milisegundos, junto con la aplicación,
+el ambiente y el identificador de traza.
+
+Si el cliente envía un `traceparent` W3C válido, ASP.NET Core conserva su identificador
+de traza y Serilog lo incluye en el registro de la petición. El outbox conserva el contexto
+de esa actividad para la publicación diferida y RabbitMQ lo transporta en sus cabeceras.
+El consumidor del Worker recupera esa traza para cada entrega y reintento.
+
+La plantilla de ruta evita registrar el token público que forma parte de la URL de
+seguimiento. El resumen de peticiones omite los parámetros de consulta.
+Los niveles se configuran en `Serilog:MinimumLevel` dentro de appsettings o mediante
+variables de entorno, por ejemplo `Serilog__MinimumLevel__Default=Debug`.
+
+## Métricas y trazas de Web
+
+OpenTelemetry instrumenta las peticiones de ASP.NET Core y las llamadas salientes de
+HttpClient. También recoge los contadores existentes de `UltimaMilla.Cache`.
+El servicio se identifica como `UltimaMilla.Web`, con el ambiente en
+`deployment.environment.name`.
+
+El histograma `http.server.request.duration` registra duración en segundos con ruta,
+método y estado HTTP. Su cantidad, suma y distribución permiten construir tiempos medios,
+percentiles y tasas de error en el tablero. Los contadores de caché permiten calcular la
+tasa de aciertos. Las métricas no usan identificadores de envíos como etiquetas.
+
+Para enviar métricas y trazas a un colector OTLP, configurar en el entorno de Web:
+
+```powershell
+$env:OpenTelemetry__ExportarOtlp = "true"
+$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317"
+$env:OTEL_EXPORTER_OTLP_PROTOCOL = "grpc"
+```
+
+Dentro del compose, el endpoint debe apuntar al nombre del servicio colector accesible
+desde Web. El exportador también admite la configuración estándar OTLP para endpoints
+por señal y autenticación. La exportación queda deshabilitada por defecto en desarrollo.
+Los logs de Serilog siguen saliendo como JSON en consola y se exportan por OTLP al habilitar
+la misma opción. El compose local usa el puerto `14317` para OTLP gRPC.
+
+Las trazas HTTP conservan `traceparent` y propagan el contexto en HttpClient.
+Antes de exportarlas se elimina la URL completa y sus parámetros. En las peticiones
+entrantes se conserva la plantilla de ruta para proteger el token del seguimiento.
+La prueba captura trazas y métricas con un exportador en memoria y verifica una llamada
+saliente real sobre loopback. El publicador conserva el contexto capturado en el outbox
+cuando entrega el mensaje al transporte. Requiere aplicar la migración `TraceContextOutbox`
+mediante el procedimiento de migraciones del proyecto. La PWA genera y guarda el contexto
+con la acción antes de enviarla; lo conserva al reconectar y reenviar. Las acciones anteriores
+reciben su contexto al sincronizar por primera vez con esta versión.
+
+El Worker también usa Serilog con JSON en consola. OpenTelemetry identifica el servicio
+como `UltimaMilla.Worker`, escucha la fuente `UltimaMilla.Mensajeria` e instrumenta sus
+llamadas HttpClient. Se configura el exportador OTLP con las mismas variables que Web,
+en el entorno del proceso Worker. Cada entrega recupera el contexto de sus cabeceras y
+sus logs incluyen el identificador de mensaje y de traza. El contexto técnico no elige
+el operador ni la cuenta comercial del mensaje.
+
+## Tablero técnico local
+
+El colector, Grafana, Prometheus, Tempo y Loki se pueden levantar juntos para desarrollo:
+
+```powershell
+docker compose -f deploy/observabilidad/compose.yaml up -d
+$env:OpenTelemetry__ExportarOtlp = "true"
+$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317"
+$env:OTEL_EXPORTER_OTLP_PROTOCOL = "grpc"
+```
+
+Después se inician Web y Worker desde esa terminal con sus conexiones habituales.
+El tablero está en [Grafana local](http://localhost:3300/d/ultimamilla-tecnico).
+Muestra tiempo medio, p95/p99 y errores HTTP, profundidad de colas, outbox pendiente,
+avisos fallidos, tasa de aciertos de caché y sincronizaciones pendientes. Incluye logs
+de Web y Worker y permite consultar trazas en Tempo.
+
+El Worker toma muestras técnicas de PostgreSQL y RabbitMQ cada 30 segundos. La PWA reporta
+su cola al sincronizar; el servidor mantiene las últimas muestras durante cinco minutos.
+El reporte de telemetría es auxiliar y sus fallos no bloquean las entregas.
+La profundidad de RabbitMQ cuenta mensajes listos, y la métrica de avisos cuenta intentos
+persistidos que todavía no tuvieron éxito. El despliegue en AWS requiere configurar su
+colector y las variables de los procesos desde la infraestructura del equipo.
+
+Ver [funcionamiento, métricas, límites y pruebas de observabilidad](docs/observabilidad.md).
+
+## Comprobaciones de salud de Web
+
+Con Web levantada, se pueden consultar estas rutas sin iniciar sesión:
+
+| Ruta | Qué comprueba |
+| --- | --- |
+| `/live` | El proceso Web responde. |
+| `/ready` | PostgreSQL acepta una conexión y ejecuta `SELECT 1`. |
+| `/health` | Todas las comprobaciones registradas. Actualmente incluye PostgreSQL. |
+
+Devuelven 200 con `Healthy` cuando la comprobación pasa y 503 con `Unhealthy` si falla.
+Una caída de PostgreSQL afecta a `/ready` y `/health`. `/live` permite comprobar que
+Web sigue ejecutándose. Las respuestas públicas muestran solo el estado y evitan caché.
+La comprobación de PostgreSQL tiene un límite de tres segundos y usa la conexión
+`ConnectionStrings:UltimaMilla`. No consulta registros de operadores o comercios.
+
+El despliegue puede usar `/live` para verificar el proceso y `/ready` para decidir si
+enviarle tráfico. Esta comprobación verifica conectividad y consulta básica. Las migraciones
+se aplican por el procedimiento de arranque antes de habilitar el servicio.
 
 ## Pruebas de arquitectura
 

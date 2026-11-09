@@ -28,6 +28,8 @@ public sealed class CorsHojaRutaTests
         Assert.Equal(origenPwa, Assert.Single(permitido.Headers.GetValues("Access-Control-Allow-Origin")));
         Assert.Contains(permitido.Headers.GetValues("Access-Control-Allow-Headers"),
             header => header.Contains("Authorization", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(permitido.Headers.GetValues("Access-Control-Allow-Headers"),
+            header => header.Contains("traceparent", StringComparison.OrdinalIgnoreCase));
 
         using var ajeno = await EnviarPreflightAsync(client, ruta, "https://otro.example");
         Assert.False(ajeno.Headers.Contains("Access-Control-Allow-Origin"));
@@ -38,7 +40,7 @@ public sealed class CorsHojaRutaTests
         using var solicitud = new HttpRequestMessage(HttpMethod.Options, ruta);
         solicitud.Headers.Add("Origin", origen);
         solicitud.Headers.Add("Access-Control-Request-Method", "GET");
-        solicitud.Headers.Add("Access-Control-Request-Headers", "authorization");
+        solicitud.Headers.Add("Access-Control-Request-Headers", "authorization,traceparent");
         return await client.SendAsync(solicitud);
     }
 }

@@ -83,7 +83,7 @@ public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simula
     {
         VerificarVigencia(sesion);
         if (accion.Intento is { } intento)
-            return await EnviarIntentoAsync(sesion, intento, ct);
+            return await EnviarIntentoAsync(sesion, intento, accion.TraceParent, ct);
 
         if (!ApiRepartidorFalsa.EsEnvioDePrueba(accion.EnvioId))
             return new(ResultadoAccion.Rechazada, "Descargá la hoja y registrá el resultado por bulto.");
@@ -91,10 +91,13 @@ public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simula
         return await simulada.EnviarAccionAsync(accion, ct);
     }
 
-    private async Task<RespuestaAccion> EnviarIntentoAsync(SesionRepartidor sesion, IntentoPorBultoDto intento, CancellationToken ct)
+    private async Task<RespuestaAccion> EnviarIntentoAsync(SesionRepartidor sesion, IntentoPorBultoDto intento,
+        string? traceParent, CancellationToken ct)
     {
         using var pedido = new HttpRequestMessage(HttpMethod.Post, "api/repartidor/intentos");
         pedido.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sesion.Token);
+        if (System.Diagnostics.ActivityContext.TryParse(traceParent, null, out _))
+            pedido.Headers.TryAddWithoutValidation("traceparent", traceParent);
         pedido.Content = JsonContent.Create(intento, JsonRepartidor.Default.IntentoPorBultoDto);
         using var respuesta = await http.SendAsync(pedido, ct);
         if (respuesta.StatusCode == HttpStatusCode.Unauthorized)
@@ -125,6 +128,18 @@ public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simula
         if (confirmado is null || confirmado.EnvioId != intento.EnvioId || confirmado.IdOperacion != intento.IdOperacion)
             throw new HttpRequestException("El servidor no confirmó el identificador de la visita.");
         return new(confirmado.Repetido ? ResultadoAccion.YaProcesada : ResultadoAccion.Aceptada);
+    }
+
+    public async Task ReportarSincronizacionAsync(SesionRepartidor sesion, ReporteSincronizacionDto reporte,
+        CancellationToken ct = default)
+    {
+        VerificarVigencia(sesion);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/repartidor/telemetria");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sesion.Token);
+        request.Content = JsonContent.Create(reporte, JsonRepartidor.Default.ReporteSincronizacionDto);
+        using var response = await http.SendAsync(request, ct);
+        if (response.StatusCode == HttpStatusCode.Unauthorized) throw new SesionExpiradaException();
+        response.EnsureSuccessStatusCode();
     }
 
     private static async Task<ProblemaIntentoDto?> LeerProblemaAsync(HttpResponseMessage respuesta, CancellationToken ct)

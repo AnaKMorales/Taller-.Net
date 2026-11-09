@@ -1,8 +1,10 @@
 using System.Text;
+using System.Diagnostics.Metrics;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Infrastructure.Mensajeria;
+using UltimaMilla.Infrastructure.Observabilidad;
 
 namespace UltimaMilla.Infrastructure.IntegrationTests;
 
@@ -78,8 +80,29 @@ public sealed class RabbitMqTests : IAsyncLifetime
     public async Task PublicaPersistenteConMessageIdYRoutingKeyIgualAlTipo()
     {
         await new TopologiaRabbitMq(_conexion, _opciones).DeclararAsync();
-        var mensaje = Mensaje();
+        var mensaje = Mensaje() with
+        {
+            TraceParent = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+            TraceState = "prueba=publicacion"
+        };
         await _transporte.PublicarConfirmadoAsync(mensaje);
+
+        long? listos = null;
+        using var metricas = new MeterListener
+        {
+            InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Name == "ultimamilla.cola.profundidad") listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        metricas.SetMeasurementEventCallback<long>((_, value, tags, _) =>
+        {
+            foreach (var tag in tags)
+                if (tag.Key == "cola" && Equals(tag.Value, _opciones.ColaAvisos)) listos = value;
+        });
+        metricas.Start();
+        await new SondeoMetricasOperativas("", _conexion, _opciones).MedirColasAsync(CancellationToken.None);
+        Assert.Equal(1, listos);
 
         var amqp = await _conexion.ObtenerAsync();
         await using var canal = await amqp.CreateChannelAsync();
@@ -90,6 +113,8 @@ public sealed class RabbitMqTests : IAsyncLifetime
         Assert.Equal(mensaje.Tipo, recibido.RoutingKey);
         Assert.Equal(_opciones.Exchange, recibido.Exchange);
         Assert.Equal(mensaje.Contenido, Encoding.UTF8.GetString(recibido.Body.ToArray()));
+        Assert.Equal(mensaje.TraceParent, Encoding.UTF8.GetString((byte[])recibido.BasicProperties.Headers!["traceparent"]!));
+        Assert.Equal(mensaje.TraceState, Encoding.UTF8.GetString((byte[])recibido.BasicProperties.Headers!["tracestate"]!));
         await canal.BasicAckAsync(recibido.DeliveryTag, false);
     }
 

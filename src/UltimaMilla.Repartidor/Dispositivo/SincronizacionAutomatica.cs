@@ -6,7 +6,7 @@ namespace UltimaMilla.Repartidor.Dispositivo;
 // Decide CUÁNDO sincronizar; el CÓMO está en Sincronizador (probado sin navegador).
 // Momentos: al volver la conexión, cada 30 segundos, después de registrar una acción y con el botón.
 public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincronizador sincronizador,
-    DatosLocales datos, IApiRepartidor api, TimeProvider reloj, ILogger<SincronizacionAutomatica> log)
+    DatosLocales datos, IApiRepartidor api, TimeProvider reloj, ILogger<SincronizacionAutomatica> log, ColaAcciones cola)
 {
     private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(30);
     private bool _iniciada;
@@ -43,12 +43,14 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
             if (!conexion.EnLinea || (sesion = await datos.ObtenerSesionAsync()) is null) return;
             // Con la sesión vencida no se envía nada: las acciones esperan a que el repartidor vuelva a ingresar.
             if (sesion.Vencida(reloj.GetUtcNow())) return;
+            await ReportarAsync(sesion);
             var resumen = await sincronizador.SincronizarAsync(sesion, ignorarEspera);
             if (resumen.SesionExpirada)
             {
                 await datos.MarcarSesionVencidaAsync(sesion);
                 return;
             }
+            await ReportarAsync(sesion);
 
             if (resumen.Sincronizadas + resumen.Rechazadas > 0 &&
                 await datos.ObtenerHojaAsync() is { } hoja &&
@@ -71,6 +73,24 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
         catch (Exception ex)
         {
             log.LogError(ex, "Falló la sincronización automática.");
+        }
+    }
+
+    private async Task ReportarAsync(SesionRepartidor sesion)
+    {
+        try
+        {
+            using var limite = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var acciones = await cola.ListarAsync(sesion.RepartidorId);
+            await api.ReportarSincronizacionAsync(sesion, new(await datos.ObtenerDispositivoAsync(),
+                acciones.Count(a => a.Estado == EstadoAccion.Pendiente),
+                acciones.Count(a => a.Estado == EstadoAccion.Rechazada)), limite.Token);
+        }
+        catch (Exception)
+        {
+            // La telemetría es auxiliar: tampoco un fallo del almacenamiento local
+            // debe impedir que se intente sincronizar la entrega.
+            log.LogDebug("No se pudo enviar el estado de sincronización.");
         }
     }
 }

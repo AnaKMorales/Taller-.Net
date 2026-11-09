@@ -16,6 +16,7 @@ public sealed class ColaAccionesTests
         var reabierta = new ColaAcciones(_almacen);
         Assert.Empty(await reabierta.ListarAsync(Guid.NewGuid()));
         var primera = Assert.Single(await reabierta.ListarAsync(repartidor));
+        Assert.True(System.Diagnostics.ActivityContext.TryParse(primera.Accion.TraceParent, null, out _));
         Assert.Equal(accion.Intento!.IdOperacion, primera.Accion.Intento!.IdOperacion);
         Assert.Equal(DateTimeKind.Utc, primera.Accion.Intento.OcurridoEn.Kind);
         Assert.Single(primera.Accion.Intento.Evidencias);

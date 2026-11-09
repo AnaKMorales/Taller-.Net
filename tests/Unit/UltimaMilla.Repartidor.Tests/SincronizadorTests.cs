@@ -54,6 +54,7 @@ public sealed class SincronizadorTests
         var hoja = Datos.Hoja(EstadoEnvio.EnTransito);
         await EncolarEntregaAsync(hoja, 0);
         _servidor.PerderProximaRespuesta = true;
+        var traza = Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId)).Accion.TraceParent;
 
         await _sincronizador.SincronizarAsync(Datos.Sesion);
         Assert.Equal(EstadoAccion.Pendiente, Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId)).Estado);
@@ -64,6 +65,25 @@ public sealed class SincronizadorTests
         Assert.Equal(EstadoAccion.Sincronizada, item.Estado);
         Assert.Equal(1, _servidor.Registradas);
         Assert.Equal(1, _servidor.Duplicadas);
+        Assert.Equal(traza, item.Accion.TraceParent);
+    }
+
+    [Fact]
+    public async Task UnaAccionAnteriorSinTrazaLaGuardaAntesDeEnviarYLaConservaAlReabrir()
+    {
+        var hoja = Datos.Hoja(EstadoEnvio.EnTransito);
+        await EncolarEntregaAsync(hoja, 0);
+        var anterior = Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId));
+        await _cola.ActualizarAsync(anterior with { Accion = anterior.Accion with { TraceParent = null } }, Datos.Sesion.RepartidorId);
+        _servidor.PerderProximaRespuesta = true;
+        await _sincronizador.SincronizarAsync(Datos.Sesion);
+        var traza = Assert.Single(await _cola.ListarAsync(Datos.Sesion.RepartidorId)).Accion.TraceParent;
+        Assert.True(System.Diagnostics.ActivityContext.TryParse(traza, null, out _));
+        var reabierta = new ColaAcciones(_almacen);
+        await new Sincronizador(reabierta, _servidor, _reloj).SincronizarAsync(Datos.Sesion, ignorarEspera: true);
+        var guardada = Assert.Single(await reabierta.ListarAsync(Datos.Sesion.RepartidorId));
+        Assert.Equal(EstadoAccion.Sincronizada, guardada.Estado);
+        Assert.Equal(traza, guardada.Accion.TraceParent);
     }
 
     [Fact]
@@ -190,6 +210,8 @@ public sealed class SincronizadorTests
 
     private sealed class ServidorQueAnota(List<Guid> orden) : IApiRepartidor
     {
+        public Task ReportarSincronizacionAsync(SesionRepartidor sesion, ReporteSincronizacionDto reporte,
+            CancellationToken ct = default) => Task.CompletedTask;
         public Task<SesionRepartidor?> IniciarSesionAsync(string email, string contrasena, CancellationToken ct = default) =>
             throw new NotSupportedException();
         public Task<HojaDeRutaDto> ObtenerHojaDeRutaAsync(SesionRepartidor sesion, Guid? rutaPreferida = null, CancellationToken ct = default) =>

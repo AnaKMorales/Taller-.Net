@@ -1,6 +1,7 @@
 extern alias Pwa;
 
 using System.Net;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using Microsoft.JSInterop;
 using UltimaMilla.Infrastructure.Persistence.Outbox;
@@ -45,6 +46,9 @@ public sealed partial class PostgresTests
         Assert.Empty(await new ColaAcciones(almacen).EncolarAsync(visita, hoja, sesion.RepartidorId));
         Assert.Empty(await colaCompetidora.EncolarAsync(competidora, hoja, sesion.RepartidorId));
         Assert.Empty(red.Solicitudes);
+        var guardada = Assert.Single(await new ColaAcciones(almacen).ListarAsync(sesion.RepartidorId));
+        Assert.True(ActivityContext.TryParse(guardada.Accion.TraceParent, null, out var trazaOriginal));
+        await api.ReportarSincronizacionAsync(sesion, new(Guid.NewGuid(), 1, 0));
 
         // Recrear la cola comprueba que el envío usa la acción serializada en el almacén.
         var cola = new ColaAcciones(almacen);
@@ -80,6 +84,9 @@ public sealed partial class PostgresTests
         Assert.Equal(EstadoBulto.Entregado, envio.Bultos.Single(b => b.Codigo == "PARCIAL-01").Estado);
         Assert.Equal(EstadoBulto.NoEntregado, envio.Bultos.Single(b => b.Codigo == "PARCIAL-02").Estado);
         Assert.Equal(1, await db.Set<MensajeOutbox>().CountAsync(m => m.Evento.IdOperacion == visita.IdOperacion));
+        var mensaje = await db.Set<MensajeOutbox>().SingleAsync(m => m.Evento.IdOperacion == visita.IdOperacion);
+        Assert.True(ActivityContext.TryParse(mensaje.TraceParent, mensaje.TraceState, out var trazaOutbox));
+        Assert.Equal(trazaOriginal.TraceId, trazaOutbox.TraceId);
         Assert.False(await db.Set<MensajeOutbox>().AnyAsync(m => m.Evento.IdOperacion == idCompetidor));
     }
 

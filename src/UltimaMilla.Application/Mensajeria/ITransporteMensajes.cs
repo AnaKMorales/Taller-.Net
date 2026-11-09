@@ -10,4 +10,4 @@ public interface ITransporteMensajes
 
 // Instantánea sin entidades de EF; el transporte no recibe acceso al contexto ni al negocio.
 public sealed record MensajeParaPublicar(Guid MensajeId, Guid OperadorId, string Tipo,
-    string Contenido, DateTime CreadoEn);
+    string Contenido, DateTime CreadoEn, string? TraceParent = null, string? TraceState = null);

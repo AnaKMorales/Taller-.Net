@@ -1352,6 +1352,10 @@ CREATE INDEX "IX_RecargosVisita_TenantId" ON "RecargosVisita" ("TenantId");
 
 INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20261103123758_PoliticasPendientesYRecargoFijo', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
 CREATE TABLE "MensajesProcesados" (
     "MensajeId" uuid NOT NULL,
     "Consumidor" character varying(100) NOT NULL,
@@ -1365,6 +1369,16 @@ CREATE INDEX "IX_MensajesProcesados_TenantId" ON "MensajesProcesados" ("TenantId
 
 INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
 VALUES ('20261105204809_MensajeProcesado', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+ALTER TABLE "MensajesOutbox" ADD "TraceParent" character varying(55);
+
+ALTER TABLE "MensajesOutbox" ADD "TraceState" character varying(512);
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261108000550_TraceContextOutbox', '10.0.12');
 
 COMMIT;
 

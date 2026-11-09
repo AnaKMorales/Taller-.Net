@@ -31,8 +31,14 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
                 .Where(a => ignorarEspera || a.ProximoIntentoEn is null || a.ProximoIntentoEn <= ahora)
                 .OrderBy(a => a.Accion.OcurridoEn);
 
-            foreach (var item in pendientes)
+            foreach (var pendiente in pendientes)
             {
+                var item = pendiente;
+                if (item.Accion.TraceParent is null)
+                {
+                    item = item with { Accion = item.Accion with { TraceParent = ColaAcciones.CrearTraceParent() } };
+                    await cola.ActualizarAsync(item, sesion.RepartidorId);
+                }
                 RespuestaAccion respuesta;
                 try
                 {

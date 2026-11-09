@@ -75,5 +75,17 @@ public static class ApiRepartidor
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status409Conflict);
+
+        api.MapPost("/telemetria", (ReporteSincronizacion solicitud, ITenantActual tenant,
+            UltimaMilla.Web.Observabilidad.EstadoSincronizaciones estado) =>
+        {
+            if (tenant.Contexto is not { UsuarioId: { } usuario }) return Results.Unauthorized();
+            if (solicitud.DispositivoId == Guid.Empty || solicitud.Pendientes is < 0 or > 100000 ||
+                solicitud.Rechazadas is < 0 or > 100000) return Results.BadRequest();
+            return estado.Registrar(usuario, solicitud.DispositivoId, solicitud.Pendientes, solicitud.Rechazadas)
+                ? Results.NoContent() : Results.StatusCode(429);
+        }).RequireAuthorization(Politicas.Repartidor);
     }
 }
+
+public sealed record ReporteSincronizacion(Guid DispositivoId, int Pendientes, int Rechazadas);

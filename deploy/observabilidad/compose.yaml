@@ -1,0 +1,16 @@
+name: ultimamilla-observabilidad
+
+services:
+  lgtm:
+    image: grafana/otel-lgtm:0.38.1
+    ports:
+      - "127.0.0.1:3300:3000"
+      - "127.0.0.1:14317:4317"
+      - "127.0.0.1:14318:4318"
+      - "127.0.0.1:19090:9090"
+      - "127.0.0.1:13200:3200"
+    environment:
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/ultimamilla-dashboards:ro
