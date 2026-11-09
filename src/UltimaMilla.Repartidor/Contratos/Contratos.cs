@@ -85,7 +85,7 @@ public sealed record PruebaDto(TipoPrueba Tipo, string Valor, DateTimeOffset Hor
 // el servidor ignora un segundo envío con el mismo IdOperacion (Envio.RegistrarIntento).
 public sealed record AccionEntregaDto(Guid IdOperacion, Guid EnvioId, ResultadoIntento Resultado, Guid? MotivoId,
     IReadOnlyList<PruebaDto> Pruebas, DateTimeOffset OcurridoEn, GeoPuntoDto? Posicion,
-    IntentoPorBultoDto? Intento = null)
+    IntentoPorBultoDto? Intento = null, string? TraceParent = null)
 {
     public bool CorrespondeA(Guid envioId, Guid? paradaId) =>
         EnvioId == envioId && Intento?.ParadaId == paradaId;
@@ -122,3 +122,5 @@ public enum ResultadoAccion
 }
 
 public sealed record RespuestaAccion(ResultadoAccion Resultado, string? Detalle = null);
+
+public sealed record ReporteSincronizacionDto(Guid DispositivoId, int Pendientes, int Rechazadas);

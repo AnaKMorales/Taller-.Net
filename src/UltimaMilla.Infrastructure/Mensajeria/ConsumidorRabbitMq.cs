@@ -1,4 +1,6 @@
 using System.Text;
+using System.Diagnostics;
+using UltimaMilla.Infrastructure.Observabilidad;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -60,10 +62,28 @@ public sealed class ConsumidorRabbitMq(ConexionRabbitMq conexion, TopologiaRabbi
     private async Task AlRecibirAsync(object remitente, BasicDeliverEventArgs entrega)
     {
         Interlocked.Increment(ref _enCurso);
+        var actividadAnterior = Activity.Current;
+        var inicio = Stopwatch.GetTimestamp();
+        var resultadoMetrica = "Error";
+        Activity? actividad = null;
+        IDisposable? contextoLog = null;
+        // El contexto padre procede exclusivamente del mensaje, nunca del hilo consumidor.
+        Activity.Current = null;
         try
         {
             var canal = _canal!;
             var propiedades = entrega.BasicProperties;
+            actividad = DiagnosticoMensajeria.Fuente.StartActivity("avisos process", ActivityKind.Consumer,
+                DiagnosticoMensajeria.LeerContexto(propiedades.Headers));
+            actividad?.SetTag("messaging.system", "rabbitmq");
+            actividad?.SetTag("messaging.destination.name", opciones.ColaAvisos);
+            actividad?.SetTag("messaging.operation.name", "process");
+            actividad?.SetTag("messaging.message.id", propiedades.MessageId);
+            contextoLog = logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["TraceId"] = actividad?.TraceId.ToString(),
+                ["MensajeId"] = propiedades.MessageId
+            });
             var intentos = PoliticaReintentos.LeerIntentos(propiedades.Headers);
             var mensaje = new MensajeRecibido(propiedades.MessageId, propiedades.Type,
                 Encoding.UTF8.GetString(entrega.Body.Span), intentos);
@@ -83,6 +103,9 @@ public sealed class ConsumidorRabbitMq(ConexionRabbitMq conexion, TopologiaRabbi
             }
 
             var decision = PoliticaReintentos.Decidir(resultado, intentos, opciones);
+            resultadoMetrica = resultado.ToString();
+            actividad?.SetTag("ultimamilla.resultado", resultado.ToString());
+            if (resultado != ResultadoConsumo.Confirmar) actividad?.SetStatus(ActivityStatusCode.Error);
             if (resultado == ResultadoConsumo.Reintentar && decision.Accion == AccionFinal.EnviarAMuertos)
                 logger.LogWarning("Mensaje {MensajeId} agotó {Intentos} reintentos; va a {Dlq}.",
                     propiedades.MessageId, intentos, opciones.ColaMuertos);
@@ -113,10 +136,18 @@ public sealed class ConsumidorRabbitMq(ConexionRabbitMq conexion, TopologiaRabbi
         }
         catch (Exception error)
         {
+            actividad?.SetStatus(ActivityStatusCode.Error);
             // Un fallo del canal no debe tumbar el proceso: el broker reentrega lo que quedó sin ack.
             logger.LogError(error, "Error al confirmar o rechazar la entrega {Entrega}.", entrega.DeliveryTag);
         }
-        finally { Interlocked.Decrement(ref _enCurso); }
+        finally
+        {
+            MetricasOperativas.Procesamiento(resultadoMetrica, Stopwatch.GetElapsedTime(inicio).TotalSeconds);
+            contextoLog?.Dispose();
+            actividad?.Dispose();
+            Activity.Current = actividadAnterior;
+            Interlocked.Decrement(ref _enCurso);
+        }
     }
 
     private async Task RepublicarEnEsperaAsync(BasicDeliverEventArgs entrega, DecisionReintento decision)

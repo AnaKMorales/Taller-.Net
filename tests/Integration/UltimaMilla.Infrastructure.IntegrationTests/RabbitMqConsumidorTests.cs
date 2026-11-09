@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using RabbitMQ.Client;
@@ -57,7 +58,7 @@ public sealed class RabbitMqConsumidorTests : IAsyncLifetime
     }
 
     private async Task<(Manejador, string)> IniciarAsync(Func<MensajeRecibido, CancellationToken, Task<ResultadoConsumo>> accion,
-        int intentosPrevios = 0)
+        int intentosPrevios = 0, Dictionary<string, object?>? cabeceras = null)
     {
         var manejador = new Manejador(accion);
         _consumidor = new ConsumidorRabbitMq(_conexion, _topologia, _opciones, manejador, NullLogger<ConsumidorRabbitMq>.Instance);
@@ -65,11 +66,73 @@ public sealed class RabbitMqConsumidorTests : IAsyncLifetime
         var id = Guid.NewGuid().ToString();
         var amqp = await _conexion.ObtenerAsync();
         await using var canal = await amqp.CreateChannelAsync(new CreateChannelOptions(true, true));
-        var encabezados = intentosPrevios > 0 ? new Dictionary<string, object?> { [ConsumidorRabbitMq.EncabezadoIntentos] = intentosPrevios } : null;
+        var encabezados = new Dictionary<string, object?>(cabeceras ?? []);
+        if (intentosPrevios > 0) encabezados[ConsumidorRabbitMq.EncabezadoIntentos] = intentosPrevios;
         await canal.BasicPublishAsync(_opciones.Exchange, "envio.evento.v1", mandatory: true,
             new BasicProperties { MessageId = id, Type = "envio.evento.v1", DeliveryMode = DeliveryModes.Persistent, Headers = encabezados },
             Encoding.UTF8.GetBytes("""{"x":1}"""));
         return (manejador, id);
+    }
+
+    [RabbitMqFact]
+    public async Task RecuperaContextoOriginalEnCadaReintentoYSinContextoIniciaUnaTrazaNueva()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == DiagnosticoMensajeria.NombreFuente,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+        const string traceId = "0123456789abcdef0123456789abcdef";
+        const string spanId = "0123456789abcdef";
+        var intentos = new ConcurrentQueue<(string TraceId, string ParentId, string SpanId, string? State)>();
+        var listo = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await IniciarAsync((mensaje, _) =>
+        {
+            var activity = Activity.Current!;
+            intentos.Enqueue((activity.TraceId.ToString(), activity.ParentSpanId.ToString(), activity.SpanId.ToString(),
+                activity.TraceStateString));
+            if (mensaje.Intentos == 0) return Task.FromResult(ResultadoConsumo.Reintentar);
+            listo.TrySetResult();
+            return Task.FromResult(ResultadoConsumo.Confirmar);
+        }, cabeceras: new()
+        {
+            ["traceparent"] = $"00-{traceId}-{spanId}-01",
+            ["tracestate"] = "prueba=original"
+        });
+        await listo.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        await _consumidor!.DetenerAsync();
+        Assert.Equal(2, intentos.Count);
+        Assert.All(intentos, intento =>
+        {
+            Assert.Equal(traceId, intento.TraceId);
+            Assert.Equal(spanId, intento.ParentId);
+            Assert.Equal("prueba=original", intento.State);
+        });
+        Assert.Equal(2, intentos.Select(i => i.SpanId).Distinct().Count());
+    }
+
+    [RabbitMqFact]
+    public async Task CabecerasInvalidasNoImpidenProcesarYNoHeredanUnaTrazaAjena()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == DiagnosticoMensajeria.NombreFuente,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+        var recibido = new TaskCompletionSource<ActivityContext>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var ajena = new Activity("actividad-ajena").SetIdFormat(ActivityIdFormat.W3C).Start();
+        await IniciarAsync((_, _) =>
+        {
+            recibido.TrySetResult(Activity.Current!.Context);
+            return Task.FromResult(ResultadoConsumo.Confirmar);
+        }, cabeceras: new() { ["traceparent"] = "invalido", ["tracestate"] = "prueba=ignorada" });
+        var contexto = await recibido.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await _consumidor!.DetenerAsync();
+        Assert.NotEqual(ajena.TraceId, contexto.TraceId);
+        Assert.Null(contexto.TraceState);
+        Assert.Equal(ajena, Activity.Current);
     }
 
     private async Task<BasicGetResult?> EsperarAsync(string cola, TimeSpan maximo)

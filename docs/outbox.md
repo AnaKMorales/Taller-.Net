@@ -44,6 +44,29 @@ etc.) también van por V2, para conservar el vocabulario anterior de V1. IdOpera
 es nullable: estos eventos llevan null y Bultos vacío, mientras los intentos llevan IdOperacion
 y resultados de los bultos de su visita. No se reconstruyen resultados desde estados posteriores.
 
+## Correlación con la petición original
+
+`MensajeOutbox` captura `TraceParent` y `TraceState` desde la actividad W3C de la
+petición en el momento de preparar el registro. Los dos campos se guardan en la misma
+transacción que el evento. Son metadatos técnicos separados del JSON V1/V2.
+No se copia el baggage de la petición.
+
+El publicador entrega esos campos en `MensajeParaPublicar`, incluso si se ejecuta
+después en otra actividad o reintenta una publicación fallida. El identificador del
+mensaje conserva su función de idempotencia y es independiente del identificador de traza.
+
+La migración `TraceContextOutbox` agrega dos columnas opcionales. Los mensajes anteriores
+conservan su contenido y se publican con contexto nulo. Las operaciones que se ejecutan
+sin actividad W3C también pueden generar mensajes sin contexto.
+
+El transporte publica los campos como cabeceras `traceparent` y `tracestate` de RabbitMQ.
+El consumidor recupera ese contexto para cada entrega con una actividad `Consumer` de
+la fuente `UltimaMilla.Mensajeria`. Las cabeceras se conservan al pasar por las colas de
+espera y de fallidos. Cada reintento tiene un tramo propio dentro de la traza original.
+Ver [configuración, tablero y pruebas de observabilidad](observabilidad.md).
+Los mensajes antiguos o con contexto inválido se procesan en una traza nueva.
+El cuerpo del webhook se define según la versión que admita cada receptor.
+
 ## Contrato para integrar el Worker
 
 El publicador pasa al transporte el tipo, el identificador y el JSON persistidos.

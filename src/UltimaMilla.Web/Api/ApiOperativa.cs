@@ -110,7 +110,8 @@ internal sealed class ErroresApiFilter(ILogger<ErroresApiFilter> logger) : IEndp
         { return Results.Problem(statusCode: 409, title: "Operación no permitida.", detail: error.Message); }
         catch (Exception error) when (error is not OperationCanceledException)
         {
-            logger.LogError(error, "Falló la API operativa. TraceId {TraceId}", context.HttpContext.TraceIdentifier);
+            logger.LogError(error, "Falló la API operativa. TraceId {TraceId}",
+                System.Diagnostics.Activity.Current?.TraceId.ToString() ?? context.HttpContext.TraceIdentifier);
             return Results.Problem(statusCode: 500, title: "No se pudo completar la operación.");
         }
     }

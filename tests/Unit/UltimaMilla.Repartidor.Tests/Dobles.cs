@@ -21,6 +21,10 @@ internal sealed class RelojManual(DateTimeOffset inicio) : TimeProvider
 // Servidor simulado con la misma regla de idempotencia que Envio.RegistrarIntento.
 internal sealed class ServidorEnMemoria : IApiRepartidor
 {
+    public Task ReportarSincronizacionAsync(SesionRepartidor sesion, ReporteSincronizacionDto reporte,
+        CancellationToken ct = default) => TelemetriaCaida
+            ? Task.FromException(new HttpRequestException("Telemetría no disponible")) : Task.CompletedTask;
+    public bool TelemetriaCaida { get; set; }
     private readonly HashSet<Guid> _procesadas = [];
     public bool EnLinea { get; set; } = true;
     // Registra la acción pero "pierde" la respuesta, como un corte justo después de guardar.

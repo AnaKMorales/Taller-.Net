@@ -1,4 +1,5 @@
 using System.Data;
+using UltimaMilla.Infrastructure.Observabilidad;
 using Microsoft.EntityFrameworkCore;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Mensajeria;
@@ -38,7 +39,7 @@ public sealed class PublicadorOutbox(AppDbContext db, ITransporteMensajes transp
                 if (pendiente is null) break;
 
                 var mensaje = new MensajeParaPublicar(pendiente.Id, db.OperadorIdActual,
-                    pendiente.Tipo, pendiente.Contenido, pendiente.CreadoEn);
+                    pendiente.Tipo, pendiente.Contenido, pendiente.CreadoEn, pendiente.TraceParent, pendiente.TraceState);
                 using var espera = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 espera.CancelAfter(opciones.TiempoMaximoConfirmacion);
                 await transporte.PublicarConfirmadoAsync(mensaje, espera.Token);
@@ -48,6 +49,12 @@ public sealed class PublicadorOutbox(AppDbContext db, ITransporteMensajes transp
                 await db.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 publicados++;
+                MetricasOperativas.PublicacionConfirmada();
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                MetricasOperativas.PublicacionFallida();
+                throw;
             }
             finally
             {

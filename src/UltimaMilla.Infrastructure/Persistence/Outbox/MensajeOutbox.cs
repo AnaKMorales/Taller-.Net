@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Domain.Envios;
 
@@ -15,6 +16,11 @@ public sealed class MensajeOutbox
         Tipo = tipo;
         Contenido = contenido;
         CreadoEn = DateTime.UtcNow;
+        if (Activity.Current is { IdFormat: ActivityIdFormat.W3C } actividad)
+        {
+            TraceParent = actividad.Id;
+            TraceState = actividad.TraceStateString is { Length: <= 512 } estado ? estado : null;
+        }
     }
 
     public Guid Id { get; private set; }
@@ -23,6 +29,8 @@ public sealed class MensajeOutbox
     public string Contenido { get; private set; }
     public DateTime CreadoEn { get; private set; }
     public DateTime? PublicadoEn { get; private set; }
+    public string? TraceParent { get; private set; }
+    public string? TraceState { get; private set; }
 
     internal void MarcarPublicado(DateTime fechaUtc)
     {

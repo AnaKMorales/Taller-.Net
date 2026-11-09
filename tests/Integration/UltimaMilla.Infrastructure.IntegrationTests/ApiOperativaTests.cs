@@ -41,17 +41,20 @@ public sealed partial class PostgresTests
         }
     }
 
-    private sealed class ServidorApi(string connection, bool usarIdentidadPrueba = true, string ambiente = "Testing")
+    private sealed class ServidorApi(string connection, bool usarIdentidadPrueba = true, string ambiente = "Testing",
+        bool exportarTelemetria = false)
         : WebApplicationFactory<App>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment(ambiente);
+            builder.UseSetting("OpenTelemetry:ExportarOtlp", exportarTelemetria.ToString());
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:UltimaMilla"] = connection, ["ConnectionStrings:Redis"] = "",
                 ["Repartidor:Origenes:0"] = "https://repartidor.example",
-                ["Logging:LogLevel:Default"] = "Warning"
+                ["Logging:LogLevel:Default"] = "Warning",
+                ["OpenTelemetry:ExportarOtlp"] = exportarTelemetria.ToString()
             }));
             builder.ConfigureServices(services =>
             {

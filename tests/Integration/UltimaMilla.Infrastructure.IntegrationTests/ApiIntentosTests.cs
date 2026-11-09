@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -64,6 +65,9 @@ public sealed partial class PostgresTests
         using var servidor = new ServidorApi(_testConnection, usarIdentidadPrueba: false);
         using var cliente = servidor.Cliente();
         cliente.DefaultRequestHeaders.Add("Origin", "https://repartidor.example");
+        const string traceId = "0123456789abcdef0123456789abcdef";
+        cliente.DefaultRequestHeaders.Add("traceparent", $"00-{traceId}-0123456789abcdef-01");
+        cliente.DefaultRequestHeaders.Add("tracestate", "prueba=api");
         await IngresarIntentosAsync(cliente, e.Repartidor.Email);
 
         using var obsoleta = await cliente.PostAsJsonAsync(RutaIntentosApi,
@@ -124,7 +128,10 @@ public sealed partial class PostgresTests
         Assert.Equal(FirmaPng, Assert.Single(pruebas).ArchivoRef!.Ubicacion);
         Assert.Equal(e.Repartidor.Id, (await lectura.Set<EventoDeEnvio>().Include(x => x.Responsable)
             .SingleAsync(x => x.IdOperacion == comando.IdOperacion)).ResponsableId);
-        Assert.Single(await lectura.Set<MensajeOutbox>().Where(m => m.Tipo == "envio.evento.v2").ToListAsync());
+        var outbox = Assert.Single(await lectura.Set<MensajeOutbox>().Where(m => m.Tipo == "envio.evento.v2").ToListAsync());
+        Assert.True(ActivityContext.TryParse(outbox.TraceParent, outbox.TraceState, out var contexto));
+        Assert.Equal(traceId, contexto.TraceId.ToString());
+        Assert.Equal("prueba=api", outbox.TraceState);
     }
 
     [PostgresFact]

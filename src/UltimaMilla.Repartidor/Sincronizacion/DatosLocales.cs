@@ -8,6 +8,20 @@ public sealed class DatosLocales(IAlmacenLocal almacen)
 {
     private const string ClaveSesion = "sesion";
     private const string ClaveHoja = "hoja-de-ruta";
+    private readonly SemaphoreSlim _cerrojoDispositivo = new(1, 1);
+
+    public async Task<Guid> ObtenerDispositivoAsync()
+    {
+        await _cerrojoDispositivo.WaitAsync();
+        try
+        {
+            if (Guid.TryParse(await almacen.LeerAsync("dispositivo-id"), out var existente)) return existente;
+            var id = Guid.NewGuid();
+            await almacen.GuardarAsync("dispositivo-id", id.ToString());
+            return id;
+        }
+        finally { _cerrojoDispositivo.Release(); }
+    }
 
     // Avisa a las pantallas cuando se guarda una hoja nueva (por ejemplo, tras sincronizar en segundo plano).
     public event Action? HojaActualizada;

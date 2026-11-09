@@ -1,8 +1,13 @@
 using System.Security.Claims;
+using System.Diagnostics;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Json;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Envios.CrearEnvio;
 using UltimaMilla.Application.Tablero;
@@ -20,12 +25,37 @@ using UltimaMilla.Infrastructure.Persistence.Tablero;
 using UltimaMilla.Web.Components;
 using UltimaMilla.Web.Api;
 using UltimaMilla.Web.Desarrollo;
+using UltimaMilla.Web.Observabilidad;
 using UltimaMilla.Web.Seguridad;
 using UltimaMilla.Web.Tiempo;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AgregarTelemetriaWeb();
+
+builder.Services.AddSerilog((services, configuration) =>
+{
+    var ajustes = services.GetRequiredService<IConfiguration>();
+    configuration.ReadFrom.Configuration(ajustes)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "UltimaMilla.Web")
+    .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+    .WriteTo.Console(new JsonFormatter(renderMessage: true));
+    if (ajustes.GetValue<bool>("OpenTelemetry:ExportarOtlp"))
+        configuration.WriteTo.OpenTelemetry(options =>
+        {
+            options.ResourceAttributes = new Dictionary<string, object>
+            {
+                ["service.name"] = "UltimaMilla.Web",
+                ["deployment.environment.name"] = builder.Environment.EnvironmentName
+            };
+            options.OnBeginSuppressInstrumentation = OpenTelemetry.SuppressInstrumentationScope.Begin;
+        });
+}, preserveStaticLogger: true);
 
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks()
+    .AddCheck<PostgresHealthCheck>("postgresql", tags: ["ready"], timeout: TimeSpan.FromSeconds(3));
 // Enums como texto en la API.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -63,7 +93,7 @@ builder.Services.AddAuthorizationBuilder()
 // La PWA se sirve desde otro origen; solo los configurados en Repartidor:Origenes pueden llamar a su API.
 builder.Services.AddCors(o => o.AddPolicy(ApiRepartidor.Cors, p => p
     .WithOrigins(builder.Configuration.GetSection("Repartidor:Origenes").Get<string[]>() ?? [])
-    .WithHeaders("Authorization", "Content-Type")
+    .WithHeaders("Authorization", "Content-Type", "traceparent")
     .WithMethods("GET", "POST")));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantActual, TenantActualHttp>();
@@ -84,6 +114,7 @@ builder.Services.AgregarColaFallidos(builder.Configuration);
 builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();
 builder.Services.AgregarRegistroIntentos();
 builder.Services.AgregarConfiguracionVersionada();
@@ -93,6 +124,7 @@ builder.Services.AgregarCacheUltimaMilla(builder.Configuration.GetConnectionStri
     builder.Configuration.GetSection("Cache").Get<CacheOpciones>());
 
 var app = builder.Build();
+app.Services.GetRequiredService<EstadoSincronizaciones>().Iniciar();
 
 if (app.Environment.IsDevelopment())
 {
@@ -100,6 +132,21 @@ if (app.Environment.IsDevelopment())
 }
 
 // HTTPS lo termina Traefik en AWS.
+app.UseSerilogRequestLogging(options =>
+{
+    options.Logger = app.Services.GetRequiredService<Serilog.ILogger>();
+    options.EnrichDiagnosticContext = (diagnostic, context) =>
+        diagnostic.Set("TraceId", Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier);
+    // La URL real del seguimiento contiene el token público. Se registra la plantilla de ruta.
+    options.GetMessageTemplateProperties = (context, _, elapsed, statusCode) =>
+    [
+        new LogEventProperty("RequestMethod", new ScalarValue(context.Request.Method)),
+        new LogEventProperty("RequestPath", new ScalarValue(
+            (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "[sin ruta]")),
+        new LogEventProperty("StatusCode", new ScalarValue(statusCode)),
+        new LogEventProperty("Elapsed", new ScalarValue(elapsed))
+    ];
+});
 app.UseCors();
 app.UseAuthentication();
 
@@ -132,6 +179,9 @@ app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
 app.MapearApiOperativa();
 app.MapApiRepartidor();
+app.MapHealthChecks("/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 // Seguimiento público (sin login).
 app.MapGet("/api/seguimiento/{token}", async (string token, ISeguimientoPublico seguimiento, CancellationToken ct) =>

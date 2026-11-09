@@ -15,6 +15,8 @@ internal sealed class OutboxModel : IEntityTypeConfiguration<MensajeOutbox>
         builder.HasIndex("EventoKey").IsUnique();
         builder.Property(x => x.Tipo).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Contenido).HasColumnType("jsonb").IsRequired();
+        builder.Property(x => x.TraceParent).HasMaxLength(55);
+        builder.Property(x => x.TraceState).HasMaxLength(512);
         builder.HasIndex(x => new { x.CreadoEn, x.Id }).HasFilter("\"PublicadoEn\" IS NULL");
     }
 }

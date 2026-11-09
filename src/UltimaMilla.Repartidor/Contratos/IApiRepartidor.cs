@@ -12,4 +12,6 @@ public interface IApiRepartidor
     // Sin conexión o error del servidor (5xx, timeout): lanza HttpRequestException y la acción se reintenta.
     // Una respuesta de negocio (aceptada, duplicada o rechazada) vuelve como RespuestaAccion.
     Task<RespuestaAccion> EnviarAccionAsync(SesionRepartidor sesion, AccionEntregaDto accion, CancellationToken ct = default);
+
+    Task ReportarSincronizacionAsync(SesionRepartidor sesion, ReporteSincronizacionDto reporte, CancellationToken ct = default);
 }

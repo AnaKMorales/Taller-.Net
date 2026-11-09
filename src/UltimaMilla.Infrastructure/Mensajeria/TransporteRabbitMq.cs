@@ -1,4 +1,5 @@
 using RabbitMQ.Client;
+using System.Diagnostics;
 using System.Text;
 using UltimaMilla.Application.Mensajeria;
 
@@ -29,6 +30,12 @@ public sealed class TransporteRabbitMq(ConexionRabbitMq conexion, OpcionesRabbit
             Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.SpecifyKind(mensaje.CreadoEn, DateTimeKind.Utc)).ToUnixTimeSeconds()),
             Headers = new Dictionary<string, object?> { ["operador-id"] = mensaje.OperadorId.ToString() },
         };
+        if (ActivityContext.TryParse(mensaje.TraceParent, mensaje.TraceState, out _))
+        {
+            propiedades.Headers["traceparent"] = mensaje.TraceParent;
+            if (mensaje.TraceState is { Length: > 0 and <= 512 })
+                propiedades.Headers["tracestate"] = mensaje.TraceState;
+        }
         // Con confirmaciones y seguimiento activos, la tarea espera el ack del broker y lanza
         // PublishException ante nack o devolución.
         await canal.BasicPublishAsync(opciones.Exchange, mensaje.Tipo, mandatory: true, propiedades,

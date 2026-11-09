@@ -3,11 +3,19 @@ using UltimaMilla.Infrastructure.Avisos;
 using UltimaMilla.Infrastructure.Mensajeria;
 using UltimaMilla.Infrastructure.Persistence.Outbox;
 using UltimaMilla.Worker;
+using UltimaMilla.Worker.Observabilidad;
+using UltimaMilla.Infrastructure.Observabilidad;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.AgregarTelemetriaWorker();
 // Clave: RabbitMq__Clave (variable de entorno) o user-secrets. Nunca en appsettings.
 builder.Services.AgregarTransporteRabbitMq(builder.Configuration);
+builder.Services.AddSingleton(sp => new SondeoMetricasOperativas(
+    builder.Configuration.GetConnectionString("UltimaMilla")
+        ?? throw new InvalidOperationException("Falta ConnectionStrings:UltimaMilla."),
+    sp.GetRequiredService<ConexionRabbitMq>(), sp.GetRequiredService<OpcionesRabbitMq>()));
 builder.Services.AddHostedService<InicializadorTopologia>();
+builder.Services.AddHostedService<MetricasWorker>();
 
 // Cadena de conexión: ConnectionStrings__UltimaMilla (variable de entorno o user-secrets).
 builder.Services.AgregarPublicacionOutboxPorOperador(

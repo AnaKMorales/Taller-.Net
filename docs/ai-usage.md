@@ -527,3 +527,34 @@ Verificación final: pasaron 293 pruebas (126 Domain, 15 Application, 37 Infrast
 de las correcciones y confirmaron la invalidación de la caché poblada. Release compiló
 con advertencias como errores sin errores ni advertencias; EF confirmó el modelo alineado
 con las migraciones existentes. Se eliminaron las bases temporales; desarrollo no se modificó.
+
+### 07/11/2026: observabilidad, punto 4 de la organización del equipo
+
+El usuario autorizó completar todos los pendientes de este punto y probar el proyecto.
+Se incorporaron Serilog con JSON en consola y exportación OTLP, instrumentación HTTP de
+OpenTelemetry en Web y Worker, métricas operativas y el recorrido correlacionado desde
+la PWA. La PWA guarda el contexto con cada acción y lo conserva al reenviar; el outbox
+lo persiste como metadatos separados de V1/V2, RabbitMQ lo transporta y el consumidor
+lo recupera sin heredar una actividad ajena. La migración TraceContextOutbox agrega dos
+columnas opcionales y se actualizaron snapshot y SQL de instalación.
+
+Se agregaron health checks /live, /ready y /health; los dos últimos comprueban PostgreSQL.
+El Worker toma muestras de outbox, avisos fallidos y profundidad de colas cada 30 segundos.
+La PWA reporta cantidades pendientes/rechazadas a un endpoint autenticado. Las muestras
+vencen en cinco minutos y sus identificadores no se exportan como etiquetas. Los fallos
+del reporte auxiliar no bloquean la sincronización de entregas.
+
+Un compose local separado provisiona colector, Grafana, Prometheus, Tempo y Loki, con
+13 paneles y consulta de trazas/logs. Se documentaron comandos, métricas, límites y
+conexión del despliegue en README y observabilidad.md. La configuración de AWS corresponde
+a la integración de infraestructura del equipo.
+
+La verificación completa pasó con 484 pruebas; después pasaron seis comprobaciones
+finales que incluyen un caso adicional del nuevo endpoint. Los TRX confirman 485 casos
+distintos satisfactorios: 126 Domain, 31 Application, 105 Infrastructure, 21 Worker,
+41 PWA, 13 arquitectura y 148 integración. No hubo omisiones en esa verificación.
+Se usaron PostgreSQL y RabbitMQ temporales y un colector real; se consultaron trazas
+en Tempo, logs correlacionados en Loki, métricas y las consultas del tablero en Prometheus.
+También se publicó la PWA en Release y se arrancó el Worker real con una base temporal:
+declaró su topología, permaneció activo sin errores y sus logs llegaron por OTLP a Loki.
+Los servicios temporales se eliminaron y el tablero local quedó disponible.
