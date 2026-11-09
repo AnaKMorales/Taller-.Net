@@ -1,0 +1,54 @@
+@model UltimaMilla.Web.Pages.Backoffice.PanelRiesgo
+@* Se renderiza al cargar el tablero y de nuevo con /backoffice/tablero?handler=Panel cuando llega un cambio
+   por SignalR o pasa un minuto: un envío entra en riesgo también con el solo paso del tiempo. *@
+
+<h2>Envíos en riesgo</h2>
+<p class="nota">Envíos sin entregar cuya ventana comprometida ya venció o vence en las próximas
+    @Model.MargenHoras horas. Actualizado @Model.GeneradoEn.ToLocalTime().ToString("HH:mm").</p>
+<table>
+    <thead>
+        <tr><th>Situación</th><th>Vence</th><th>Código</th><th>Destinatario</th><th>Zona</th><th>Estado</th><th>Repartidor</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var e in Model.Riesgo)
+        {
+            <tr class="@(e.Vencido ? "vencido" : "por-vencer")">
+                <td>@(e.Vencido ? "Vencido" : "Por vencer")</td>
+                <td>@e.VentanaHasta.ToString("dd/MM HH:mm")</td>
+                <td><code>@e.CodigoSeguimiento[..8]</code></td>
+                <td>@e.Destinatario</td>
+                <td>@e.Zona</td>
+                <td>@Textos.Estado(e.Estado)</td>
+                <td>@(e.Repartidor ?? "Sin asignar")</td>
+            </tr>
+        }
+        @if (Model.Riesgo.Count == 0)
+        {
+            <tr><td colspan="7" class="vacio">No hay envíos en riesgo.</td></tr>
+        }
+    </tbody>
+</table>
+
+<h2>Flota</h2>
+<p class="nota">Última posición informada por cada repartidor en las últimas @Model.FlotaHoras horas, tomada de los
+    intentos de entrega que registra la app.</p>
+<table>
+    <thead><tr><th>Repartidor</th><th>Posición</th><th>Informada</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var p in Model.Flota)
+        {
+            var lat = p.Latitud.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var lon = p.Longitud.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            <tr>
+                <td>@p.Repartidor</td>
+                <td>@lat, @lon</td>
+                <td>@Textos.Fecha(p.ReportadaEn)</td>
+                <td><a href="https://www.openstreetmap.org/?mlat=@lat&amp;mlon=@lon#map=16/@lat/@lon" target="_blank" rel="noopener noreferrer">Ver en el mapa</a></td>
+            </tr>
+        }
+        @if (Model.Flota.Count == 0)
+        {
+            <tr><td colspan="4" class="vacio">Ningún repartidor informó su posición todavía.</td></tr>
+        }
+    </tbody>
+</table>

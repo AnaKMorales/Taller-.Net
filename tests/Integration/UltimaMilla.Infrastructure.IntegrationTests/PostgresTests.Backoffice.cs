@@ -42,6 +42,76 @@ public sealed partial class PostgresTests
     }
 
     [PostgresFact]
+    public async Task EnviosEnRiesgoSegunElFinDeSuVentanaYSoloDelOperador()
+    {
+        // La programación del escenario es el 14/10 de 08:00 a 18:00 en UTC-3: la ventana cierra a las 21:00 UTC.
+        var e = Escenario();
+        await using (var db = Context())
+        {
+            db.Add(e.Envio);
+            e.Recibir();
+            await db.SaveChangesAsync();
+        }
+        var margen = TimeSpan.FromHours(2);
+
+        await using (var db = Context())
+        {
+            // 12:00 UTC: faltan 9 horas, fuera del margen.
+            Assert.Empty(await new ConsultasBackoffice(db, Reloj(12)).EnviosEnRiesgoAsync(margen));
+
+            // 20:00 UTC: cierra en una hora, por vencer.
+            var porVencer = Assert.Single(await new ConsultasBackoffice(db, Reloj(20)).EnviosEnRiesgoAsync(margen));
+            Assert.Equal((e.Envio.Id, EstadoEnvio.EnDeposito, false, (string?)null),
+                (porVencer.EnvioId, porVencer.Estado, porVencer.Vencido, porVencer.Repartidor));
+            Assert.Equal(new DateTimeOffset(2026, 10, 14, 18, 0, 0, TimeSpan.FromHours(-3)), porVencer.VentanaHasta);
+
+            // 22:00 UTC: la ventana ya cerró.
+            Assert.True(Assert.Single(await new ConsultasBackoffice(db, Reloj(22)).EnviosEnRiesgoAsync(margen)).Vencido);
+        }
+
+        await using (var otro = Context(Guid.NewGuid()))
+            Assert.Empty(await new ConsultasBackoffice(otro, Reloj(22)).EnviosEnRiesgoAsync(margen));
+
+        static TimeProvider Reloj(int horaUtc) => new RelojFijo(new DateTimeOffset(2026, 10, 14, horaUtc, 0, 0, TimeSpan.Zero));
+    }
+
+    [PostgresFact]
+    public async Task LaFlotaMuestraLaUltimaPosicionInformadaPorCadaRepartidor()
+    {
+        var e = Escenario(reintentable: true);
+        await using (var db = Context())
+        {
+            db.Add(e.Envio);
+            await db.SaveChangesAsync();
+            e.Recibir();
+            var ruta = e.Asignar();
+            db.Add(ruta);
+            ruta.Despachar(e.Admin, EscenarioPersistencia.Fecha);
+            e.Envio.RegistrarIntento(ResultadoIntento.Fallido, e.Reglas.MotivosNoEntrega.Single(), [e.Foto()], e.Repartidor,
+                EscenarioPersistencia.Fecha.AddHours(1), Guid.NewGuid(), new GeoPunto(-34.9011m, -56.1645m));
+            await db.SaveChangesAsync();
+        }
+
+        var ahora = new RelojFijo(new DateTimeOffset(EscenarioPersistencia.Fecha.AddHours(3)));
+        await using (var db = Context())
+        {
+            var posicion = Assert.Single(await new ConsultasBackoffice(db, ahora).UltimasPosicionesAsync(TimeSpan.FromHours(12)));
+            Assert.Equal((e.Repartidor.Email, -34.9011m, -56.1645m, EscenarioPersistencia.Fecha.AddHours(1)),
+                (posicion.Repartidor, posicion.Latitud, posicion.Longitud, posicion.ReportadaEn));
+            // Una posición más vieja que la antigüedad máxima ya no se muestra.
+            Assert.Empty(await new ConsultasBackoffice(db, ahora).UltimasPosicionesAsync(TimeSpan.FromHours(1)));
+        }
+
+        await using (var otro = Context(Guid.NewGuid()))
+            Assert.Empty(await new ConsultasBackoffice(otro, ahora).UltimasPosicionesAsync(TimeSpan.FromHours(12)));
+    }
+
+    private sealed class RelojFijo(DateTimeOffset ahora) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => ahora;
+    }
+
+    [PostgresFact]
     public async Task BackofficeMuestraIncidenciasYAvisosFallidosSoloDelOperador()
     {
         var e = Escenario(reintentable: true);

@@ -48,12 +48,30 @@
     .withAutomaticReconnect()
     .build();
 
+  // Envíos en riesgo y flota: el servidor arma el HTML (mismo parcial que la carga inicial) y acá se reemplaza.
+  // Se refresca cuando llega un cambio (agrupando ráfagas) y cada minuto, porque un envío entra en riesgo
+  // también con el solo paso del tiempo.
+  const panel = document.getElementById('panel-riesgo');
+  let refrescoPendiente = null;
+  async function refrescarPanel() {
+    refrescoPendiente = null;
+    try {
+      const respuesta = await fetch('/backoffice/tablero?handler=Panel', { headers: { 'Accept': 'text/html' } });
+      if (respuesta.ok) panel.innerHTML = await respuesta.text(); // HTML generado y escapado por el servidor
+    } catch { /* sin conexión: se reintenta en el próximo ciclo */ }
+  }
+  function pedirRefresco() {
+    if (refrescoPendiente === null) refrescoPendiente = setTimeout(refrescarPanel, 1000);
+  }
+  setInterval(refrescarPanel, 60000);
+
   conexion.on('cambiosEnvio', cambios => {
     for (const cambio of cambios) {
       ajustarContador(cambio.estadoAnterior, -1);
       ajustarContador(cambio.estadoNuevo, +1);
       agregarFila(cambio);
     }
+    pedirRefresco();
   });
 
   conexion.onreconnecting(() => mostrarConexion('Reconectando…', 'aviso'));
