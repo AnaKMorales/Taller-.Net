@@ -68,6 +68,9 @@ cuentas en `~/demo-cuentas.txt` (permisos 600, fuera del repositorio). La clave 
 (`openssl rand`), no la `Demo1234!` de desarrollo: queda solo en ese archivo y no se imprime ni viaja en argumentos de comandos.
 Requiere `openssl`, `jq` y `curl`.
 
+**Empezar de cero:** `deploy/aws/reiniciar-datos.sh` borra los volúmenes de Postgres y RabbitMQ de la instancia (pide escribir el
+dominio para confirmar) y la deja vacía y migrada; después se vuelve a sembrar. No hay respaldos.
+
 **Primer despliegue sin pasar por GitHub** (construye y sube las imágenes desde tu máquina y ordena el despliegue por SSM):
 `deploy/aws/desplegar-manual.sh` desde la raíz del repositorio. Sirve también para depurar.
 
