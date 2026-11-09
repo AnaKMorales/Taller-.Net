@@ -4,10 +4,66 @@ using UltimaMilla.Application.Tablero;
 namespace UltimaMilla.Infrastructure.Persistence.Backoffice;
 
 // Los filtros de tenant del AppDbContext limitan todo al operador del usuario.
-public sealed class ConsultasBackoffice(AppDbContext db) : IConsultasBackoffice
+public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = null) : IConsultasBackoffice
 {
     public static readonly EstadoEnvio[] EstadosConIncidencia =
         [EstadoEnvio.NoEntregado, EstadoEnvio.Reprogramado, EstadoEnvio.EnDevolucion, EstadoEnvio.Extraviado];
+
+    // Envíos que todavía tienen que llegar al destinatario: los que pueden incumplir su ventana.
+    // Quedan afuera los terminales y los que ya están volviendo al comercio.
+    public static readonly EstadoEnvio[] EstadosPorEntregar =
+        [EstadoEnvio.Admitido, EstadoEnvio.EnDeposito, EstadoEnvio.AsignadoARuta, EstadoEnvio.EnTransito,
+         EstadoEnvio.NoEntregado, EstadoEnvio.Reprogramado, EstadoEnvio.EntregadoParcialmente];
+
+    private readonly TimeProvider _reloj = reloj ?? TimeProvider.System;
+
+    // La ventana vigente es la de la programación actual (si se reprogramó, la nueva). Su fin se guarda como
+    // texto con el desfase horario local, así que no se puede comparar en SQL: se acota por fecha en la base
+    // y se compara el instante exacto en memoria.
+    public async Task<IReadOnlyList<EnvioEnRiesgoDto>> EnviosEnRiesgoAsync(TimeSpan margen,
+        CancellationToken cancellationToken = default)
+    {
+        var ahora = _reloj.GetUtcNow();
+        var limite = ahora + margen;
+        // Un día de holgura cubre cualquier desfase horario entre la fecha local de entrega y UTC.
+        var hastaFecha = DateOnly.FromDateTime(limite.UtcDateTime).AddDays(1);
+        var candidatos = await db.Envios.AsNoTracking()
+            .Where(e => EstadosPorEntregar.Contains(e.Estado) && e.Programacion.FechaEntrega <= hastaFecha)
+            .Select(e => new
+            {
+                e.Id,
+                e.CodigoSeguimiento,
+                Destinatario = e.Destinatario.Nombre,
+                Zona = e.Zona.Nombre,
+                e.Estado,
+                e.Programacion.FinLocal,
+                Repartidor = e.Parada == null ? null : e.Parada.Ruta.Repartidor.Email
+            })
+            .ToListAsync(cancellationToken);
+        return candidatos.Where(c => c.FinLocal <= limite)
+            .OrderBy(c => c.FinLocal)
+            .Select(c => new EnvioEnRiesgoDto(c.Id, c.CodigoSeguimiento, c.Destinatario, c.Zona, c.Estado, c.FinLocal,
+                c.FinLocal <= ahora, c.Repartidor))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<PosicionRepartidorDto>> UltimasPosicionesAsync(TimeSpan antiguedadMaxima,
+        CancellationToken cancellationToken = default)
+    {
+        var desde = _reloj.GetUtcNow().UtcDateTime - antiguedadMaxima;
+        // Solo eventos de la app del repartidor: su responsable es el repartidor y su posición, la del dispositivo.
+        var eventos = await db.Set<EventoDeEnvio>().AsNoTracking()
+            .Where(e => e.Origen == OrigenEvento.AppRepartidor && e.Posicion != null && e.OcurridoEn >= desde)
+            .OrderByDescending(e => e.OcurridoEn)
+            .Take(500)
+            .Select(e => new { e.Responsable.Email, e.Posicion, e.OcurridoEn })
+            .ToListAsync(cancellationToken);
+        return eventos.GroupBy(e => e.Email)
+            .Select(g => g.First())
+            .Select(e => new PosicionRepartidorDto(e.Email, e.Posicion!.Latitud, e.Posicion.Longitud, e.OcurridoEn))
+            .OrderBy(p => p.Repartidor)
+            .ToList();
+    }
 
     public async Task<ResumenTablero> TableroAsync(int ultimosCambios, CancellationToken cancellationToken = default)
     {
