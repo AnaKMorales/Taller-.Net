@@ -1,0 +1,94 @@
+@page "/backoffice/configuracion/tarifas"
+@model UltimaMilla.Web.Pages.Backoffice.Configuracion.TarifasModel
+@using UltimaMilla.Domain.Envios
+@{
+    ViewData["Title"] = "Cuadro tarifario";
+    ViewData["Seccion"] = "tarifas";
+    Layout = "_Layout";
+}
+
+<h1>Cuadro tarifario</h1>
+<p class="nota">Cada cambio publica una <strong>versión nueva</strong>, que rige desde el momento de publicarla.
+    Las versiones anteriores no se modifican: los envíos ya admitidos conservan la tarifa con la que se calcularon.</p>
+
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<h2>Versiones</h2>
+<table>
+    <thead><tr><th>Versión</th><th>Rige desde</th><th>Estado</th><th>Usada por envíos</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var v in Model.Versiones)
+        {
+            <tr>
+                <td>@v.Version</td>
+                <td>@Textos.Fecha(v.VigenteDesde)</td>
+                <td>@Model.EstadoVersion(v)</td>
+                <td>@(v.EnUso ? "Sí" : "No")</td>
+                <td><a href="?BaseId=@v.Id">Partir de esta versión</a></td>
+            </tr>
+        }
+        @if (Model.Versiones.Count == 0)
+        {
+            <tr><td colspan="5" class="vacio">Todavía no hay cuadros tarifarios.</td></tr>
+        }
+    </tbody>
+</table>
+
+<h2>Nueva versión</h2>
+<p class="nota">
+    @if (Model.Base is not null)
+    {
+        <text>El formulario parte de la versión @Model.Base.Version.Version. Cambiá lo necesario y publicá.</text>
+    }
+    else
+    {
+        <text>Cargá las líneas del primer cuadro tarifario.</text>
+    }
+    Los recargos y bonificaciones son porcentajes sobre el precio base. Pesos en kg y volumen en m³.
+</p>
+
+<form method="post" class="formulario">
+    <input type="hidden" asp-for="UltimaVersionEsperada" />
+    <input type="hidden" asp-for="BaseId" />
+    <table>
+        <thead>
+            <tr>
+                <th>Zona</th><th>Modalidad</th><th>Peso desde</th><th>Peso hasta</th><th>Volumen hasta</th>
+                <th>Precio</th><th>Recargo %</th><th>Bonificación %</th><th>Quitar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Model.Lineas.Count; i++)
+            {
+                <tr>
+                    <td>
+                        <select asp-for="Lineas[i].ZonaId">
+                            @foreach (var z in Model.Zonas)
+                            {
+                                <option value="@z.Id">@z.Nombre</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        <select asp-for="Lineas[i].Modalidad">
+                            <option value="@ModalidadServicio.Estandar">Estándar</option>
+                            <option value="@ModalidadServicio.Urgente">Urgente</option>
+                        </select>
+                    </td>
+                    <td><input asp-for="Lineas[i].PesoDesde" inputmode="decimal" size="6" required /></td>
+                    <td><input asp-for="Lineas[i].PesoHasta" inputmode="decimal" size="6" required /></td>
+                    <td><input asp-for="Lineas[i].VolumenHasta" inputmode="decimal" size="6" required /></td>
+                    <td><input asp-for="Lineas[i].Precio" inputmode="decimal" size="8" required /></td>
+                    <td><input asp-for="Lineas[i].Recargo" inputmode="decimal" size="5" /></td>
+                    <td><input asp-for="Lineas[i].Bonificacion" inputmode="decimal" size="5" /></td>
+                    <td><input asp-for="Lineas[i].Quitar" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div>
+        <button type="submit" asp-page-handler="AgregarLinea" formnovalidate>Agregar línea</button>
+        <button type="submit" asp-page-handler="Publicar">Publicar nueva versión</button>
+    </div>
+</form>

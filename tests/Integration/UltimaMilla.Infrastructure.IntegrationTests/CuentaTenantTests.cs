@@ -199,6 +199,10 @@ public sealed partial class PostgresTests
         var other = await service.ConsultarAsync(b.CodigoSeguimiento);
         Assert.Equal(EstadoEnvio.Admitido, own!.Estado);
         Assert.Equal(EstadoEnvio.Devuelto, other!.Estado);
+        Assert.Equal(TipoEvento.Admitir, own.Historial.First().Tipo);
+        Assert.Contains(other.Historial, h => h.Tipo == TipoEvento.DevolucionExitosa);
+        Assert.True(own.Bultos.Total > 0);
+        Assert.Equal(0, own.Bultos.Entregados);
         Assert.Null(await service.ConsultarAsync(Guid.NewGuid().ToString("N")));
         Assert.Null(await service.ConsultarAsync("invalid token"));
         var json = JsonSerializer.Serialize(own);

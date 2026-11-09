@@ -31,6 +31,25 @@ public static class RabbitMqServiceCollectionExtensions
         return services;
     }
 
+    // Para la Web: publicar mensajes puntuales que no salen de un cambio en la base (p. ej. el reenvío de un
+    // aviso desde el portal). Igual que la cola de fallidos, sin broker configurado no impide el arranque:
+    // registra un transporte que falla al publicar y el caso de uso lo informa como "no disponible".
+    public static IServiceCollection AgregarPublicacionDirecta(this IServiceCollection services, IConfiguration configuracion)
+    {
+        var opciones = configuracion.GetSection(OpcionesRabbitMq.Seccion).Get<OpcionesRabbitMq>() ?? new OpcionesRabbitMq();
+        if (string.IsNullOrWhiteSpace(opciones.Usuario) || string.IsNullOrWhiteSpace(opciones.Clave))
+        {
+            services.AddSingleton<ITransporteMensajes, TransporteNoConfigurado>();
+            return services;
+        }
+        opciones.Validar();
+        services.TryAddSingleton(opciones);
+        services.TryAddSingleton<ConexionRabbitMq>();
+        services.TryAddSingleton<TransporteRabbitMq>();
+        services.AddSingleton<ITransporteMensajes>(sp => sp.GetRequiredService<TransporteRabbitMq>());
+        return services;
+    }
+
     public static IServiceCollection AgregarTransporteRabbitMq(this IServiceCollection services, OpcionesRabbitMq opciones)
     {
         opciones.Validar();

@@ -46,14 +46,36 @@ public sealed class ProcesadorAvisos(ITenantResolver resolver, IRegistroIdempote
         }
     }
 
+    // Acepta los dos contratos que publica el outbox:
+    // - V1 (envio.evento.v1): cambios de estado del envío.
+    // - V2 (envio.evento.v2): intentos registrados por bulto y entrega parcial; agrega el resultado de cada bulto.
+    // Un V2 se entrega a los comercios en formato V1 (los mismos campos, sin el detalle de bultos): así los
+    // sistemas que ya reciben avisos no se rompen (requisito 36). Cualquier otra versión se descarta.
     private static EventoEnvioV1? Deserializar(MensajeRecibido mensaje)
     {
         EventoEnvioV1? evento;
-        try { evento = JsonSerializer.Deserialize<EventoEnvioV1>(mensaje.Cuerpo, Json); }
+        try
+        {
+            using var documento = JsonDocument.Parse(mensaje.Cuerpo);
+            var version = documento.RootElement.ValueKind == JsonValueKind.Object &&
+                documento.RootElement.TryGetProperty("version", out var campo) && campo.TryGetInt32(out var numero)
+                    ? numero : 0;
+            evento = version switch
+            {
+                EventoEnvioV1.VersionContrato => documento.Deserialize<EventoEnvioV1>(Json),
+                EventoEnvioV2.VersionContrato => documento.Deserialize<EventoEnvioV2>(Json) is { Bultos: not null } v2
+                    ? ComoV1(v2) : null,
+                _ => null
+            };
+        }
         catch (JsonException) { return null; }
         if (evento is null || evento.Version != 1 || evento.MensajeId == Guid.Empty || evento.OperadorId == Guid.Empty ||
             evento.CuentaComercialId == Guid.Empty || evento.EnvioId == Guid.Empty) return null;
         // El message-id de AMQP es obligatorio y debe coincidir con el del contenido.
         return Guid.TryParse(mensaje.MensajeId, out var id) && id == evento.MensajeId ? evento : null;
     }
+
+    private static EventoEnvioV1 ComoV1(EventoEnvioV2 v2) => new(v2.MensajeId, EventoEnvioV1.VersionContrato,
+        v2.OperadorId, v2.CuentaComercialId, v2.EnvioId, v2.EventoId, v2.TipoEvento, v2.Origen, v2.EstadoAnterior,
+        v2.EstadoNuevo, v2.OcurridoEn, v2.IdOperacion);
 }

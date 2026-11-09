@@ -4,12 +4,14 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Envios.CrearEnvio;
+using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
 using UltimaMilla.Application.Tarifas;
 using UltimaMilla.Application.Tenancy;
@@ -56,6 +58,17 @@ builder.Services.AddSerilog((services, configuration) =>
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks()
     .AddCheck<PostgresHealthCheck>("postgresql", tags: ["ready"], timeout: TimeSpan.FromSeconds(3));
+
+// Detrás de Traefik: esquema/host/IP reales solo desde la red confiable (ForwardedHeaders:RedConfiable).
+builder.Services.AgregarCabecerasReenviadas();
+
+// Claves de Data Protection (cookies, antiforgery): en una ruta persistente para que sobrevivan a reinicios.
+var rutaClaves = builder.Configuration["DataProtection:RutaClaves"];
+if (string.IsNullOrWhiteSpace(rutaClaves) && builder.Environment.IsDevelopment())
+    rutaClaves = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UltimaMilla", "claves-dp");
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("UltimaMilla");
+if (!string.IsNullOrWhiteSpace(rutaClaves))
+    dataProtection.PersistKeysToFileSystem(Directory.CreateDirectory(rutaClaves));
 // Enums como texto en la API.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -106,10 +119,14 @@ builder.Services.AddSignalR()
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) => options
     .UseNpgsql(builder.Configuration.GetConnectionString("UltimaMilla"))
-    .AddInterceptors(sp.GetRequiredService<PublicarCambiosInterceptor>()));
+    .AddInterceptors(sp.GetRequiredService<PublicarCambiosInterceptor>(),
+        sp.GetRequiredService<InvalidarSeguimientoInterceptor>()));
 
 // Cola de fallidos (avisos.dlq) para /backoffice/fallidos. Clave: RabbitMq__Clave (variable de entorno).
 builder.Services.AgregarColaFallidos(builder.Configuration);
+// Reenvío de avisos fallidos desde el portal del comercio: publica directo en la cola (no cambia la base).
+builder.Services.AgregarPublicacionDirecta(builder.Configuration);
+builder.Services.AddScoped<ReenviarAvisoHandler>();
 
 builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
@@ -122,6 +139,9 @@ builder.Services.AgregarConfiguracionVersionada();
 // Caché del tarifario y del seguimiento (ADR-004).
 builder.Services.AgregarCacheUltimaMilla(builder.Configuration.GetConnectionString("Redis"),
     builder.Configuration.GetSection("Cache").Get<CacheOpciones>());
+
+// Seguimiento público: limitación de tasa por IP contra la enumeración de envíos.
+builder.Services.AgregarLimitesSeguimiento(builder.Configuration);
 
 var app = builder.Build();
 app.Services.GetRequiredService<EstadoSincronizaciones>().Iniciar();
@@ -147,6 +167,12 @@ app.UseSerilogRequestLogging(options =>
         new LogEventProperty("Elapsed", new ScalarValue(elapsed))
     ];
 });
+if (string.IsNullOrWhiteSpace(rutaClaves))
+    app.Logger.LogWarning("DataProtection:RutaClaves no está configurada: las claves de las cookies se pierden al reiniciar.");
+
+// HTTPS lo termina Traefik en AWS: primero se toma el esquema/IP reales de X-Forwarded-*.
+app.UseForwardedHeaders();
+app.UsarCabecerasSeguras();
 app.UseCors();
 app.UseAuthentication();
 
@@ -171,9 +197,15 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
+// PWA del repartidor: la publicación se copia a wwwroot/repartidor (Dockerfile de Web), fuera del manifiesto
+// de MapStaticAssets, por eso se sirve con UseStaticFiles (solo bajo /repartidor, para no tapar a MapStaticAssets).
+// Las rutas internas de la PWA caen en su index.html.
+app.UseWhen(c => c.Request.Path.StartsWithSegments("/repartidor"), pwa => pwa.UseStaticFiles(StaticFilesPwa.Opciones()));
 app.MapStaticAssets();
+app.MapFallbackToFile("/repartidor/{*ruta:nonfile}", "repartidor/index.html");
 app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
@@ -183,17 +215,23 @@ app.MapHealthChecks("/live", new HealthCheckOptions { Predicate = _ => false }).
 app.MapHealthChecks("/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 app.MapHealthChecks("/health").AllowAnonymous();
 
-// Seguimiento público (sin login).
+// Seguimiento público (sin login). La página del destinatario es /seguimiento/{token} (Pages/Seguimiento.razor).
 app.MapGet("/api/seguimiento/{token}", async (string token, ISeguimientoPublico seguimiento, CancellationToken ct) =>
-    await seguimiento.ConsultarAsync(token, ct) is { } envio ? Results.Ok(envio) : Results.NotFound());
+        await seguimiento.ConsultarAsync(token, ct) is { } envio ? Results.Ok(envio) : Results.NotFound())
+    .RequireRateLimiting(SeguimientoSeguro.PoliticaTasa);
 
 if (app.Environment.IsDevelopment())
 {
     // Endpoints de prueba (solo desarrollo).
     var dev = app.MapGroup("/dev");
 
-    dev.MapPost("/datos-demo", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
-        Results.Ok(await DatosDemo.CrearAsync(options, ct)));
+    // Dos operadores con configuración distinta (EscenarioDemo); /datos-demo-pwa conserva el operador único para la PWA.
+    // Cuerpo opcional {"contrasena": "..."}: sin él se usa la clave por defecto (solo local); en un servidor público
+    // sembrar-demo.sh manda una clave aleatoria que no se devuelve en la respuesta.
+    dev.MapPost("/datos-demo", async (DbContextOptions<AppDbContext> options, SolicitudDatosDemo? solicitud, CancellationToken ct) =>
+        solicitud?.Contrasena is { Length: < SolicitudDatosDemo.LargoMinimo }
+            ? Results.BadRequest(new { error = $"La contraseña debe tener al menos {SolicitudDatosDemo.LargoMinimo} caracteres." })
+            : Results.Ok(await EscenarioDemo.CrearAsync(options, solicitud?.Contrasena, ct)));
 
     dev.MapPost("/datos-demo-pwa", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
         Results.Ok(await DatosDemo.CrearAsync(options, ct, incluirVisitaParcial: true)));

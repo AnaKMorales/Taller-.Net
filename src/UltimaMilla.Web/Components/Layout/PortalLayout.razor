@@ -1,0 +1,33 @@
+@* Layout del portal del comercio (Blazor, renderizado estático en el servidor).
+   Mismo encabezado y estilos que el backoffice, para que el usuario no note el cambio de tecnología. *@
+@inherits LayoutComponentBase
+
+<HeadContent>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/css/sitio.css" />
+</HeadContent>
+
+<header>
+    <strong>UltimaMilla</strong>
+    <NavLink href="/portal" Match="NavLinkMatch.All" ActiveClass="activo">Mis envíos</NavLink>
+    <NavLink href="/envios/nuevo" ActiveClass="activo">Nuevo envío</NavLink>
+    <NavLink href="/portal/avisos" ActiveClass="activo">Avisos</NavLink>
+    @if (HttpContext?.User.Identity?.IsAuthenticated == true)
+    {
+        <span class="usuario">
+            @HttpContext.User.Identity.Name
+            @* Lo atiende la Razor Page de login, el token antiforgery es compartido entre Blazor y Razor Pages. *@
+            <form method="post" action="/login?handler=Salir" data-enhance="false">
+                <AntiforgeryToken />
+                <button type="submit">Salir</button>
+            </form>
+        </span>
+    }
+</header>
+<main>
+    @Body
+</main>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+}

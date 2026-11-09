@@ -325,7 +325,8 @@ Endpoints para probarla (los `/dev` existen solo en Development, porque todavía
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
-| POST | `/dev/datos-demo` | Crea un operador con tarifario, un envío normal y uno con incidencia y aviso fallido; devuelve el operador, el email del administrador y el token |
+| POST | `/dev/datos-demo` | Crea **dos operadores con configuración distinta** (zonas, franjas, tarifas, reglas de entrega y motivos de no entrega). Cada uno deja un repartidor con una hoja de ruta con una visita pendiente, una entrega parcial por bulto y un envío no entregado con aviso fallido. Devuelve `operadores[]` con las cuentas (administrador, comercio, repartidor), los tokens de seguimiento y un resumen de lo que tiene de distinto cada uno. Sin cuerpo usa la clave de desarrollo `Demo1234!` (y la devuelve en `contrasena`); con `{"contrasena": "..."}` (mínimo 12 caracteres) usa esa clave y no la devuelve |
+| POST | `/dev/datos-demo-pwa` | Un solo operador con una visita parcial pendiente, para probar la PWA |
 | GET | `/api/seguimiento/{token}` | Seguimiento público, cacheado 30 s |
 | GET | `/dev/tarifario/{operadorId}` | Tarifario vigente, cacheado hasta 30 min |
 | POST | `/dev/tarifario/{operadorId}/invalidar` | Invalida el tarifario del operador |
@@ -335,7 +336,8 @@ Endpoints para probarla (los `/dev` existen solo en Development, porque todavía
 
 Con la Web levantada (`./scripts/Start-Web.ps1`, que también aplica las migraciones), crear datos con
 `POST /dev/datos-demo` e ingresar en `http://localhost:5243/login` con el `emailAdministrador` o el
-`emailComercio` y la `contrasena` que devuelve.
+`emailComercio` y la `contrasena` de cualquiera de los dos operadores de `operadores[]`.
+En AWS: `deploy/aws/sembrar-demo.sh` (ver `deploy/terraform/README.md`).
 
 Hay un solo login para todos los roles, con email y contraseña. La contraseña se guarda como hash
 (`PasswordHasher` de ASP.NET Identity, PBKDF2 con sal) en la columna `ContrasenaHash` de `Usuarios`,

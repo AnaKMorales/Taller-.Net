@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Infrastructure.Cache;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -32,6 +33,37 @@ public sealed partial class PostgresTests
         Assert.Equal(TipoAjuste.Recargo, Assert.Single(linea.Ajustes).Tipo);
         // Otro operador no ve este tarifario aunque comparta la base.
         Assert.Null(await tarifario.ObtenerAsync(Guid.NewGuid()));
+    }
+
+    [PostgresFact]
+    public async Task UnCambioDelEnvioInvalidaSuSeguimientoCacheadoAlInstante()
+    {
+        var escenario = Escenario();
+        var metricas = new CacheMetricas();
+        var cache = new CacheSegura(new MemoryDistributedCache(Microsoft.Extensions.Options.Options.Create(new MemoryDistributedCacheOptions())),
+            metricas, NullLogger<CacheSegura>.Instance, TimeProvider.System);
+        // Duración larga a propósito: si el estado nuevo se ve, es por la invalidación y no por el vencimiento.
+        var seguimiento = new SeguimientoPublicoCacheado(new SeguimientoPublico(Options()), cache,
+            new CacheOpciones { DuracionSeguimiento = TimeSpan.FromHours(1) });
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_testConnection)
+            .AddInterceptors(new InvalidarSeguimientoInterceptor(cache)).Options;
+
+        await using var db = new AppDbContext(options, TenantActual.ParaOperador(escenario.Operador.Id));
+        db.Add(escenario.Envio);
+        await db.SaveChangesAsync();
+        var token = escenario.Envio.CodigoSeguimiento;
+
+        Assert.Equal(EstadoEnvio.Admitido, (await seguimiento.ConsultarAsync(token))!.Estado);
+        Assert.Equal(EstadoEnvio.Admitido, (await seguimiento.ConsultarAsync(token))!.Estado);
+
+        escenario.Recibir();
+        await db.SaveChangesAsync();
+
+        var actualizado = await seguimiento.ConsultarAsync(token);
+        Assert.Equal(EstadoEnvio.EnDeposito, actualizado!.Estado);
+        Assert.Equal(TipoEvento.Validar, actualizado.Historial[^1].Tipo);
+        // Fallo (primera lectura), acierto (segunda) y fallo otra vez tras la invalidación.
+        Assert.Equal(new ResumenCache("seguimiento", 1, 2, 0, 0.3333), metricas.Resumen().Single());
     }
 
     [PostgresFact]

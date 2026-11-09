@@ -1,0 +1,164 @@
+@page "/backoffice/configuracion/reglas"
+@model UltimaMilla.Web.Pages.Backoffice.Configuracion.ReglasModel
+@using UltimaMilla.Domain.Configuracion
+@using UltimaMilla.Domain.Envios
+@{
+    ViewData["Title"] = "Reglas operativas";
+    ViewData["Seccion"] = "reglas";
+    Layout = "_Layout";
+    var f = Model.Formulario;
+}
+
+<h1>Reglas operativas</h1>
+<p class="nota">Cada cambio publica una <strong>versión nueva</strong>, que rige desde el momento de publicarla.
+    Los envíos ya admitidos conservan las reglas con las que se admitieron.</p>
+
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<h2>Versiones</h2>
+<table>
+    <thead><tr><th>Versión</th><th>Rige desde</th><th>Estado</th><th>Usada por envíos</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var v in Model.Versiones)
+        {
+            <tr>
+                <td>@v.Version</td>
+                <td>@Textos.Fecha(v.VigenteDesde)</td>
+                <td>@Model.EstadoVersion(v)</td>
+                <td>@(v.EnUso ? "Sí" : "No")</td>
+                <td><a href="?BaseId=@v.Id">Partir de esta versión</a></td>
+            </tr>
+        }
+        @if (Model.Versiones.Count == 0)
+        {
+            <tr><td colspan="5" class="vacio">Todavía no hay reglas cargadas.</td></tr>
+        }
+    </tbody>
+</table>
+
+<h2>Nueva versión</h2>
+@if (Model.Base is not null)
+{
+    <p class="nota">El formulario parte de la versión @Model.Base.Version.Version. Cambiá lo necesario y publicá.</p>
+}
+
+<form method="post" class="formulario">
+    <input type="hidden" asp-for="UltimaVersionEsperada" />
+    <input type="hidden" asp-for="BaseId" />
+
+    <fieldset>
+        <legend>Intentos de entrega</legend>
+        <label>Máximo de intentos <input asp-for="Formulario.MaxIntentosEntrega" min="1" /></label>
+        <label>Horas entre intentos <input asp-for="Formulario.PlazoEntreIntentosHoras" min="0" /></label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Prueba de entrega exigida</legend>
+        @foreach (var tipo in Enum.GetValues<TipoPrueba>())
+        {
+            <label class="opcion">
+                <input type="checkbox" name="Formulario.TiposPrueba" value="@tipo" checked="@f.TiposPrueba.Contains(tipo)" />
+                @Prueba(tipo)
+            </label>
+        }
+    </fieldset>
+
+    <fieldset>
+        <legend>Plazos comprometidos por modalidad</legend>
+        <table>
+            <thead><tr><th>Modalidad</th><th>Se ofrece</th><th>Plazo (horas)</th><th>Hora de corte</th></tr></thead>
+            <tbody>
+                @for (var i = 0; i < f.Plazos.Count; i++)
+                {
+                    <tr>
+                        <td>
+                            @(f.Plazos[i].Modalidad == ModalidadServicio.Urgente ? "Urgente" : "Estándar")
+                            <input type="hidden" asp-for="Formulario.Plazos[i].Modalidad" />
+                        </td>
+                        <td><input asp-for="Formulario.Plazos[i].Ofrecer" /></td>
+                        <td><input asp-for="Formulario.Plazos[i].Horas" min="1" /></td>
+                        <td><input type="time" asp-for="Formulario.Plazos[i].HoraCorte" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </fieldset>
+
+    <fieldset>
+        <legend>Motivos de no entrega</legend>
+        <table>
+            <thead>
+                <tr><th>Nombre</th><th>Descripción</th><th>Responsable</th><th>Exige evidencia</th>
+                    <th>Permite reintentar</th><th>Activo</th><th>Quitar</th></tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < f.Motivos.Count; i++)
+                {
+                    <tr>
+                        <td><input asp-for="Formulario.Motivos[i].Nombre" required /></td>
+                        <td><input asp-for="Formulario.Motivos[i].Descripcion" /></td>
+                        <td>
+                            <select asp-for="Formulario.Motivos[i].Responsable">
+                                @foreach (var r in Enum.GetValues<Responsable>())
+                                {
+                                    <option value="@r">@ResponsableTexto(r)</option>
+                                }
+                            </select>
+                        </td>
+                        <td><input asp-for="Formulario.Motivos[i].RequiereEvidencia" /></td>
+                        <td><input asp-for="Formulario.Motivos[i].EsReintentable" /></td>
+                        <td><input asp-for="Formulario.Motivos[i].Activo" /></td>
+                        <td><input asp-for="Formulario.Motivos[i].Quitar" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="nota">Un motivo que ya se usó conviene desactivarlo en lugar de quitarlo.</p>
+        <button type="submit" asp-page-handler="AgregarMotivo" formnovalidate>Agregar motivo</button>
+    </fieldset>
+
+    <fieldset>
+        <legend>Devolución</legend>
+        <label>Días en depósito antes de devolver <input asp-for="Formulario.DiasEnDeposito" min="0" /></label>
+        <label>Plazo máximo de devolución (días) <input asp-for="Formulario.PlazoMaximoDevolucionDias" min="0" /></label>
+        <label class="opcion"><input asp-for="Formulario.DevolverAlAgotarIntentos" /> Devolver al agotar los intentos</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Entrega parcial de bultos</legend>
+        <label class="opcion"><input asp-for="Formulario.PermiteEntregaParcial" /> Se admite entregar solo parte de los bultos</label>
+        <label>Qué pasa con los bultos pendientes
+            <select asp-for="Formulario.AccionPendientes">
+                <option value="@AccionBultosPendientes.NuevaVisitaSinRecargo">Nueva visita sin recargo</option>
+                <option value="@AccionBultosPendientes.NuevaVisitaConRecargo">Nueva visita con recargo</option>
+                <option value="@AccionBultosPendientes.DevolverAlComercio">Devolver al comercio</option>
+            </select>
+        </label>
+        <label>Recargo por nueva visita ($, solo si es con recargo)
+            <input asp-for="Formulario.ImporteRecargoNuevaVisita" inputmode="decimal" size="8" />
+        </label>
+    </fieldset>
+
+    <div><button type="submit" asp-page-handler="Publicar">Publicar nueva versión</button></div>
+</form>
+
+@functions {
+    private static string Prueba(TipoPrueba tipo) => tipo switch
+    {
+        TipoPrueba.Firma => "Firma del receptor",
+        TipoPrueba.Foto => "Fotografía",
+        TipoPrueba.Documento => "Documento del receptor",
+        TipoPrueba.Nombre => "Nombre del receptor",
+        _ => tipo.ToString()
+    };
+
+    private static string ResponsableTexto(Responsable r) => r switch
+    {
+        Responsable.Destinatario => "Destinatario",
+        Responsable.Comercio => "Comercio",
+        Responsable.Operador => "Operador",
+        Responsable.FuerzaMayor => "Fuerza mayor",
+        _ => r.ToString()
+    };
+}

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Demostración de webhooks firmados: un aviso exitoso, uno con reintentos y uno que termina en fallidos.
-# Requisitos: Postgres, RabbitMQ, worker y receptor corriendo (docker compose up, ver docs/webhooks-demo.md)
-# y la Web en Development con la base migrada (scripts/Start-Web.ps1). Usa curl y python3.
+# Requisitos: Postgres, RabbitMQ, worker y receptor corriendo (con WEBHOOKS_PERMITIR_DESTINOS_PRIVADOS=true; ver docs/webhooks-demo.md)
+# y la Web en Development (/dev/datos-demo): la del compose con WEB_ENTORNO=Development, o scripts/Start-Web.ps1. Usa curl y python3.
 set -euo pipefail
 
-WEB=${WEB:-http://127.0.0.1:5243}                       # la Web (desde tu máquina)
+WEB=${WEB:-http://127.0.0.1:${WEB_PORT:-8080}}          # la Web (desde tu máquina): la del compose en 8080; con Start-Web.ps1, WEB=http://127.0.0.1:5243
 RECEPTOR=${RECEPTOR:-http://127.0.0.1:58080}            # el receptor, para mirar /recibidos
 RECEPTOR_INTERNO=${RECEPTOR_INTERNO:-http://receptor:8080}  # cómo lo ve el worker dentro de Docker
 ESPERA_MAXIMA=${ESPERA_MAXIMA:-240}                     # segundos: 5 + 30 + 120 de esperas + margen
@@ -14,8 +14,8 @@ json() { python3 -c "import sys,json;print(json.load(sys.stdin)$1)"; }
 
 echo "1) Creando operador demo y entrando como administrador..."
 DEMO=$(curl -fsS -X POST "$WEB/dev/datos-demo")
-EMAIL=$(echo "$DEMO" | json "['emailAdministrador']")
-CLAVE=$(echo "$DEMO" | json "['contrasena']")
+EMAIL=$(echo "$DEMO" | json "['operadores'][0]['emailAdministrador']")   # el primer operador del escenario
+CLAVE=$(echo "$DEMO" | json "['operadores'][0]['contrasena']")
 TOKEN=$(curl -fsS -c "$JAR" "$WEB/login" | grep -o 'name="__RequestVerificationToken"[^>]*value="[^"]*"' | sed 's/.*value="//;s/"$//')
 curl -fsS -b "$JAR" -c "$JAR" -o /dev/null -X POST "$WEB/login" \
   --data-urlencode "__RequestVerificationToken=$TOKEN" --data-urlencode "Email=$EMAIL" --data-urlencode "Contrasena=$CLAVE"

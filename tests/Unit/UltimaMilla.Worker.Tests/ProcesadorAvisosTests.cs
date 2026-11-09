@@ -151,6 +151,42 @@ public sealed class ProcesadorAvisosTests
         Assert.Empty(_registro.Llamadas);
     }
 
+    // ---- Contrato V2 (entrega por bulto) ----
+
+    [Fact]
+    public async Task UnEventoV2SeProcesaYLlegaAlManejadorEnFormatoV1()
+    {
+        var v2 = new EventoEnvioV2(Guid.NewGuid(), EventoEnvioV2.VersionContrato, Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), "EntregaParcial", "AppRepartidor", "EnTransito", "EntregadoParcialmente",
+            DateTime.UtcNow, Guid.NewGuid(),
+            [new ResultadoBultoV2(Guid.NewGuid(), "Entregado", null, [Guid.NewGuid()]),
+             new ResultadoBultoV2(Guid.NewGuid(), "NoEntregado", Guid.NewGuid(), [])]);
+        var mensaje = new MensajeRecibido(v2.MensajeId.ToString(), EventoEnvioV2.TipoMensaje, JsonSerializer.Serialize(v2, Json), 0);
+
+        Assert.Equal(ResultadoConsumo.Confirmar, await Crear().ManejarAsync(mensaje));
+
+        var (recibido, tenant) = Assert.Single(_manejador.Recibidos);
+        Assert.Equal(new EventoEnvioV1(v2.MensajeId, EventoEnvioV1.VersionContrato, v2.OperadorId, v2.CuentaComercialId,
+            v2.EnvioId, v2.EventoId, v2.TipoEvento, v2.Origen, v2.EstadoAnterior, v2.EstadoNuevo, v2.OcurridoEn,
+            v2.IdOperacion), recibido);
+        Assert.Equal(v2.CuentaComercialId, tenant.CuentaComercialId);
+        Assert.Equal((v2.MensajeId, "avisos"), Assert.Single(_registro.Llamadas));
+    }
+
+    [Fact]
+    public async Task UnEventoV2DuplicadoNoSeVuelveAProcesar()
+    {
+        var v2 = new EventoEnvioV2(Guid.NewGuid(), EventoEnvioV2.VersionContrato, Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), "EntregaExitosa", "AppRepartidor", "EnTransito", "Entregado",
+            DateTime.UtcNow, Guid.NewGuid(), []);
+        var mensaje = new MensajeRecibido(v2.MensajeId.ToString(), EventoEnvioV2.TipoMensaje, JsonSerializer.Serialize(v2, Json), 0);
+        var procesador = Crear();
+
+        Assert.Equal(ResultadoConsumo.Confirmar, await procesador.ManejarAsync(mensaje));
+        Assert.Equal(ResultadoConsumo.Confirmar, await procesador.ManejarAsync(mensaje with { Intentos = 1 }));
+        Assert.Single(_manejador.Recibidos);
+    }
+
     // ---- Mensajes inválidos / tenant inválido ----
 
     [Fact]
@@ -171,7 +207,8 @@ public sealed class ProcesadorAvisosTests
             new MensajeRecibido(bueno.MensajeId.ToString(), "t", "esto no es json", 0),
             new MensajeRecibido(bueno.MensajeId.ToString(), "t", "null", 0),
             new MensajeRecibido(bueno.MensajeId.ToString(), "t", "{}", 0),
-            Mensaje(Evento(version: 2)),
+            Mensaje(Evento(version: 2)),                   // dice ser V2 pero no trae los bultos
+            Mensaje(Evento(version: 3)),                   // versión desconocida
             Mensaje(Evento(operador: Guid.Empty)),
             Mensaje(Evento(cuenta: Guid.Empty)),
             Mensaje(bueno, messageId: null),              // sin message-id

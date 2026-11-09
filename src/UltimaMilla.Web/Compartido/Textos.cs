@@ -16,7 +16,8 @@ public static class Textos
         [EstadoEnvio.Reprogramado] = "Reprogramado",
         [EstadoEnvio.EnDevolucion] = "En devolución",
         [EstadoEnvio.Devuelto] = "Devuelto",
-        [EstadoEnvio.Extraviado] = "Extraviado"
+        [EstadoEnvio.Extraviado] = "Extraviado",
+        [EstadoEnvio.EntregadoParcialmente] = "Entregado parcialmente"
     };
 
     public static readonly IReadOnlyDictionary<TipoEvento, string> Eventos = new Dictionary<TipoEvento, string>
@@ -34,7 +35,8 @@ public static class Textos
         [TipoEvento.Devolver] = "Inicio de devolución",
         [TipoEvento.Cancelar] = "Cancelación",
         [TipoEvento.DevolucionExitosa] = "Devolución completada",
-        [TipoEvento.EventoAnomalo] = "Extravío"
+        [TipoEvento.EventoAnomalo] = "Extravío",
+        [TipoEvento.EntregaParcial] = "Entrega parcial"
     };
 
     public static string Estado(EstadoEnvio? estado) => estado is { } e ? Estados[e] : "—";

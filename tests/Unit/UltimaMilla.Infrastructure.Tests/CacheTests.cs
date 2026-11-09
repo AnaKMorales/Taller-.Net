@@ -161,7 +161,11 @@ public sealed class CacheTests
         {
             Llamadas++;
             return Task.FromResult(Existe
-                ? new SeguimientoPublicoDto(EstadoEnvio.EnTransito, Ahora, Ahora.AddHours(-1), Ahora.AddHours(1))
+                ? new SeguimientoPublicoDto("Operador", EstadoEnvio.EnTransito, Ahora,
+                    new DateTimeOffset(Ahora.AddHours(-1)), new DateTimeOffset(Ahora.AddHours(1)),
+                    new AvanceBultosDto(3, 2, 0),
+                    [new HitoSeguimientoDto(TipoEvento.Admitir, EstadoEnvio.Admitido, Ahora.AddDays(-1)),
+                     new HitoSeguimientoDto(TipoEvento.IniciarEntrega, EstadoEnvio.EnTransito, Ahora.AddHours(-2))])
                 : null);
         }
     }

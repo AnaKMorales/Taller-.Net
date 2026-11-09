@@ -1,0 +1,17 @@
+# Ruta estática hacia Web (provider "file": Traefik no necesita el socket de Docker).
+# Local: HTTP sin certificado. El dominio sale de la variable DOMINIO del contenedor (localhost por defecto).
+# Los WebSockets (SignalR, Blazor Server) y las cabeceras X-Forwarded-* los maneja Traefik por defecto:
+# reemplaza las X-Forwarded-* que traiga el cliente y agrega las propias (For, Proto, Host, Port).
+http:
+  routers:
+    web:
+      rule: 'Host(`{{ default "localhost" (env "DOMINIO") }}`)'
+      entryPoints:
+        - web
+      service: web
+  services:
+    web:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://web:8080"

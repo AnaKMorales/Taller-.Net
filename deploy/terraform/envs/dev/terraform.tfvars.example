@@ -1,0 +1,13 @@
+# Copiar a terraform.tfvars (ignorado por Git) y completar. No hay secretos aqui: los genera Terraform.
+correo_acme = "equipo@example.com" # correo real: Lets Encrypt rechaza example.com
+
+# Dominio propio (opcional). Si se omite se usa <ip-con-guiones>.sslip.io, sin comprar nada.
+# dominio = "ultimamilla.example.com"
+
+# Opcionales (valores por defecto entre parentesis)
+# region                  = "us-east-2"   # la SCP de la cuenta solo permite us-east-2
+# tipo_instancia          = "c7i-flex.large"   # m7i-flex.large (8 GB) si hace falta mas memoria; deben ser x86_64
+# presupuesto_mensual_usd = 40
+# habilitar_cicd         = true           # false si la SCP de la cuenta niega crear/listar proveedores OIDC (sin pipeline)
+# crear_proveedor_oidc    = true          # false si la cuenta ya tiene el proveedor de GitHub (solo con habilitar_cicd)
+# zona_route53_id         = ""            # id de la zona para crear el registro A automaticamente
