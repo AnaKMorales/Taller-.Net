@@ -10,6 +10,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
 using UltimaMilla.Application.Abstractions;
+using UltimaMilla.Application.Despacho;
 using UltimaMilla.Application.Envios.CrearEnvio;
 using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
@@ -133,6 +134,7 @@ builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();
+builder.Services.AddScoped<IDespachoPendientes, DespachoPendientes>();
 builder.Services.AgregarRegistroIntentos();
 builder.Services.AgregarConfiguracionVersionada();
 

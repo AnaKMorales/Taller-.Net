@@ -287,7 +287,7 @@
     },
     {
       "id": 9,
-      "title": "Aciertos de caché",
+      "title": "Tasa de aciertos por caché",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -308,8 +308,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum(rate(ultimamilla_cache_aciertos_total[5m])) / clamp_min(sum(rate(ultimamilla_cache_aciertos_total[5m])) + sum(rate(ultimamilla_cache_fallos_total[5m])), 0.000001)",
-          "legendFormat": "{{cola}}{{resultado}}{{dependencia}}"
+          "expr": "100 * (sum by (cache) (rate(ultimamilla_cache_aciertos_total[5m])) or 0 * sum by (cache) (rate(ultimamilla_cache_fallos_total[5m]))) / clamp_min((sum by (cache) (rate(ultimamilla_cache_aciertos_total[5m])) + sum by (cache) (rate(ultimamilla_cache_fallos_total[5m]))) or sum by (cache) (rate(ultimamilla_cache_aciertos_total[5m])) or sum by (cache) (rate(ultimamilla_cache_fallos_total[5m])), 0.000001)",
+          "legendFormat": "{{cache}}"
         }
       ],
       "options": {
@@ -422,6 +422,28 @@
       }
     },
     {
+      "id": 14,
+      "title": "Aciertos y fallos por caché en 5 minutos",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (cache) (increase(ultimamilla_cache_aciertos_total[5m]))",
+          "legendFormat": "{{cache}} · aciertos"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (cache) (increase(ultimamilla_cache_fallos_total[5m]))",
+          "legendFormat": "{{cache}} · fallos"
+        }
+      ]
+    },
+    {
       "id": 13,
       "title": "Logs de Web y Worker",
       "type": "logs",
@@ -432,7 +454,7 @@
       "gridPos": {
         "w": 24,
         "x": 0,
-        "y": 32,
+        "y": 40,
         "h": 10
       },
       "targets": [

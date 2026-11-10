@@ -1,6 +1,6 @@
 # Seguimiento del cambio de requerimientos
 
-Actualizado: 03/11/2026. Equipo de tres integrantes, Grupo 8.
+Actualizado: 09/11/2026. Equipo de tres integrantes, Grupo 8.
 
 ## Alcance y fuentes
 
@@ -19,12 +19,12 @@ También se exige un ADR que explique los componentes modificados y las dificult
 
 | Requisito | Cambio necesario | Estado |
 | --- | --- | --- |
-| 31 | Estado por bulto, estado del envío derivado y entrega parcial; transiciones declarativas en ambos niveles | El núcleo registra entregas mixtas, visitas sucesivas y devolución de pendientes. Continúa integración de aplicaciones |
-| 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | La PWA registra por bulto mediante selección o lector de código tipo teclado, captura pruebas y sincroniza con el endpoint autenticado usando la versión e identificador originales. Entrega offline verificada en navegador y reenvío y conflicto cubiertos con el cliente real y PostgreSQL |
-| 33 | Reglas versionadas para permitir parciales y decidir nueva visita con/sin recargo o devolución al comercio | Núcleo, configuración y persistencia aplican las tres opciones; recargo fijo registrado al despacho, separado de la tarifa original. Continúan interfaces e integración |
-| 34 | Asignar bultos pendientes a una nueva hoja de ruta | Domain y persistencia asignan solo pendientes, con composición y capacidad por parada; la descarga autenticada de hoja ya los incluye. Continúan API de asignación e integración con aplicaciones |
-| 35 | Seguimiento con cantidades entregadas y totales, sin identificadores internos | Pendiente adaptar consulta, contrato y presentación |
-| 36 | Eventos de bulto y avisos versionados compatibles con receptores anteriores | Outbox V2 con resultados por bulto para el método nuevo; V1 se mantiene en la firma tradicional. Pendientes Worker, enrutamiento/compatibilidad de webhooks y recepción real |
+| 31 | Estado por bulto, estado del envío derivado y entrega parcial; transiciones declarativas en ambos niveles | Implementado en el servidor. Pendiente comprobar el recorrido completo con todas las aplicaciones |
+| 32 | Escanear bultos entregados, registrar motivo para los no entregados y asociar evidencias a los entregados; operación offline y conflictos por bulto | La PWA registra por bulto, conserva la visita offline y sincroniza. El servidor devuelve el diagnóstico por bulto. Falta presentarlo en la PWA |
+| 33 | Reglas versionadas para permitir parciales y decidir nueva visita con/sin recargo o devolución al comercio | Formulario y backend versionados. La API de despacho puede iniciar la devolución de pendientes. El recargo se devenga al despachar y se conserva la tarifa original |
+| 34 | Asignar bultos pendientes a una nueva hoja de ruta | API para crear ruta, programar y asignar solo los pendientes. La hoja del repartidor ya devuelve la composición de la visita despachada. Falta conectar la operación en backoffice |
+| 35 | Seguimiento con cantidades entregadas y totales, sin identificadores internos | API y pantalla pública muestran el avance. Falta validarlo dentro del ensayo completo |
+| 36 | Eventos de bulto y avisos versionados compatibles con receptores anteriores | El outbox publica V1 y V2. El Worker consume ambos y envía V1 a los comercios actuales. Falta ofrecer una salida V2 con detalle por bulto y comprobar su recepción |
 
 La infraestructura de EF Core, aislamiento, concurrencia y outbox se reutilizará,
 pero se debe extender y verificar para los nuevos registros. Tener esa base no
@@ -70,17 +70,17 @@ Las fases 1 y 2 pueden avanzar en paralelo. No dejar todo el diseño del cambio 
 - Recargo fijo configurable por visita, capturado al asignar y registrado al despachar:
   implementado; no es un cobro efectivo. Devolución limitada a pendientes implementada.
 - Históricos: se conservan sin inventar resultados, evidencias, precios o cargos anteriores.
-- Pendientes de coordinación: exposición de contratos, presentación de casos mixtos,
-  sincronización PWA y negociación de webhooks V2 con receptores existentes.
+- Pendientes de coordinación: acciones de despacho en backoffice, presentación del
+  conflicto por bulto en la PWA y salida V2 para receptores compatibles.
 
 El ADR sigue en curso hasta integrar y demostrar el recorrido completo.
 
 ## Aclaraciones adicionales del PDF
 
-- **Caché distribuida obligatoria**, también para equipos de tres. Ya hay Redis para
-  tarifario y seguimiento; quedan por revisar con sus responsables la invalidación
-  por eventos, la separación de claves y la exposición de métricas por caso de uso
-  en el tablero técnico. El fallback en memoria de desarrollo no reemplaza Redis.
+- **Caché distribuida obligatoria**, también para equipos de tres. Redis está disponible
+  para tarifario y seguimiento. El seguimiento se invalida tras confirmar los cambios.
+  El tablero separa tarifario y seguimiento y muestra los aciertos, fallos y tasa de aciertos
+  de cada caché. En desarrollo puede usarse el fallback en memoria.
 - Las **banderas de funcionalidad son opcionales** y distintas de las reglas operativas.
   Si se realizan, requieren al menos dos funcionalidades reales, administración de
   plataforma, activación por operador, propagación acotada, auditoría y aplicación

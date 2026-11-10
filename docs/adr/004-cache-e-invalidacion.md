@@ -51,9 +51,9 @@ La lógica vive en Infrastructure (`Cache/`) y los casos de uso usan los puertos
 
 `CacheMetricas` publica los contadores `ultimamilla.cache.aciertos`, `ultimamilla.cache.fallos` y
 `ultimamilla.cache.errores`, con la etiqueta `cache` (`tarifario` o `seguimiento`), en el Meter
-`UltimaMilla.Cache`. OpenTelemetry y Prometheus los pueden recoger sin cambios cuando se integre la
-observabilidad (5/11). Mientras tanto, la tasa de aciertos por caché se consulta en
-`GET /dev/cache/metricas`, disponible solo en Development.
+`UltimaMilla.Cache`. OpenTelemetry y Prometheus recogen los contadores. Grafana muestra
+aciertos, fallos y tasa de aciertos por caché. En Development también se pueden consultar
+en `GET /dev/cache/metricas`.
 
 ## Alternativas consideradas
 

@@ -69,6 +69,7 @@ pero no permiten una nueva visita con recargo sin importe. Debe definirse una nu
 para envíos nuevos; no se cambia retroactivamente la versión en uso ni se inventa un precio.
 Los envíos antiguos afectados requieren una decisión explícita de negocio para continuar.
 
-La migración se verifica en bases temporales. No se aplicó a la base de desarrollo.
-Continúan pendientes los endpoints de asignación/despacho/devolución y las integraciones
-de pantallas, PWA y Worker de sus responsables. El ADR-007 sigue en curso hasta la integración.
+La migración se verificó en bases temporales. La API de despacho ya permite asignar una
+nueva visita e iniciar una devolución con solo los pendientes. Queda conectar esas
+operaciones a backoffice y validar carga, despacho y cierre de devolución en el recorrido
+operativo. Ver [API de despacho](rutas-pendientes.md#api-de-despacho).

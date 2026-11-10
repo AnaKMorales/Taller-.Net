@@ -137,9 +137,12 @@ public sealed partial class PostgresTests
             foreach (var panel in tablero.RootElement.GetProperty("dashboard").GetProperty("panels").EnumerateArray())
             {
                 if (panel.GetProperty("type").GetString() != "timeseries") continue;
-                var expresion = panel.GetProperty("targets")[0].GetProperty("expr").GetString()!;
-                using var resultado = await consultas.GetAsync($"{prometheus}/api/v1/query?query={Uri.EscapeDataString(expresion)}");
-                Assert.True(resultado.IsSuccessStatusCode, expresion + " " + await resultado.Content.ReadAsStringAsync());
+                foreach (var consulta in panel.GetProperty("targets").EnumerateArray())
+                {
+                    var expresion = consulta.GetProperty("expr").GetString()!;
+                    using var resultado = await consultas.GetAsync($"{prometheus}/api/v1/query?query={Uri.EscapeDataString(expresion)}");
+                    Assert.True(resultado.IsSuccessStatusCode, expresion + " " + await resultado.Content.ReadAsStringAsync());
+                }
             }
         }
         finally

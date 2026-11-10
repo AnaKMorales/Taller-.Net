@@ -1,7 +1,7 @@
 # Visitas de bultos pendientes y capacidad
 
-Avance del requisito 34 del cambio de requerimientos. Fecha: 03/11/2026.
-Implementado en Domain, mapeos y persistencia, sin modificar Web, PWA ni Worker.
+Requisito 34 del cambio de requerimientos. Domain, persistencia y la API de despacho
+permiten programar una nueva visita y asignarle los pendientes.
 
 ## Flujo del núcleo
 
@@ -81,6 +81,33 @@ desde los valores actuales al migrar: no es posible recuperar medidas originales
 visita porque antes no se almacenaban. No se crean eventos ni se recalculan tarifas.
 La migración se probó en bases temporales, sin aplicarla a desarrollo en esta sesión.
 
-La [API de descarga de hoja de ruta](api-monitoreos.md) ya devuelve la composición
-de la visita actual al repartidor autenticado. Continúan pendientes la API de asignación
-y las conexiones de interfaz y sincronización de sus responsables.
+## API de despacho
+
+Las rutas están bajo `/api/despacho` y requieren sesión de administrador o despachador
+del operador. Las escrituras usan la cabecera `X-CSRF-TOKEN` obtenida en
+`GET /api/antiforgery`, con la misma sesión.
+
+| Operación | Entrada y resultado |
+| --- | --- |
+| `GET /envios/{envioId}/pendientes` | Devuelve versión del envío, política y recargo configurado, franjas de su zona, rutas abiertas con sus versiones y próximo orden, repartidores activos y vehículos del operador. |
+| `POST /rutas` | Recibe `repartidorId`, `vehiculoId` y `maxParadas`. Crea una ruta sin despachar y devuelve su versión. |
+| `POST /rutas/{rutaId}/pendientes` | Recibe `envioId`, `versionEsperadaEnvio`, `versionEsperadaRuta`, `orden`, `llegadaEstimada` y `programacion` con `franjaId`, `fecha`, `inicioLocal` y `finLocal`. Las tres horas con fecha llevan desfase explícito. Devuelve parada, versiones nuevas, IDs de bultos, peso, volumen y recargo previsto. |
+| `POST /envios/{envioId}/devolucion-pendientes` | Recibe `versionEsperadaEnvio` e inicia una devolución cuando la política o las reglas de reintentos lo permiten. Devuelve devolución, versión nueva y bultos. |
+
+La asignación guarda reprogramación, parada, composición, versiones y outbox en una sola
+operación. Una versión desactualizada o una capacidad insuficiente devuelve HTTP 409
+y deja el envío tal como estaba. Un recurso fuera del operador devuelve HTTP 403.
+La ruta queda preparada para carga y despacho. Una vez despachada, la
+[API de hoja de ruta](api-monitoreos.md) devuelve esa composición al repartidor.
+Queda conectar el formulario de backoffice y ensayar el recorrido operativo.
+
+## Verificación del backend
+
+Las pruebas de despacho usan PostgreSQL real. Dos asignaciones del mismo envío,
+sincronizadas antes del guardado, confirman una sola visita y sus dos eventos de
+reprogramación y asignación. La operación perdedora devuelve conflicto.
+
+Otra prueba invoca la API con una restricción temporal que fuerza el fallo de inserción
+del outbox. Comprueba que se conservan las versiones originales, el estado de los bultos
+y la cantidad de paradas y mensajes. Al retirar la restricción, la misma solicitud con
+las mismas versiones puede confirmarse.

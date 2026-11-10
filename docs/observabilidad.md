@@ -51,7 +51,7 @@ El SDK recoge tres grupos propios, además de las instrumentaciones HTTP:
 | --- | --- |
 | Tiempo medio, p95 y p99 HTTP | Histograma http.server.request.duration de ASP.NET Core, con límites explícitos de 5 ms a 10 s. Incluye cantidad, suma y buckets. |
 | Errores HTTP | Respuestas 5xx sobre el total de peticiones. Se calcula en ventanas de cinco minutos. |
-| Caché | Meter UltimaMilla.Cache: contadores de aciertos, fallos y errores. La tasa usa aciertos / (aciertos + fallos). |
+| Caché | Meter UltimaMilla.Cache: contadores de aciertos, fallos y errores. Grafana separa tarifario y seguimiento. Para cada uno muestra aciertos, fallos y la tasa aciertos / (aciertos + fallos). |
 | Outbox pendiente | Cantidad de filas sin PublicadoEn, obtenida de PostgreSQL. |
 | Publicaciones | Contadores de publicaciones confirmadas y errores del publicador. Un reenvío confirmado puede aumentar nuevamente el contador. |
 | Avisos fallidos | EntregasAviso con Exitoso=false e Intentos>0. Incluye avisos que todavía pueden reintentarse. |

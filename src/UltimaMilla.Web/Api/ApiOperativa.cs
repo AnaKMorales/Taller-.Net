@@ -49,6 +49,23 @@ public static class ApiOperativa
         rutas.MapGet("/{id:guid}", async (Guid id, IHojasRuta hojas, CancellationToken ct) =>
             await hojas.ObtenerAsync(id, ct) is { } hoja ? Results.Ok(hoja) : Results.NotFound());
 
+        var despacho = app.MapGroup("/api/despacho")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser()
+                .RequireRole(nameof(RolUsuario.Administrador), nameof(RolUsuario.Despachador)))
+            .AddEndpointFilter<ErroresApiFilter>()
+            .AddEndpointFilter<AntiforgeryApiFilter>();
+        despacho.MapGet("/envios/{envioId:guid}/pendientes", async (Guid envioId, IDespachoPendientes gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
+        despacho.MapPost("/rutas", async (CrearRutaPendientes solicitud, IDespachoPendientes gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearRutaAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
+        despacho.MapPost("/rutas/{rutaId:guid}/pendientes", async (Guid rutaId, AsignarPendientes solicitud,
+            IDespachoPendientes gestion, CancellationToken ct) =>
+            Results.Json(await gestion.AsignarAsync(rutaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        despacho.MapPost("/envios/{envioId:guid}/devolucion-pendientes", async (Guid envioId, DevolverPendientes solicitud,
+            IDespachoPendientes gestion, CancellationToken ct) =>
+            Results.Json(await gestion.DevolverAsync(envioId, solicitud.VersionEsperadaEnvio, ct), statusCode: StatusCodes.Status201Created));
+
         var configuracion = app.MapGroup("/api/configuracion")
             .WithMetadata(new ApiOperativaMetadata())
             .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
@@ -80,6 +97,7 @@ public static class ApiOperativa
 }
 
 internal sealed class ApiOperativaMetadata;
+internal sealed record DevolverPendientes(Guid VersionEsperadaEnvio);
 
 internal sealed class AntiforgeryApiFilter(IAntiforgery antiforgery) : IEndpointFilter
 {

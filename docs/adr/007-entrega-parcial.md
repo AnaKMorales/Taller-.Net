@@ -6,8 +6,8 @@ Estado: en curso. Fecha: 01/11/2026. Requisitos 31–36 del cambio del 30/10.
 
 El modelo inicial registraba un resultado completo por envío. El cambio para el equipo
 de tres requiere resultados independientes por bulto, operación offline, seguimiento con
-cantidades y avisos versionados. Esta etapa prepara el núcleo; no describe una integración
-completa ya terminada.
+cantidades y avisos versionados. El servidor y sus contratos ya están disponibles para
+las aplicaciones. El ensayo completo sigue pendiente.
 
 ## Decisiones implementadas
 
@@ -54,7 +54,9 @@ La repetición compara una huella del contenido con parada, responsable y asocia
 La parada de origen impide aplicar un intento offline antiguo a una visita nueva. No se
 fusionan decisiones competidoras: se conserva la concurrencia del envío y el rollback.
 El nuevo contrato de outbox V2 incluye resultados por bulto; la firma tradicional conserva V1.
-La negociación/enrutamiento de avisos para receptores existentes continúa pendiente en Worker.
+El Worker consume ambos contratos y adapta V2 al formato V1 que reciben los comercios
+actuales. Falta habilitar una salida V2 con el detalle por bulto para los receptores
+que acepten ese contrato.
 
 El 03/11 se conectó el registro con Application: una solicitud sin identidad en el body,
 catálogo resuelto desde las reglas del envío y verificación de versión esperada. El repositorio
@@ -62,7 +64,8 @@ abre un contexto dedicado y carga el grafo con una lectura RepeatableRead, que t
 de ejecutar Domain. Una operación nueva con versión vieja se rechaza; un reenvío exacto se
 reconoce sin guardar aunque lleve la versión original. El guardado conserva los tokens de EF
 para detectar carreras posteriores a la lectura y no reintenta decisiones automáticamente.
-La respuesta es un DTO y el contexto se dispone también al fallar. No se agregó endpoint.
+La respuesta es un DTO y el contexto se dispone también al fallar. La PWA lo invoca en
+`POST /api/repartidor/intentos` con la sesión del repartidor.
 
 Se agregó BultoParada para conservar la composición y medidas de cada visita. La capacidad
 de la ruta usa las medidas de paradas activas, no el peso total de envíos con bultos ya
@@ -86,6 +89,12 @@ el modelo previo. Sus medidas se toman de los valores actuales porque no se regi
 medición histórica por visita. Las asignaciones nuevas sí conservan su captura exacta.
 Los eventos administrativos parciales usan V2 con IdOperacion nullable y sin resultados de
 intento; los V2 de intento conservan su detalle. V1 no incorpora ese vocabulario nuevo.
+
+La API de despacho permite preparar una ruta, asignarle una nueva visita con solo los
+pendientes o iniciar su devolución. Reutiliza las reglas históricas y el cálculo de carga.
+La asignación valida las versiones de envío y ruta y guarda la reprogramación y la nueva
+parada juntas. Separar esos dos guardados podía dejar una reprogramación sin visita cuando
+la ruta estuviera llena. El contrato está en [Rutas de pendientes](../rutas-pendientes.md).
 
 La PWA descarga la composición de la parada y guarda en IndexedDB los resultados y
 evidencias antes de enviarlos al endpoint autenticado de intentos. En cada reenvío conserva
@@ -117,10 +126,9 @@ presentar ese detalle en la PWA.
 
 ## Pendientes para completar el cambio
 
-- API de asignación de pendientes e integración del despacho/devolución. La descarga
-  autenticada de la composición actual ya está disponible; ver api-monitoreos.md.
-- Integrar los eventos V2 con el enrutamiento y compatibilidad de receptores existentes.
-- Adaptaciones de Web, seguimiento y Worker por sus responsables.
+- Conectar en backoffice las operaciones de asignación y devolución de pendientes.
+- Mostrar en la PWA el detalle del conflicto que ya devuelve la API.
+- Habilitar la salida V2 para los comercios compatibles y comprobar la recepción.
 - Demostración offline/sincronización del 12/11 y evaluación final de dificultades y pruebas.
 
 Las pruebas del núcleo y de migración no sustituyen esa demostración. SQL directo puede
