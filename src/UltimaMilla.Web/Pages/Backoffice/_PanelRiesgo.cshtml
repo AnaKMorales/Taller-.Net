@@ -15,7 +15,7 @@
             <tr class="@(e.Vencido ? "vencido" : "por-vencer")">
                 <td>@(e.Vencido ? "Vencido" : "Por vencer")</td>
                 <td>@e.VentanaHasta.ToString("dd/MM HH:mm")</td>
-                <td><code>@e.CodigoSeguimiento[..8]</code></td>
+                <td><a href="/backoffice/envios/@e.EnvioId"><code>@e.CodigoSeguimiento[..8]</code></a></td>
                 <td>@e.Destinatario</td>
                 <td>@e.Zona</td>
                 <td>@Textos.Estado(e.Estado)</td>

@@ -41,6 +41,37 @@ public static class Textos
 
     public static string Estado(EstadoEnvio? estado) => estado is { } e ? Estados[e] : "—";
 
+    public static string Bulto(EstadoBulto estado) => estado switch
+    {
+        EstadoBulto.Admitido => "Admitido",
+        EstadoBulto.EnDeposito => "En depósito",
+        EstadoBulto.AsignadoARuta => "Asignado a ruta",
+        EstadoBulto.EnTransito => "En tránsito",
+        EstadoBulto.Entregado => "Entregado",
+        EstadoBulto.NoEntregado => "No entregado (pendiente)",
+        EstadoBulto.Reprogramado => "Reprogramado (pendiente)",
+        EstadoBulto.EnDevolucion => "En devolución",
+        EstadoBulto.Devuelto => "Devuelto",
+        EstadoBulto.Extraviado => "Extraviado",
+        _ => estado.ToString()
+    };
+
+    public static string Resultado(ResultadoIntento resultado) => resultado switch
+    {
+        ResultadoIntento.Entregado => "Entregado",
+        ResultadoIntento.Fallido => "No entregado",
+        ResultadoIntento.Parcial => "Parcial",
+        _ => resultado.ToString()
+    };
+
+    public static string Pendientes(UltimaMilla.Domain.Configuracion.AccionBultosPendientes accion) => accion switch
+    {
+        UltimaMilla.Domain.Configuracion.AccionBultosPendientes.NuevaVisitaSinRecargo => "Nueva visita sin recargo",
+        UltimaMilla.Domain.Configuracion.AccionBultosPendientes.NuevaVisitaConRecargo => "Nueva visita con recargo",
+        UltimaMilla.Domain.Configuracion.AccionBultosPendientes.DevolverAlComercio => "Devolver al comercio",
+        _ => accion.ToString()
+    };
+
     public static string Evento(TipoEvento tipo) => Eventos[tipo];
 
     public static string Aviso(EstadoAviso estado) => estado switch

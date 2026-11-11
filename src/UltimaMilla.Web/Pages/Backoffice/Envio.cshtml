@@ -1,0 +1,181 @@
+@page "/backoffice/envios/{id:guid}"
+@model UltimaMilla.Web.Pages.Backoffice.EnvioModel
+@using UltimaMilla.Domain.Configuracion
+@using UltimaMilla.Domain.Envios
+@{
+    var e = Model.Envio!;
+    ViewData["Title"] = $"Envío {e.CodigoSeguimiento[..8]}";
+    ViewData["Seccion"] = "envios";
+    Layout = "_Layout";
+    var entregados = e.Bultos.Count(b => b.Estado == EstadoBulto.Entregado);
+}
+
+<style>
+    .ficha { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .5rem 1.5rem;
+             background: #fff; border: 1px solid #d9e2ec; padding: 1rem; }
+    .ficha div span { display: block; font-size: .8rem; color: #52606d; }
+    .estado-grande { font-size: 1.3rem; font-weight: 600; }
+    .bulto-Entregado { color: #05603a; font-weight: 600; }
+    .bulto-NoEntregado, .bulto-Reprogramado { color: #7a5a00; font-weight: 600; }
+    .bulto-EnDevolucion, .bulto-Devuelto, .bulto-Extraviado { color: #b42318; font-weight: 600; }
+    .pendientes { background: #fffbeb; border: 1px solid #f0c36d; padding: 1rem; margin: 1rem 0; }
+    .pendientes form { margin-top: .75rem; }
+</style>
+
+<p><a href="/backoffice/tablero">← Tablero</a> · <a href="/backoffice/incidencias">Incidencias</a></p>
+<h1>Envío <code>@e.CodigoSeguimiento</code></h1>
+
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<section class="ficha">
+    <div><span>Estado</span><span class="estado-grande">@Textos.Estado(e.Estado)</span></div>
+    <div><span>Bultos entregados</span>@entregados de @e.Bultos.Count</div>
+    <div><span>Comercio</span>@e.Comercio</div>
+    <div><span>Destinatario</span>@e.Destinatario · @e.Telefono</div>
+    <div><span>Dirección</span>@e.Direccion</div>
+    <div><span>Zona</span>@e.Zona</div>
+    <div><span>Modalidad</span>@(e.Modalidad == ModalidadServicio.Urgente ? "Urgente" : "Estándar")</div>
+    <div><span>Ventana vigente</span>@e.VentanaDesde.ToString("dd/MM HH:mm") – @e.VentanaHasta.ToString("HH:mm")</div>
+    <div><span>Tarifa</span>@Textos.Importe(e.Tarifa) (tarifario v@(e.VersionTarifario))</div>
+    <div><span>Reglas aplicadas</span>v@(e.VersionReglas) · pendientes: @Textos.Pendientes(e.AccionPendientes)</div>
+    <div><span>Ruta actual</span>@(e.RepartidorAsignado ?? "Sin asignar")</div>
+    <div><span>Devolución</span>@(e.Devolucion is null ? "—" : e.Devolucion == UltimaMilla.Domain.Deposito.EstadoDevolucion.EnProceso ? "En proceso" : "Completada")</div>
+    <div><span>Seguimiento público</span><a href="/seguimiento/@e.CodigoSeguimiento" target="_blank" rel="noopener">Ver como destinatario</a></div>
+</section>
+
+<h2>Bultos</h2>
+<table>
+    <thead><tr><th>Código</th><th>Peso (kg)</th><th>Volumen (m³)</th><th>Estado</th></tr></thead>
+    <tbody>
+        @foreach (var b in e.Bultos)
+        {
+            <tr>
+                <td><code>@b.Codigo</code></td>
+                <td>@b.PesoKg.ToString("0.###")</td>
+                <td>@b.VolumenM3.ToString("0.####")</td>
+                <td class="bulto-@b.Estado">@Textos.Bulto(b.Estado)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (e.AdmiteGestionDePendientes)
+{
+    <section class="pendientes">
+        <h2>Bultos pendientes de la entrega parcial</h2>
+        <p>Quedan @e.Pendientes.Count() bultos sin entregar (@string.Join(", ", e.Pendientes.Select(b => b.Codigo))).
+            La regla de este envío (reglas v@(e.VersionReglas)) indica: <strong>@Textos.Pendientes(e.AccionPendientes)</strong>.</p>
+
+        @if (!Model.PuedeDespachar)
+        {
+            <p class="nota">La gestión de pendientes la hacen el administrador o el despachador.</p>
+        }
+        else if (Model.Planificacion is { } plan)
+        {
+            if (Model.OfreceNuevaVisita && !e.NuevaVisitaPosible)
+            {
+                <p><strong>No corresponde una nueva visita:</strong> @e.SinNuevaVisita. Los pendientes deben volver al comercio.</p>
+            }
+            else if (Model.OfreceNuevaVisita)
+            {
+                <form method="post" asp-page-handler="Asignar" class="formulario">
+                    <input type="hidden" asp-for="VersionEnvio" />
+                    <strong>Programar una nueva visita con los pendientes</strong>
+                    @if (plan.ImporteRecargo is { } recargo && plan.Accion == AccionBultosPendientes.NuevaVisitaConRecargo)
+                    {
+                        <p class="nota">Esta visita lleva un recargo de @Textos.Importe(recargo), que se registra al despachar la ruta.</p>
+                    }
+                    <label>Fecha <input type="date" name="Fecha" value="@Model.Fecha?.ToString("yyyy-MM-dd")" required /></label>
+                    <label>Franja
+                        <select asp-for="FranjaId">
+                            @foreach (var f in plan.Franjas)
+                            {
+                                <option value="@f.Id">@f.Nombre (@f.Desde.ToString("HH:mm")–@f.Hasta.ToString("HH:mm"))</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Ruta
+                        <select asp-for="Ruta">
+                            @foreach (var r in plan.Rutas)
+                            {
+                                <option value="@UltimaMilla.Web.Pages.Backoffice.EnvioModel.ValorRuta(r)">@r.Repartidor · @r.Matricula (parada @r.ProximoOrden)</option>
+                            }
+                            <option value="@UltimaMilla.Web.Pages.Backoffice.EnvioModel.RutaNueva">Crear una ruta nueva…</option>
+                        </select>
+                    </label>
+                    <fieldset>
+                        <legend>Solo si se crea una ruta nueva</legend>
+                        <label>Repartidor
+                            <select asp-for="RepartidorId">
+                                @foreach (var r in plan.Repartidores) { <option value="@r.Id">@r.Email</option> }
+                            </select>
+                        </label>
+                        <label>Vehículo
+                            <select asp-for="VehiculoId">
+                                @foreach (var v in plan.Vehiculos)
+                                {
+                                    <option value="@v.Id">@v.Matricula (@v.CapacidadPesoKg.ToString("0.#") kg, @v.CapacidadVolumenM3.ToString("0.##") m³)</option>
+                                }
+                            </select>
+                        </label>
+                        <label>Máximo de paradas <input asp-for="MaxParadas" min="1" /></label>
+                    </fieldset>
+                    <div><button type="submit">Asignar pendientes</button></div>
+                </form>
+            }
+            <form method="post" asp-page-handler="Devolver">
+                <input type="hidden" asp-for="VersionEnvio" />
+                <button type="submit">Devolver los pendientes al comercio</button>
+                @if (Model.OfreceNuevaVisita && e.NuevaVisitaPosible)
+                {
+                    <span class="nota">Solo corresponde si se agotaron los intentos o el motivo no permite reintentar.</span>
+                }
+            </form>
+        }
+    </section>
+}
+
+<h2>Intentos de entrega</h2>
+<table>
+    <thead><tr><th>#</th><th>Fecha</th><th>Resultado</th><th>Detalle por bulto</th><th>Pruebas</th></tr></thead>
+    <tbody>
+        @foreach (var i in e.Intentos)
+        {
+            <tr>
+                <td>@i.Numero</td>
+                <td>@Textos.Fecha(i.OcurridoEn)</td>
+                <td>@Textos.Resultado(i.Resultado)@(i.Motivo is null ? "" : $" · {i.Motivo}")</td>
+                <td>
+                    @foreach (var b in i.Bultos)
+                    {
+                        <div><code>@b.Codigo</code>: @Textos.Resultado(b.Resultado)@(b.Motivo is null ? "" : $" ({b.Motivo})")@(b.Evidencias > 0 ? $" · {b.Evidencias} prueba(s)" : "")</div>
+                    }
+                </td>
+                <td>@(i.Pruebas.Count == 0 ? "—" : string.Join(", ", i.Pruebas))</td>
+            </tr>
+        }
+        @if (e.Intentos.Count == 0)
+        {
+            <tr><td colspan="5" class="vacio">Todavía no hubo intentos de entrega.</td></tr>
+        }
+    </tbody>
+</table>
+
+<h2>Historial</h2>
+<table>
+    <thead><tr><th>Fecha</th><th>Evento</th><th>Estado</th><th>Origen</th><th>Responsable</th><th>Detalle</th></tr></thead>
+    <tbody>
+        @foreach (var v in e.Eventos)
+        {
+            <tr>
+                <td>@Textos.Fecha(v.OcurridoEn)</td>
+                <td>@Textos.Evento(v.Tipo)</td>
+                <td>@Textos.Estado(v.EstadoAnterior) → @Textos.Estado(v.EstadoNuevo)</td>
+                <td>@(v.Origen switch { OrigenEvento.AppRepartidor => "App del repartidor", OrigenEvento.Deposito => "Depósito", _ => "Sistema" })</td>
+                <td>@v.Responsable</td>
+                <td>@v.Detalle</td>
+            </tr>
+        }
+    </tbody>
+</table>

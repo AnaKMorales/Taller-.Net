@@ -64,7 +64,7 @@
                 <td>@Textos.Evento(c.Tipo)</td>
                 <td>@Textos.Estado(c.EstadoAnterior)</td>
                 <td>@Textos.Estado(c.EstadoNuevo)</td>
-                <td>@Textos.Corto(c.EnvioId)</td>
+                <td><a href="/backoffice/envios/@c.EnvioId">@Textos.Corto(c.EnvioId)</a></td>
                 <td>@c.Detalle</td>
             </tr>
         }
