@@ -58,6 +58,18 @@ export function ubicacion() {
     });
 }
 
+// Como ubicacion(), pero informa el motivo del fallo:
+// [0, lat, lon] = posición; [1] = permiso denegado; [2] = sin señal; [3] = tiempo agotado; [-1] = sin soporte.
+export function ubicacionDetallada() {
+    return new Promise(resolver => {
+        if (!navigator.geolocation) return resolver([-1]);
+        navigator.geolocation.getCurrentPosition(
+            p => resolver([0, p.coords.latitude, p.coords.longitude]),
+            e => resolver([e.code]),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    });
+}
+
 // Un tamaño acotado permite guardar y reenviar la imagen junto con la visita.
 const MAX_IMAGEN = 256 * 1024;
 const MAX_DATA_URL = 4 * Math.ceil(MAX_IMAGEN / 3) - 4;
