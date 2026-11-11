@@ -21,7 +21,7 @@
         @foreach (var i in Model.Incidencias)
         {
             <tr>
-                <td>@Textos.Corto(i.EnvioId)</td>
+                <td><a href="/backoffice/envios/@i.EnvioId">@Textos.Corto(i.EnvioId)</a></td>
                 <td>@i.Destinatario</td>
                 <td>@Textos.Estado(i.Estado)</td>
                 <td>@i.IntentosFallidos</td>

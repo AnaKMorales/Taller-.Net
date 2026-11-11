@@ -27,9 +27,17 @@
     const columnas = [fecha(cambio.ocurridoEn), textos.eventos[cambio.tipo] ?? cambio.tipo,
       nombreEstado(cambio.estadoAnterior), nombreEstado(cambio.estadoNuevo),
       cambio.envioId.replaceAll('-', '').slice(0, 8), cambio.detalle ?? ''];
-    for (const texto of columnas) {
+    for (const [indice, texto] of columnas.entries()) {
       const celda = document.createElement('td');
-      celda.textContent = texto; // textContent evita inyectar HTML
+      if (indice === 4) {
+        // Enlace al detalle del envío; el id es un Guid y el texto va por textContent (no se inyecta HTML).
+        const enlace = document.createElement('a');
+        enlace.href = '/backoffice/envios/' + encodeURIComponent(cambio.envioId);
+        enlace.textContent = texto;
+        celda.appendChild(enlace);
+      } else {
+        celda.textContent = texto; // textContent evita inyectar HTML
+      }
       fila.appendChild(celda);
     }
     fila.classList.add('nuevo');
