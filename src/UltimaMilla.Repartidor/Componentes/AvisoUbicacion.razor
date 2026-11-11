@@ -1,0 +1,45 @@
+@inject Navegador Dispositivo
+
+@* Revisa el GPS al abrir la visita. Si anda bien no muestra nada; si no, explica qué pasa y permite reintentar. *@
+@if (_lectura?.Mensaje is { } mensaje)
+{
+    <div class="alert alert-warning py-2 d-grid gap-2" role="alert">
+        <span>@mensaje</span>
+        @if (_lectura.PermiteReintentar)
+        {
+            <button class="btn btn-sm btn-outline-dark" type="button" disabled="@_buscando" @onclick="LeerAsync">
+                @(_buscando ? "Buscando ubicación..." : "Reintentar ubicación")
+            </button>
+        }
+    </div>
+}
+
+@code {
+    private LecturaUbicacion? _lectura;
+    private bool _buscando;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await LeerAsync();
+    }
+
+    private async Task LeerAsync()
+    {
+        if (_buscando) return;
+        _buscando = true;
+        StateHasChanged();
+        try
+        {
+            _lectura = await Dispositivo.LeerUbicacionAsync();
+        }
+        catch (JSException)
+        {
+            _lectura = new LecturaUbicacion(EstadoUbicacion.NoSoportada);
+        }
+        finally
+        {
+            _buscando = false;
+            StateHasChanged();
+        }
+    }
+}
