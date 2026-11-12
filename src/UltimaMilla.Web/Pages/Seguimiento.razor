@@ -1,7 +1,5 @@
 @page "/seguimiento/{Token}"
-@* Seguimiento público del destinatario. Sin login y sin @rendermode:
-   se renderiza estático en el servidor (SSR), sin circuito SignalR por visitante, porque es
-   la página con más tráfico y solo muestra datos. *@
+@* Seguimiento público. SSR, sin login. *@
 @using System.Globalization
 @using Microsoft.AspNetCore.RateLimiting
 @using UltimaMilla.Application.Tenancy
@@ -95,6 +93,18 @@
                 </form>
             </section>
         }
+        else if (reprogramacion is { Impedimento: { } impedimento })
+        {
+            <section class="tarjeta">
+                <p class="detalle">No es posible reprogramar desde acá: @impedimento. Comunicate con el comercio.</p>
+            </section>
+        }
+        else if (PuedeHaberReprogramacion)
+        {
+            <section class="tarjeta">
+                <p class="detalle"><a href="/seguimiento/@Token?reprogramar=true">¿No vas a estar? Elegí otro día</a></p>
+            </section>
+        }
 
         <section class="tarjeta">
             <h2>Historial</h2>
@@ -134,10 +144,15 @@
             if (HttpContext is not null) HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
-        // Solo se carga el envío completo cuando puede haber algo que reprogramar (después de un intento fallido).
-        if (!Reprogramado && envio.Estado is EstadoEnvio.NoEntregado or EstadoEnvio.EntregadoParcialmente)
+        // Solo si lo pide: cargar las opciones es pesado
+        if (QuiereReprogramar && PuedeHaberReprogramacion)
             reprogramacion = await Reprogramar.OpcionesAsync(Token, Cancelacion);
     }
+
+    [SupplyParameterFromQuery(Name = "reprogramar")] public bool QuiereReprogramar { get; set; }
+
+    private bool PuedeHaberReprogramacion =>
+        !Reprogramado && envio?.Estado is EstadoEnvio.NoEntregado or EstadoEnvio.EntregadoParcialmente;
 
     private async Task ReprogramarAsync()
     {
@@ -145,7 +160,6 @@
         switch (resultado)
         {
             case ResultadoReprogramacion.Reprogramado:
-                // Post-Redirect-Get: recargar no repite la solicitud.
                 Navegacion.NavigateTo($"/seguimiento/{Token}?reprogramado=true");
                 return;
             case ResultadoReprogramacion.Conflicto:
@@ -162,7 +176,7 @@
         reprogramacion = await Reprogramar.OpcionesAsync(Token, Cancelacion);
     }
 
-    // Los instantes se guardan en UTC; se muestran con el desfase horario del operador (el de la ventana).
+    // UTC -> hora del operador
     private DateTimeOffset Local(DateTime utc) =>
         new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)).ToOffset(envio!.VentanaDesde.Offset);
 
