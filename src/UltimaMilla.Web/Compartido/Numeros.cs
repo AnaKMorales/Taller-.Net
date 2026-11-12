@@ -1,11 +1,11 @@
 using System.Globalization;
 
-namespace UltimaMilla.Web.Pages.Backoffice.Configuracion;
+namespace UltimaMilla.Web.Compartido;
 
 // Los números de los formularios se leen y escriben siempre en formato invariante ("1.5").
 // Si se usara el binding decimal de MVC, dependería de la cultura del servidor: en es-UY "1.5"
 // se interpretaría como 15. Se acepta también la coma porque es lo que escribe un usuario local.
-internal static class Numeros
+public static class Numeros
 {
     public static string Texto(decimal valor) => valor.ToString("0.####", CultureInfo.InvariantCulture);
 

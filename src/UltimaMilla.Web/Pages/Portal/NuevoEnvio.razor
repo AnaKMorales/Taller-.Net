@@ -1,0 +1,231 @@
+@page "/portal/envios/nuevo"
+@page "/envios/nuevo"
+@* Alta individual de envíos por el comercio (requisitos 7 y 9). Blazor con renderizado estático (ADR-003):
+   cada botón es un POST normal; el servidor recalcula todo (tarifa, compromiso y fechas) en cada paso. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Abstractions
+@using UltimaMilla.Application.Envios.AltaPortal
+@using UltimaMilla.Application.Envios.CrearEnvio
+@using UltimaMilla.Domain.Envios
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject AltaEnvioPortalHandler Alta
+@inject NavigationManager Navegacion
+
+<PageTitle>Nuevo envío - Portal UltimaMilla</PageTitle>
+
+<h1>Nuevo envío</h1>
+
+@if (Creado is not null)
+{
+    <div class="exito">
+        <strong>Envío creado.</strong> Código de seguimiento <code>@Creado</code>
+        @if (!string.IsNullOrEmpty(TarifaCreada)) { <text> · tarifa @TarifaCreada</text> }
+        @if (!string.IsNullOrEmpty(EntregaCreada)) { <text> · entrega @EntregaCreada</text> }
+        <br /><a href="/seguimiento/@Creado" target="_blank" rel="noopener">Ver el seguimiento del destinatario</a> ·
+        <a href="/portal">Ver mis envíos</a>
+    </div>
+}
+
+@if (opciones is null)
+{
+    <p class="error">Tu operador todavía no tiene reglas de entrega vigentes. Consultalo con el operador.</p>
+}
+else
+{
+    <form method="post" @formname="alta" @onsubmit="ProcesarAsync" class="formulario">
+        <AntiforgeryToken />
+        @if (error is not null) { <p class="error">@error</p> }
+
+        <fieldset>
+            <legend>Destinatario</legend>
+            <label>Nombre <input name="Nombre" value="@f.Nombre" required /></label>
+            <label>Teléfono <input name="Telefono" value="@f.Telefono" required /></label>
+            <label>Email <input name="Email" type="email" value="@f.Email" required /></label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Dirección de entrega</legend>
+            <label>Calle <input name="Calle" value="@f.Calle" required /></label>
+            <label>Número <input name="Numero" value="@f.Numero" required size="6" /></label>
+            <label>Localidad <input name="Localidad" value="@f.Localidad" required /></label>
+            <label>Código postal <input name="CodigoPostal" value="@f.CodigoPostal" required size="6" /></label>
+            <label>Zona
+                <select name="ZonaId">
+                    @foreach (var z in opciones.Zonas)
+                    {
+                        <option value="@z.Id" selected="@(z.Id == f.ZonaId)">@z.Nombre (CP @z.CodigoPostal)</option>
+                    }
+                </select>
+            </label>
+            <label>Modalidad
+                <select name="Modalidad">
+                    @foreach (var p in opciones.Plazos)
+                    {
+                        <option value="@p.Modalidad" selected="@(p.Modalidad == f.Modalidad)">
+                            @(p.Modalidad == ModalidadServicio.Urgente ? "Urgente" : "Estándar") (@p.Horas h, corte @p.HoraCorte.ToString("HH:mm"))
+                        </option>
+                    }
+                </select>
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Bultos</legend>
+            <table>
+                <thead><tr><th>Código</th><th>Peso (kg)</th><th>Alto (cm)</th><th>Ancho (cm)</th><th>Largo (cm)</th><th>Quitar</th></tr></thead>
+                <tbody>
+                    @for (var i = 0; i < f.Bultos.Count; i++)
+                    {
+                        var b = f.Bultos[i];
+                        <tr>
+                            <td><input name="Bultos[@i].Codigo" value="@b.Codigo" size="10" /></td>
+                            <td><input name="Bultos[@i].Peso" value="@b.Peso" inputmode="decimal" size="6" /></td>
+                            <td><input name="Bultos[@i].Alto" value="@b.Alto" inputmode="decimal" size="6" /></td>
+                            <td><input name="Bultos[@i].Ancho" value="@b.Ancho" inputmode="decimal" size="6" /></td>
+                            <td><input name="Bultos[@i].Largo" value="@b.Largo" inputmode="decimal" size="6" /></td>
+                            <td><input type="checkbox" name="Bultos[@i].Quitar" value="true" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button type="submit" name="accion" value="agregar" formnovalidate>Agregar bulto</button>
+        </fieldset>
+
+        <div><button type="submit" name="accion" value="cotizar">Calcular tarifa y ver fechas</button></div>
+
+        @if (cotizacion is not null)
+        {
+            <fieldset>
+                <legend>Tarifa y entrega</legend>
+                <p>
+                    <strong>Tarifa: @Textos.Importe(cotizacion.Tarifa.Desglose.Total)</strong>
+                    (base @Textos.Importe(cotizacion.Tarifa.Desglose.PrecioBase)
+                    @if (cotizacion.Tarifa.Desglose.Recargos > 0) { <text> + recargos @Textos.Importe(cotizacion.Tarifa.Desglose.Recargos)</text> }
+                    @if (cotizacion.Tarifa.Desglose.Bonificaciones > 0) { <text> − bonificaciones @Textos.Importe(cotizacion.Tarifa.Desglose.Bonificaciones)</text> }
+                    · tarifario v@(cotizacion.Tarifa.Version) · @cotizacion.Tarifa.PesoTotalKg.ToString("0.###") kg)
+                </p>
+                <p class="nota">Entrega comprometida a partir del @cotizacion.FechaComprometida.ToString("dd/MM HH:mm").</p>
+                <label>Fecha y franja
+                    <select name="Entrega">
+                        @foreach (var o in cotizacion.Opciones)
+                        {
+                            <option value="@o.Clave" selected="@(o.Clave == f.Entrega)">@Opcion(o)</option>
+                        }
+                    </select>
+                </label>
+                <div><button type="submit" name="accion" value="confirmar">Confirmar alta</button></div>
+            </fieldset>
+        }
+    </form>
+}
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromQuery(Name = "creado")] public string? Creado { get; set; }
+    [SupplyParameterFromQuery(Name = "tarifa")] public string? TarifaCreada { get; set; }
+    [SupplyParameterFromQuery(Name = "entrega")] public string? EntregaCreada { get; set; }
+
+    private OpcionesAltaDto? opciones;
+    private FormularioAlta f = new();
+    private CotizacionAlta? cotizacion;
+    private string? error;
+
+    private CancellationToken Cancelacion => HttpContext?.RequestAborted ?? default;
+
+    protected override async Task OnInitializedAsync()
+    {
+        opciones = await Alta.OpcionesAsync(Cancelacion);
+        f.ZonaId = opciones?.Zonas.FirstOrDefault()?.Id ?? Guid.Empty;
+        f.Modalidad = opciones?.Plazos.FirstOrDefault()?.Modalidad ?? ModalidadServicio.Estandar;
+    }
+
+    private async Task ProcesarAsync()
+    {
+        var form = HttpContext!.Request.Form;
+        f = FormularioAlta.Leer(form);
+        switch (form["accion"].ToString())
+        {
+            case "agregar":
+                f.Bultos.Add(new BultoFormulario());
+                return;
+            case "confirmar":
+                await IntentarAsync(async () =>
+                {
+                    var creada = await Alta.ConfirmarAsync(f.Solicitud(), f.Entrega ?? "", Cancelacion);
+                    // Post-Redirect-Get: recargar la página no vuelve a crear el envío.
+                    Navegacion.NavigateTo($"/portal/envios/nuevo?creado={creada.CodigoSeguimiento}" +
+                        $"&tarifa={Uri.EscapeDataString(Textos.Importe(creada.Tarifa))}" +
+                        $"&entrega={Uri.EscapeDataString(Opcion(creada.Entrega))}");
+                });
+                return;
+            default:
+                await IntentarAsync(async () =>
+                {
+                    cotizacion = await Alta.CotizarAsync(f.Solicitud(), Cancelacion);
+                    if (!cotizacion.Opciones.Any(o => o.Clave == f.Entrega)) f.Entrega = cotizacion.Opciones[0].Clave;
+                });
+                return;
+        }
+    }
+
+    private async Task IntentarAsync(Func<Task> accion)
+    {
+        try { await accion(); }
+        catch (AislamientoOperadorException) { error = "No se pudo validar tu cuenta comercial. Volvé a iniciar sesión."; }
+        // Los mensajes del dominio y del caso de uso explican qué corregir (bultos, tarifa sin tramo, fechas).
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException) { error = e.Message; }
+    }
+
+    private static string Opcion(OpcionEntrega o) =>
+        $"{o.Desde.ToString("dddd d/MM", System.Globalization.CultureInfo.GetCultureInfo("es-UY"))} · {o.Franja} ({o.Desde:HH:mm}–{o.Hasta:HH:mm})";
+
+    private sealed class FormularioAlta
+    {
+        public string? Nombre, Telefono, Email, Calle, Numero, Localidad, CodigoPostal, Entrega;
+        public Guid ZonaId;
+        public ModalidadServicio Modalidad;
+        public List<BultoFormulario> Bultos { get; set; } = [new()];
+
+        public static FormularioAlta Leer(IFormCollection form)
+        {
+            var f = new FormularioAlta
+            {
+                Nombre = form["Nombre"], Telefono = form["Telefono"], Email = form["Email"], Calle = form["Calle"],
+                Numero = form["Numero"], Localidad = form["Localidad"], CodigoPostal = form["CodigoPostal"],
+                Entrega = form["Entrega"],
+                ZonaId = Guid.TryParse(form["ZonaId"], out var zona) ? zona : Guid.Empty,
+                Modalidad = Enum.TryParse<ModalidadServicio>(form["Modalidad"], out var m) && Enum.IsDefined(m) ? m : ModalidadServicio.Estandar,
+                Bultos = []
+            };
+            for (var i = 0; i < 50 && form.ContainsKey($"Bultos[{i}].Codigo"); i++)
+            {
+                if (form[$"Bultos[{i}].Quitar"] == "true") continue;
+                f.Bultos.Add(new BultoFormulario
+                {
+                    Codigo = form[$"Bultos[{i}].Codigo"], Peso = form[$"Bultos[{i}].Peso"], Alto = form[$"Bultos[{i}].Alto"],
+                    Ancho = form[$"Bultos[{i}].Ancho"], Largo = form[$"Bultos[{i}].Largo"]
+                });
+            }
+            if (f.Bultos.Count == 0) f.Bultos.Add(new BultoFormulario());
+            return f;
+        }
+
+        // Las filas totalmente vacías se ignoran; los números se leen con coma o punto (Numeros).
+        public SolicitudAltaPortal Solicitud() => new(ZonaId, Modalidad, Nombre ?? "", Telefono ?? "", Email ?? "",
+            Calle ?? "", Numero ?? "", Localidad ?? "", CodigoPostal ?? "",
+            Bultos.Where(b => !b.Vacio).Select((b, i) => new BultoAlta(
+                string.IsNullOrWhiteSpace(b.Codigo) ? throw new ArgumentException($"Falta el código del bulto {i + 1}.") : b.Codigo.Trim(),
+                Numeros.Leer(b.Peso, $"peso del bulto {i + 1}"), Numeros.Leer(b.Alto, $"alto del bulto {i + 1}"),
+                Numeros.Leer(b.Ancho, $"ancho del bulto {i + 1}"), Numeros.Leer(b.Largo, $"largo del bulto {i + 1}"))).ToList());
+    }
+
+    private sealed class BultoFormulario
+    {
+        public string? Codigo, Peso, Alto, Ancho, Largo;
+        public bool Vacio => new[] { Codigo, Peso, Alto, Ancho, Largo }.All(string.IsNullOrWhiteSpace);
+    }
+}
