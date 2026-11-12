@@ -70,8 +70,12 @@ internal sealed class EventoDeEnvioConfiguration : IEntityTypeConfiguration<Even
         Mapping.Entity(b, "EventosDeEnvio");
         Mapping.Key(b, "Envio");
         b.HasOne(x => x.Envio).WithMany(x => x.Eventos).HasForeignKey("EnvioKey");
-        Mapping.Key(b, "Responsable");
+        // Opcional: los eventos del destinatario no tienen usuario (EventoDeEnvio garantiza la invariante).
+        Mapping.Key(b, "Responsable", optional: true);
         b.HasOne(x => x.Responsable).WithMany().HasForeignKey("ResponsableKey");
+        // La base también respalda la invariante: sin usuario si y solo si el origen es el destinatario (3).
+        b.ToTable(t => t.HasCheckConstraint("CK_EventosDeEnvio_ResponsableSegunOrigen",
+            "(\"ResponsableId\" IS NULL) = (\"Origen\" = 3)"));
         Mapping.Key(b, "ProgramacionAnterior", optional: true);
         b.HasOne(x => x.ProgramacionAnterior).WithMany().HasForeignKey("ProgramacionAnteriorKey");
         Mapping.Key(b, "ProgramacionNueva", optional: true);

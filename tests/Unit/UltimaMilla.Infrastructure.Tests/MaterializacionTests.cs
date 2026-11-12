@@ -35,7 +35,7 @@ public sealed class MaterializacionTests
         Assert.Same(actual.Programacion, actual.Eventos.Single().ProgramacionNueva);
         Assert.Equal(TimeSpan.FromHours(-3), actual.Programacion.InicioLocal.Offset);
         Assert.True(actual.Reglas.TiposPrueba.SetEquals([TipoPrueba.Foto]));
-        var responsable = actual.Eventos.Single().Responsable;
+        var responsable = actual.Eventos.Single().Responsable!;
         EscaneoBulto.RegistrarRecepcion(actual.Bultos.Single(), responsable, Datos.Fecha);
         actual.RecibirEnDeposito(responsable, Datos.Fecha);
         reader.SaveChanges();
@@ -194,7 +194,7 @@ public sealed class MaterializacionTests
         reader.Set<IntentoEntrega>().OrderByDescending(i => i.Numero).Load();
         var actual = Cargar(reader);
         Assert.Equal([2, 1], actual.Intentos.Select(i => i.Numero));
-        var responsable = actual.Eventos.First(e => e.Tipo == TipoEvento.Admitir).Responsable;
+        var responsable = actual.Eventos.First(e => e.Tipo == TipoEvento.Admitir).Responsable!;
         Assert.Throws<InvalidOperationException>(() => actual.Reprogramar(actual.Programacion, responsable, Datos.Fecha.AddHours(2)));
         Assert.NotNull(actual.IniciarDevolucion(responsable, Datos.Fecha.AddHours(2)));
     }

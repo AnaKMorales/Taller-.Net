@@ -15,9 +15,9 @@ public sealed partial class PostgresTests
         var a = await EscenarioPersistencia.Grafo(first).SingleAsync();
         var b = await EscenarioPersistencia.Grafo(second).SingleAsync();
         var ruta = await NuevaRuta(first);
-        ruta.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddHours(1), a.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+        ruta.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddHours(1), a.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
         first.Add(ruta);
-        b.MarcarExtraviado(b.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Decisión desactualizada");
+        b.MarcarExtraviado(b.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Decisión desactualizada");
         await first.SaveChangesAsync();
         var error = await Assert.ThrowsAsync<ConflictoConcurrenciaException>(() => second.SaveChangesAsync());
         Assert.IsType<DbUpdateConcurrencyException>(error.InnerException);
@@ -39,8 +39,8 @@ public sealed partial class PostgresTests
         var b = await EscenarioPersistencia.Grafo(second).SingleAsync();
         var ra = await NuevaRuta(first);
         var rb = await NuevaRuta(second);
-        ra.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddHours(1), a.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
-        rb.AgregarParada(b, 1, EscenarioPersistencia.Fecha.AddHours(1), b.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+        ra.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddHours(1), a.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
+        rb.AgregarParada(b, 1, EscenarioPersistencia.Fecha.AddHours(1), b.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
         first.Add(ra); second.Add(rb);
         var results = await Task.WhenAll(Confirmar(first), Confirmar(second));
         Assert.Single(results, ok => ok);
@@ -68,7 +68,7 @@ public sealed partial class PostgresTests
         {
             foreach (var envio in await EscenarioPersistencia.Grafo(setup).ToListAsync())
             {
-                var admin = envio.Eventos.Single().Responsable;
+                var admin = envio.Eventos.Single().Responsable!;
                 EscaneoBulto.RegistrarRecepcion(envio.Bultos.Single(), admin, EscenarioPersistencia.Fecha);
                 envio.RecibirEnDeposito(admin, EscenarioPersistencia.Fecha);
             }
@@ -85,8 +85,8 @@ public sealed partial class PostgresTests
         var ra = await CargarRuta(first, routeId);
         var rb = await CargarRuta(second, routeId);
         Assert.Empty(ra.Paradas); Assert.Empty(rb.Paradas);
-        ra.AgregarParada(ea, 1, EscenarioPersistencia.Fecha.AddHours(1), ea.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
-        rb.AgregarParada(eb, 2, EscenarioPersistencia.Fecha.AddHours(1), eb.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+        ra.AgregarParada(ea, 1, EscenarioPersistencia.Fecha.AddHours(1), ea.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
+        rb.AgregarParada(eb, 2, EscenarioPersistencia.Fecha.AddHours(1), eb.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
         await first.SaveChangesAsync();
         await Assert.ThrowsAsync<ConflictoConcurrenciaException>(() => second.SaveChangesAsync());
         await using var reader = Context();
@@ -96,7 +96,7 @@ public sealed partial class PostgresTests
         Assert.Equal(EstadoEnvio.EnDeposito, (await reader.Envios.SingleAsync(e => e.Id == b.Id)).Estado);
         var pendiente = await EscenarioPersistencia.Grafo(reader).SingleAsync(e => e.Id == b.Id);
         var rejected = Assert.Throws<InvalidOperationException>(() => actual.AgregarParada(pendiente, 2,
-            EscenarioPersistencia.Fecha.AddHours(1), pendiente.Eventos.First().Responsable, EscenarioPersistencia.Fecha));
+            EscenarioPersistencia.Fecha.AddHours(1), pendiente.Eventos.First().Responsable!, EscenarioPersistencia.Fecha));
         Assert.Contains("capacidad", rejected.Message);
     }
 
@@ -108,9 +108,9 @@ public sealed partial class PostgresTests
         await using var second = Context();
         var a = await EscenarioPersistencia.Grafo(first).SingleAsync();
         var b = await EscenarioPersistencia.Grafo(second).SingleAsync();
-        EscaneoBulto.RegistrarRecepcion(a.Bultos.Single(), a.Eventos.Single().Responsable, EscenarioPersistencia.Fecha);
-        EscaneoBulto.RegistrarRecepcion(b.Bultos.Single(), b.Eventos.Single().Responsable, EscenarioPersistencia.Fecha);
-        b.RecibirEnDeposito(b.Eventos.Single().Responsable, EscenarioPersistencia.Fecha);
+        EscaneoBulto.RegistrarRecepcion(a.Bultos.Single(), a.Eventos.Single().Responsable!, EscenarioPersistencia.Fecha);
+        EscaneoBulto.RegistrarRecepcion(b.Bultos.Single(), b.Eventos.Single().Responsable!, EscenarioPersistencia.Fecha);
+        b.RecibirEnDeposito(b.Eventos.Single().Responsable!, EscenarioPersistencia.Fecha);
         await first.SaveChangesAsync();
         await Assert.ThrowsAsync<ConflictoConcurrenciaException>(() => second.SaveChangesAsync());
         await using var reader = Context();
@@ -134,7 +134,7 @@ public sealed partial class PostgresTests
         await using var fresh = Context();
         var actual = await EscenarioPersistencia.Grafo(fresh).SingleAsync();
         Assert.Equal(3m, actual.Bultos.Single().Peso);
-        actual.MarcarExtraviado(actual.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Decisión revisada");
+        actual.MarcarExtraviado(actual.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Decisión revisada");
         await fresh.SaveChangesAsync();
         await using var reader = Context();
         Assert.Equal(EstadoEnvio.Extraviado, (await reader.Envios.SingleAsync()).Estado);
@@ -152,7 +152,7 @@ public sealed partial class PostgresTests
         Assert.NotEqual(Guid.Empty, original);
         Assert.Equal(0, await first.SaveChangesAsync());
         Assert.Equal(original, first.Entry(a).Property<Guid>("RowVersion").CurrentValue);
-        b.MarcarExtraviado(b.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Válido");
+        b.MarcarExtraviado(b.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Válido");
         await second.SaveChangesAsync();
         var next = second.Entry(b).Property<Guid>("RowVersion").CurrentValue;
         Assert.NotEqual(original, next);

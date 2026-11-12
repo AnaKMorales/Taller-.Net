@@ -155,8 +155,8 @@ public sealed partial class PostgresTests
         var b = await EscenarioPersistencia.Grafo(segunda).SingleAsync();
         var ra = await NuevaRuta(primera);
         var rb = await NuevaRuta(segunda);
-        ra.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddDays(1).AddHours(1), a.Eventos.First().Responsable, EscenarioPersistencia.Fecha.AddHours(2));
-        rb.AgregarParada(b, 1, EscenarioPersistencia.Fecha.AddDays(1).AddHours(1), b.Eventos.First().Responsable, EscenarioPersistencia.Fecha.AddHours(2));
+        ra.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddDays(1).AddHours(1), a.Eventos.First().Responsable!, EscenarioPersistencia.Fecha.AddHours(2));
+        rb.AgregarParada(b, 1, EscenarioPersistencia.Fecha.AddDays(1).AddHours(1), b.Eventos.First().Responsable!, EscenarioPersistencia.Fecha.AddHours(2));
         primera.Add(ra); segunda.Add(rb);
         var resultados = await Task.WhenAll(Guardar(primera), Guardar(segunda));
         Assert.Single(resultados, r => r);

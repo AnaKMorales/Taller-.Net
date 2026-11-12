@@ -226,6 +226,40 @@ public sealed partial class Envio : Entidad
 
   public void Reprogramar(ProgramacionEntrega nuevaProgramacion, Usuario responsable, DateTime ocurridoEn)
   {
+    ArgumentNullException.ThrowIfNull(responsable);
+    ReprogramarDesde(nuevaProgramacion, responsable, OrigenEvento.Sistema, ocurridoEn);
+  }
+
+  // El destinatario elige otra fecha desde el seguimiento público (requisito 26). Aplica las mismas reglas del
+  // operador que una reprogramación interna; además, no puede haber otra visita ya asignada. El evento queda
+  // con origen Destinatario y sin usuario responsable.
+  public void ReprogramarPorDestinatario(ProgramacionEntrega nuevaProgramacion, DateTime ocurridoEn)
+  {
+    if (ImpedimentoNuevaVisita() is { } impedimento)
+      throw new InvalidOperationException($"No se puede reprogramar: {impedimento}.");
+    ReprogramarDesde(nuevaProgramacion, null, OrigenEvento.Destinatario, ocurridoEn);
+  }
+
+  // null si el envío admite una nueva visita; si no, el motivo, en palabras para el usuario. Es la misma
+  // condición que exige Reprogramar, expuesta para que las pantallas no la repliquen.
+  public string? ImpedimentoNuevaVisita()
+  {
+    if (Estado is not (EstadoEnvio.NoEntregado or EstadoEnvio.EntregadoParcialmente) || _intentos.Count == 0 ||
+        Parada is not null || Devolucion is not null)
+      return "el envío no está esperando una nueva visita";
+    if (Estado == EstadoEnvio.EntregadoParcialmente &&
+        (!Reglas.PermiteEntregaParcial || Reglas.AccionPendientes == AccionBultosPendientes.DevolverAlComercio))
+      return "las reglas del operador indican devolver los bultos pendientes al comercio";
+    if (!UltimoIntento!.EsReintentable)
+      return "el motivo del último intento no permite reintentar la entrega";
+    if (_intentos.Count >= Reglas.MaxIntentosEntrega)
+      return $"se agotaron los {Reglas.MaxIntentosEntrega} intentos de entrega que permiten las reglas";
+    return null;
+  }
+
+  private void ReprogramarDesde(ProgramacionEntrega nuevaProgramacion, Usuario? responsable, OrigenEvento origen,
+    DateTime ocurridoEn)
+  {
     VerificarEvento(TipoEvento.Reintentar, responsable, ocurridoEn);
     if (Estado == EstadoEnvio.EntregadoParcialmente) ValidarPoliticaNuevaVisita();
     if (_intentos.Count == 0 || !UltimoIntento!.EsReintentable ||
@@ -234,7 +268,7 @@ public sealed partial class Envio : Entidad
     ValidarNuevaProgramacion(nuevaProgramacion, ocurridoEn);
     var anterior = Programacion;
     Programacion = nuevaProgramacion;
-    Aplicar(TipoEvento.Reintentar, responsable, ocurridoEn, OrigenEvento.Sistema,
+    Aplicar(TipoEvento.Reintentar, responsable, ocurridoEn, origen,
       programacionAnterior: anterior, programacionNueva: nuevaProgramacion);
   }
 
@@ -297,9 +331,15 @@ public sealed partial class Envio : Entidad
     if (ocurridoEn < FechaAdmision) throw new ArgumentException("El evento no puede ser anterior a la admision.", nameof(ocurridoEn));
   }
 
-  private void VerificarEvento(TipoEvento tipo, Usuario responsable, DateTime ocurridoEn)
+  // Sin responsable solo llegan los eventos del destinatario (EventoDeEnvio lo garantiza): se valida el momento.
+  private void VerificarEvento(TipoEvento tipo, Usuario? responsable, DateTime ocurridoEn)
   {
-    ValidarResponsable(responsable, ocurridoEn);
+    if (responsable is null)
+    {
+      Validacion.Fecha(ocurridoEn, nameof(ocurridoEn));
+      if (ocurridoEn < FechaAdmision) throw new ArgumentException("El evento no puede ser anterior a la admision.", nameof(ocurridoEn));
+    }
+    else ValidarResponsable(responsable, ocurridoEn);
     _ = PrepararEstados(tipo);
   }
 
@@ -320,7 +360,7 @@ public sealed partial class Envio : Entidad
       throw new InvalidOperationException("La nueva ventana no permite respetar el plazo entre intentos.");
   }
 
-  private void Aplicar(TipoEvento tipo, Usuario responsable, DateTime ocurridoEn, OrigenEvento origen,
+  private void Aplicar(TipoEvento tipo, Usuario? responsable, DateTime ocurridoEn, OrigenEvento origen,
     GeoPunto? posicion = null, string? detalle = null, Guid? idOperacion = null,
     ProgramacionEntrega? programacionAnterior = null, ProgramacionEntrega? programacionNueva = null)
   {

@@ -7,7 +7,6 @@ public sealed class EventoDeEnvio : Entidad
   private EventoDeEnvio()
   {
     Envio = null!;
-    Responsable = null!;
   }
 
   public Envio Envio { get; private set; }
@@ -17,8 +16,9 @@ public sealed class EventoDeEnvio : Entidad
   public OrigenEvento Origen { get; private set; }
   public EstadoEnvio? EstadoAnterior { get; private set; }
   public EstadoEnvio EstadoNuevo { get; private set; }
-  public Usuario Responsable { get; private set; }
-  public Guid ResponsableId => Responsable.Id;
+  // Usuario que generó el evento. Solo es null en los eventos del destinatario, que no tiene cuenta.
+  public Usuario? Responsable { get; private set; }
+  public Guid? ResponsableId => Responsable?.Id;
   public DateTime OcurridoEn { get; private set; }
   public GeoPunto? Posicion { get; private set; }
   public string? Detalle { get; private set; }
@@ -27,10 +27,14 @@ public sealed class EventoDeEnvio : Entidad
   public ProgramacionEntrega? ProgramacionNueva { get; private set; }
 
   internal EventoDeEnvio(Envio envio, TipoEvento tipo, OrigenEvento origen, EstadoEnvio? estadoAnterior,
-    EstadoEnvio estadoNuevo, Usuario responsable, DateTime ocurridoEn, GeoPunto? posicion,
+    EstadoEnvio estadoNuevo, Usuario? responsable, DateTime ocurridoEn, GeoPunto? posicion,
     string? detalle, Guid? idOperacion,
     ProgramacionEntrega? programacionAnterior = null, ProgramacionEntrega? programacionNueva = null)
   {
+    // Invariante: un evento sin usuario solo puede venir del destinatario, y uno del destinatario nunca tiene usuario.
+    if ((responsable is null) != (origen == OrigenEvento.Destinatario))
+      throw new ArgumentException("Solo los eventos generados por el destinatario no tienen un usuario responsable.",
+        nameof(responsable));
     Envio = envio;
     Tipo = tipo;
     Origen = origen;

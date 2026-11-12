@@ -172,7 +172,7 @@
                 <td>@Textos.Fecha(v.OcurridoEn)</td>
                 <td>@Textos.Evento(v.Tipo)</td>
                 <td>@Textos.Estado(v.EstadoAnterior) → @Textos.Estado(v.EstadoNuevo)</td>
-                <td>@(v.Origen switch { OrigenEvento.AppRepartidor => "App del repartidor", OrigenEvento.Deposito => "Depósito", _ => "Sistema" })</td>
+                <td>@(v.Origen switch { OrigenEvento.AppRepartidor => "App del repartidor", OrigenEvento.Deposito => "Depósito", OrigenEvento.Destinatario => "Destinatario", _ => "Sistema" })</td>
                 <td>@v.Responsable</td>
                 <td>@v.Detalle</td>
             </tr>

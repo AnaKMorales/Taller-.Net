@@ -17,10 +17,10 @@ public sealed partial class PostgresTests
         await using var db = Context();
         var envio = await EscenarioPersistencia.Grafo(db).SingleAsync();
         var ruta = await NuevaRuta(db);
-        ruta.AgregarParada(envio, 1, EscenarioPersistencia.Fecha.AddHours(1), envio.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+        ruta.AgregarParada(envio, 1, EscenarioPersistencia.Fecha.AddHours(1), envio.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
         db.Add(ruta);
         await db.SaveChangesAsync();
-        ruta.Despachar(envio.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+        ruta.Despachar(envio.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
         await db.SaveChangesAsync();
         return e;
     }

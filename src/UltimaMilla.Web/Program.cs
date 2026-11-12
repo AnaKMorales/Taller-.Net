@@ -11,7 +11,9 @@ using Serilog.Events;
 using Serilog.Formatting.Json;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Despacho;
+using UltimaMilla.Application.Envios.AltaPortal;
 using UltimaMilla.Application.Envios.CrearEnvio;
+using UltimaMilla.Application.Envios.ReprogramacionPublica;
 using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
 using UltimaMilla.Application.Tarifas;
@@ -21,6 +23,7 @@ using UltimaMilla.Infrastructure.Cache;
 using UltimaMilla.Infrastructure.Mensajeria;
 using UltimaMilla.Infrastructure.Persistence;
 using UltimaMilla.Infrastructure.Persistence.Backoffice;
+using UltimaMilla.Infrastructure.Persistence.Envios;
 using UltimaMilla.Infrastructure.Persistence.Configuracion;
 using UltimaMilla.Infrastructure.Persistence.Despacho;
 using UltimaMilla.Infrastructure.Persistence.Intentos;
@@ -131,6 +134,14 @@ builder.Services.AddScoped<ReenviarAvisoHandler>();
 
 builder.Services.AddScoped<CrearEnvioHandler>();
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
+// Alta de envíos desde el portal: opciones del comercio, tarifa con el tarifario vigente y fechas en el servidor.
+builder.Services.AddSingleton<ICalculadorTarifa, CalculadorTarifa>();
+builder.Services.AddScoped<IOpcionesAlta, OpcionesAlta>();
+builder.Services.AddSingleton(builder.Configuration.GetSection("Operacion").Get<OpcionesOperacion>() ?? new OpcionesOperacion());
+builder.Services.AddScoped<AltaEnvioPortalHandler>();
+// Reprogramación por el destinatario desde el seguimiento público (requisito 26).
+builder.Services.AddScoped<IReprogramacionPublicaRepository, ReprogramacionPublicaRepository>();
+builder.Services.AddScoped<ReprogramarPorDestinatarioHandler>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();

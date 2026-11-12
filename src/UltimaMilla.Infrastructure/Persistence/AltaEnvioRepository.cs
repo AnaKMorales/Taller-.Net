@@ -33,7 +33,8 @@ public sealed class AltaEnvioRepository(AppDbContext db) : IAltaEnvioRepository
         var reglas = await db.Set<ReglasOperativas>().Include(r => r.PlazosServicio).Include(r => r.PoliticaDevolucion)
             .SingleOrDefaultAsync(r => r.Id == command.ReglasId, cancellationToken)
             ?? throw new AislamientoOperadorException();
-        var tarifario = await db.Set<CuadroTarifario>().Include(c => c.Lineas)
+        // El dominio valida que haya línea para la zona (LineaTarifa.ZonaId navega a la zona): hay que cargarla.
+        var tarifario = await db.Set<CuadroTarifario>().Include(c => c.Lineas).ThenInclude(l => l.Zona)
             .SingleOrDefaultAsync(c => c.Id == command.CuadroTarifarioId, cancellationToken)
             ?? throw new AislamientoOperadorException();
         return new(cuenta, zona, reglas, tarifario, usuario);
