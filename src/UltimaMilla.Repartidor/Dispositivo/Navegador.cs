@@ -49,4 +49,8 @@ public sealed class Navegador(IJSRuntime js) : IAlmacenLocal
             ? new GeoPuntoDto(Math.Round((decimal)latitud, 6), Math.Round((decimal)longitud, 6))
             : null;
     }
+
+    // Igual que ObtenerUbicacionAsync, pero dice por qué falló (permiso denegado o sin señal).
+    public async Task<LecturaUbicacion> LeerUbicacionAsync() =>
+        LecturaUbicacion.DesdeNavegador(await (await Modulo()).InvokeAsync<double[]?>("ubicacionDetallada"));
 }

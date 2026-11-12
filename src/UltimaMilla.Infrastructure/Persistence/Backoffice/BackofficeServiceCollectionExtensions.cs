@@ -14,6 +14,7 @@ public static class BackofficeServiceCollectionExtensions
     {
         services.AddSingleton<PublicarCambiosInterceptor>();
         services.AddScoped<IConsultasBackoffice, ConsultasBackoffice>();
+        services.AddScoped<IDetalleEnvio, DetalleEnvio>();
         services.AddScoped<IConsultasPortal, ConsultasPortal>();
         services.AddScoped<IPanelAvisos, PanelAvisos>();
         services.AddScoped<IReportesGestion, ReportesGestion>();

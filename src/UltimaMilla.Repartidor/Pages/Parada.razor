@@ -18,12 +18,14 @@ else if (!_parada.AdmiteRegistro)
 }
 else if (_parada.ParadaId is not null)
 {
+    <AvisoUbicacion />
     <RegistrarBultos @key="_parada.ParadaId" Parada="_parada" Hoja="_hoja" RepartidorId="_sesion.RepartidorId" />
 }
 else
 {
     <h1 class="h4">@_parada.Orden. @_parada.Destinatario</h1>
     <p>@_parada.Direccion</p>
+    <AvisoUbicacion />
 
     <div class="btn-group w-100 mb-3" role="group">
         <button class="btn @(_entregado ? "btn-success" : "btn-outline-success")" @onclick="() => _entregado = true">Entregado</button>
@@ -42,7 +44,7 @@ else
                 }
                 else
                 {
-                    <div class="alert alert-info py-2 mb-0">El operador exige @tipo: la captura de firma y foto llega en la segunda etapa.</div>
+                    <div class="alert alert-info py-2 mb-0">El operador exige @tipo. Esta es una visita de prueba: la firma y la foto se capturan en las visitas de la hoja descargada del servidor.</div>
                 }
             }
         }
