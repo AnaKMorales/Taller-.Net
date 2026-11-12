@@ -75,6 +75,36 @@ Las fases 1 y 2 pueden avanzar en paralelo. No dejar todo el diseño del cambio 
 
 El ADR sigue en curso hasta integrar y demostrar el recorrido completo.
 
+## Pendientes de la letra original para retomar después del monitoreo
+
+Las referencias apuntan a la numeración y las páginas impresas de `Laboratorio__NET_2026.pdf`.
+La tabla reúne las brechas detectadas en el repositorio para contrastarlas con el sistema
+integrado después del monitoreo del 12/11. Los responsables son propuestas para confirmar
+en equipo según las áreas de «Nos organizamos».
+
+| Pendiente | Sección de la letra original | Estado y trabajo por revisar | Responsable propuesto |
+| --- | --- | --- | --- |
+| Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Las pruebas del flujo crítico y de aislamiento ya se ejecutan localmente con PostgreSQL. Falta proporcionar la conexión en CI y comprobar que se ejecuten sin omisiones. | Agustín, coordinando el pipeline con Aldana. |
+| Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | El dominio puede despachar y la PWA descarga rutas despachadas. Falta exponer la operación en backend y backoffice. El ensayo del 12/11 puede partir de una ruta ya despachada con `/dev/datos-demo-pwa`. Si se decide despachar una ruta nueva en vivo, esta operación pasa a ser un prerrequisito. | Agustín en backend y Ana en backoffice. |
+| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Ya hay modelos y algunas consultas. Queda comprobar y completar las operaciones de administración de comercios y sus usuarios y permisos, zonas y franjas, repartidores y vehículos con su capacidad. El punto 4 de Ana en el reparto cubre formularios de tarifas y reglas. | Ana en backoffice y Agustín en las operaciones de backend que falten. |
+| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
+| Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | El alta individual está en el punto 1 de Ana. Ya existen el caso de uso y el calculador. Falta verificar la preparación del envío y conectar el cálculo automático a la tarifa vigente en el flujo real. La importación masiva debe permitir reintentar un lote completo o parcial sin duplicados. También falta el alta por API para comercios. | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
+| Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
+| Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | El dominio ya contempla escaneos, discrepancias, rutas, devoluciones y rendición. Falta conectar la recepción con discrepancias, la asignación de envíos regulares, el control de faltantes y sobrantes al cargar, el cierre de devolución y la rendición. El punto 4 de Aldana ya contempla el escaneo en la PWA y el punto 4 de Ana contempla la vista de parciales y pendientes. | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
+| Revisar el recálculo de indicadores y el cierre diario | **4 · Alcance, servicio de procesamiento en segundo plano** (pág. 3). | Los reportes actuales calculan sus resultados al consultar. Falta comprobar el procesamiento de indicadores y el cierre diario desde el Worker. El cierre aparece en el diagnóstico de «Nos organizamos» y quedó sin tarea numerada. | Aldana en Worker y Agustín para las reglas de cierre que falten. |
+| Confirmar la opción de autenticación exigida | **6.3 · Seguridad y autenticación** (pág. 5). | La aplicación usa cookies, tokens Bearer y `PasswordHasher`. En la revisión no se encontró ASP.NET Identity como almacén de usuarios ni OpenID Connect configurado. Confirmar con el equipo cómo se acredita o completa la opción de autenticación que pide la letra. | Agustín y Aldana, con Ana para validar el impacto en Web. |
+
+La reprogramación solicitada por el destinatario (**26**) y las notificaciones al
+destinatario (**27**) ya figuran en el reparto de Ana y Aldana, respectivamente. Los
+pendientes del cambio de entrega parcial siguen en la tabla de requisitos 31–36 de
+este documento.
+
+Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirmar
+qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
+Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
+integren cambios en Domain o Application. La última medición fue **85,81 % en Domain**
+y **70,33 % en Application**, con poco margen en Application.
+
 ## Aclaraciones adicionales del PDF
 
 - **Caché distribuida obligatoria**, también para equipos de tres. Redis está disponible
