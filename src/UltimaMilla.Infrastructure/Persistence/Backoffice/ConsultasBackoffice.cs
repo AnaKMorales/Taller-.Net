@@ -56,7 +56,7 @@ public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = n
             .Where(e => e.Origen == OrigenEvento.AppRepartidor && e.Posicion != null && e.OcurridoEn >= desde)
             .OrderByDescending(e => e.OcurridoEn)
             .Take(500)
-            .Select(e => new { e.Responsable.Email, e.Posicion, e.OcurridoEn })
+            .Select(e => new { e.Responsable!.Email, e.Posicion, e.OcurridoEn })
             .ToListAsync(cancellationToken);
         return eventos.GroupBy(e => e.Email)
             .Select(g => g.First())

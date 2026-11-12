@@ -1139,7 +1139,7 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("ProgramacionNuevaId");
 
-                    b.Property<Guid>("ResponsableKey")
+                    b.Property<Guid?>("ResponsableKey")
                         .HasColumnType("uuid")
                         .HasColumnName("ResponsableId");
 
@@ -1168,7 +1168,10 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ResponsableKey", "TenantId");
 
-                    b.ToTable("EventosDeEnvio", (string)null);
+                    b.ToTable("EventosDeEnvio", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EventosDeEnvio_ResponsableSegunOrigen", "(\"ResponsableId\" IS NULL) = (\"Origen\" = 3)");
+                        });
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Envios.IntentoEntrega", b =>
@@ -2267,8 +2270,7 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ResponsableKey", "TenantId")
                         .HasPrincipalKey("Id", "TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Envio");
 

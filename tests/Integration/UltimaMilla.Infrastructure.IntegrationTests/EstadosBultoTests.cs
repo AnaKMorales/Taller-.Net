@@ -45,9 +45,9 @@ public sealed partial class PostgresTests
         var a = await EscenarioPersistencia.Grafo(ganador).SingleAsync();
         var b = await EscenarioPersistencia.Grafo(perdedor).SingleAsync();
         var ruta = await NuevaRuta(ganador);
-        ruta.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddHours(1), a.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+        ruta.AgregarParada(a, 1, EscenarioPersistencia.Fecha.AddHours(1), a.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
         ganador.Add(ruta);
-        b.MarcarExtraviado(b.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Decisión perdedora");
+        b.MarcarExtraviado(b.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Decisión perdedora");
         await ganador.SaveChangesAsync();
         await Assert.ThrowsAsync<UltimaMilla.Application.Abstractions.ConflictoConcurrenciaException>(() => perdedor.SaveChangesAsync());
         await using var reader = Context();

@@ -8,7 +8,10 @@
 @using UltimaMilla.Domain.Envios
 @using UltimaMilla.Web.Seguridad
 @attribute [EnableRateLimiting(SeguimientoSeguro.PoliticaTasa)]
+@using UltimaMilla.Application.Envios.ReprogramacionPublica
 @inject ISeguimientoPublico Consulta
+@inject ReprogramarPorDestinatarioHandler Reprogramar
+@inject NavigationManager Navegacion
 
 <PageTitle>@(envio is null ? "Seguimiento de envío" : $"Tu envío con {envio.Operador}")</PageTitle>
 <HeadContent>
@@ -23,6 +26,9 @@
         .tarjeta { background: #fff; border: 1px solid var(--linea); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
         .estado { font-size: 1.6rem; font-weight: 700; margin: 0 0 6px; }
         .estado.ok { color: var(--ok); } .estado.alerta { color: var(--alerta); } .estado.error { color: var(--error); }
+        .detalle.error { color: var(--error); }
+        form select { font: inherit; padding: .4rem; max-width: 100%; margin: .5rem .5rem .5rem 0; }
+        form button { font: inherit; padding: .4rem .9rem; border-radius: 6px; border: 0; background: var(--acento); color: #fff; cursor: pointer; }
         .detalle { margin: 0; color: var(--suave); }
         h2 { font-size: 1rem; margin: 0 0 12px; }
         .barra { height: 10px; background: var(--linea); border-radius: 5px; overflow: hidden; margin-top: 8px; }
@@ -65,6 +71,31 @@
             </section>
         }
 
+        @if (Reprogramado)
+        {
+            <section class="tarjeta">
+                <p class="estado ok">Listo, reprogramaste la entrega.</p>
+                <p class="detalle">Te esperamos @Ventana(envio).</p>
+            </section>
+        }
+        else if (reprogramacion is { Disponible: true } opciones)
+        {
+            <section class="tarjeta">
+                <h2>¿No vas a estar? Elegí otro día</h2>
+                @if (errorReprogramacion is not null) { <p class="detalle error">@errorReprogramacion</p> }
+                <form method="post" @formname="reprogramar" @onsubmit="ReprogramarAsync">
+                    <AntiforgeryToken />
+                    <select name="Opcion" aria-label="Nueva fecha y franja">
+                        @foreach (var o in opciones.Opciones)
+                        {
+                            <option value="@o.Clave">@o.Desde.ToString("dddd d 'de' MMMM", Cultura) · @o.Franja (@o.Desde.ToString("HH:mm")–@o.Hasta.ToString("HH:mm"))</option>
+                        }
+                    </select>
+                    <button type="submit">Reprogramar</button>
+                </form>
+            </section>
+        }
+
         <section class="tarjeta">
             <h2>Historial</h2>
             <ol>
@@ -87,12 +118,48 @@
     [Parameter] public string Token { get; set; } = "";
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
 
+    [SupplyParameterFromQuery(Name = "reprogramado")] public bool Reprogramado { get; set; }
+
     private SeguimientoPublicoDto? envio;
+    private OpcionesReprogramacion? reprogramacion;
+    private string? errorReprogramacion;
+
+    private CancellationToken Cancelacion => HttpContext?.RequestAborted ?? default;
 
     protected override async Task OnInitializedAsync()
     {
-        envio = await Consulta.ConsultarAsync(Token, HttpContext?.RequestAborted ?? default);
-        if (envio is null && HttpContext is not null) HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+        envio = await Consulta.ConsultarAsync(Token, Cancelacion);
+        if (envio is null)
+        {
+            if (HttpContext is not null) HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+        // Solo se carga el envío completo cuando puede haber algo que reprogramar (después de un intento fallido).
+        if (!Reprogramado && envio.Estado is EstadoEnvio.NoEntregado or EstadoEnvio.EntregadoParcialmente)
+            reprogramacion = await Reprogramar.OpcionesAsync(Token, Cancelacion);
+    }
+
+    private async Task ReprogramarAsync()
+    {
+        var (resultado, mensaje) = await Reprogramar.ReprogramarAsync(Token, HttpContext!.Request.Form["Opcion"].ToString(), Cancelacion);
+        switch (resultado)
+        {
+            case ResultadoReprogramacion.Reprogramado:
+                // Post-Redirect-Get: recargar no repite la solicitud.
+                Navegacion.NavigateTo($"/seguimiento/{Token}?reprogramado=true");
+                return;
+            case ResultadoReprogramacion.Conflicto:
+                errorReprogramacion = "El envío cambió mientras elegías. Revisá el estado y volvé a intentar.";
+                break;
+            case ResultadoReprogramacion.NoEncontrado:
+                errorReprogramacion = "No encontramos el envío.";
+                break;
+            default:
+                errorReprogramacion = mensaje is null ? "No se pudo reprogramar." : $"No se pudo reprogramar: {mensaje}";
+                break;
+        }
+        envio = await Consulta.ConsultarAsync(Token, Cancelacion);
+        reprogramacion = await Reprogramar.OpcionesAsync(Token, Cancelacion);
     }
 
     // Los instantes se guardan en UTC; se muestran con el desfase horario del operador (el de la ventana).

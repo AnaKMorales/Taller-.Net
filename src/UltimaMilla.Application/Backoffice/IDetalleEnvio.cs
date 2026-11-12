@@ -32,8 +32,7 @@ public sealed record DetalleEnvioDto(
     IReadOnlyList<EventoDetalleDto> Eventos,
     string? SinNuevaVisita = null)
 {
-    // Orientación para la pantalla: null si una nueva visita es posible; si no, el motivo. El núcleo
-    // (Envio.Reprogramar) vuelve a validar al asignar, así que esto solo evita ofrecer algo que se va a rechazar.
+    // null si una nueva visita es posible; si no, el motivo. Sale de Envio.ImpedimentoNuevaVisita (dominio).
     public bool NuevaVisitaPosible => SinNuevaVisita is null;
 
     // Bultos que todavía no se entregaron ni se devolvieron: los que puede gestionar el despachador.

@@ -13,6 +13,7 @@ using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Despacho;
 using UltimaMilla.Application.Envios.AltaPortal;
 using UltimaMilla.Application.Envios.CrearEnvio;
+using UltimaMilla.Application.Envios.ReprogramacionPublica;
 using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
 using UltimaMilla.Application.Tarifas;
@@ -138,6 +139,9 @@ builder.Services.AddSingleton<ICalculadorTarifa, CalculadorTarifa>();
 builder.Services.AddScoped<IOpcionesAlta, OpcionesAlta>();
 builder.Services.AddSingleton(builder.Configuration.GetSection("Operacion").Get<OpcionesOperacion>() ?? new OpcionesOperacion());
 builder.Services.AddScoped<AltaEnvioPortalHandler>();
+// Reprogramación por el destinatario desde el seguimiento público (requisito 26).
+builder.Services.AddScoped<IReprogramacionPublicaRepository, ReprogramacionPublicaRepository>();
+builder.Services.AddScoped<ReprogramarPorDestinatarioHandler>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();

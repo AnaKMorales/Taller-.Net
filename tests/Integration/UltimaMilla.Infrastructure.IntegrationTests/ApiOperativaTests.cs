@@ -94,7 +94,7 @@ public sealed partial class PostgresTests
         {
             var envio = await EscenarioPersistencia.Grafo(db).SingleAsync();
             var ruta = await NuevaRuta(db);
-            ruta.AgregarParada(envio, 1, EscenarioPersistencia.Fecha.AddHours(1), envio.Eventos.First().Responsable, EscenarioPersistencia.Fecha);
+            ruta.AgregarParada(envio, 1, EscenarioPersistencia.Fecha.AddHours(1), envio.Eventos.First().Responsable!, EscenarioPersistencia.Fecha);
             db.Add(ruta); await db.SaveChangesAsync(); rutaId = ruta.Id;
         }
         await using var server = new ServidorApi(_testConnection);

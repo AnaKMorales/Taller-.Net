@@ -25,7 +25,7 @@ public sealed partial class PostgresTests
             Assert.Empty(await writer.Set<MensajeOutbox>().ToListAsync());
             var envio = await EscenarioPersistencia.Grafo(writer).SingleAsync();
             Assert.Equal(2, envio.Eventos.Count);
-            envio.MarcarExtraviado(envio.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Nuevo evento");
+            envio.MarcarExtraviado(envio.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Nuevo evento");
             await writer.SaveChangesAsync();
         }
         await using var reader = Context();
@@ -92,7 +92,7 @@ public sealed partial class PostgresTests
             ALTER TABLE "MensajesOutbox" ADD CONSTRAINT "FallaOutboxPrueba"
             CHECK ("Tipo" <> 'envio.evento.v1') NOT VALID
             """);
-        envio.MarcarExtraviado(envio.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Extraviado");
+        envio.MarcarExtraviado(envio.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Extraviado");
         var error = await Assert.ThrowsAsync<DbUpdateException>(() => writer.SaveChangesAsync());
         Assert.Equal(PostgresErrorCodes.CheckViolation, Assert.IsType<PostgresException>(error.InnerException).SqlState);
         await using var reader = Context();
@@ -111,8 +111,8 @@ public sealed partial class PostgresTests
         await using var second = Context();
         var a = await EscenarioPersistencia.Grafo(first).SingleAsync();
         var b = await EscenarioPersistencia.Grafo(second).SingleAsync();
-        a.MarcarExtraviado(a.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Primero");
-        b.MarcarExtraviado(b.Eventos.First().Responsable, EscenarioPersistencia.Fecha, "Segundo");
+        a.MarcarExtraviado(a.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Primero");
+        b.MarcarExtraviado(b.Eventos.First().Responsable!, EscenarioPersistencia.Fecha, "Segundo");
         var loserId = b.Eventos.Last().Id;
         await first.SaveChangesAsync();
         await Assert.ThrowsAsync<ConflictoConcurrenciaException>(() => second.SaveChangesAsync());

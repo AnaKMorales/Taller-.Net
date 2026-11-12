@@ -59,26 +59,9 @@ public sealed class DetalleEnvio(AppDbContext db) : IDetalleEnvio
                 .ToList(),
             envio.Eventos.OrderByDescending(v => v.OcurridoEn)
                 .Select(v => new EventoDetalleDto(v.OcurridoEn, v.Tipo, v.Origen, v.EstadoAnterior, v.EstadoNuevo,
-                    v.Responsable.Email, v.Detalle))
+                    v.Responsable?.Email ?? "Destinatario (seguimiento público)", v.Detalle))
                 .ToList(),
-            SinNuevaVisita(envio));
-    }
-
-    // Misma condición que exige Envio.Reprogramar para una nueva visita: que queden intentos y que los bultos no
-    // entregados en el último intento tengan un motivo reintentable. La regla vive en el dominio (internal);
-    // acá se replica solo para orientar la pantalla, y el núcleo la vuelve a validar al asignar.
-    private static string? SinNuevaVisita(Envio envio)
-    {
-        var ultimo = envio.Intentos.MaxBy(i => i.Numero);
-        if (ultimo is null) return null;
-        if (envio.Intentos.Count >= envio.Reglas.MaxIntentosEntrega)
-            return $"se agotaron los {envio.Reglas.MaxIntentosEntrega} intentos que permiten las reglas";
-        var noReintentables = ultimo.Detalles.Count == 0
-            ? (ultimo.MotivoNoEntrega is { EsReintentable: false } m ? [m.Nombre] : [])
-            : ultimo.Detalles.Where(d => d.Resultado == ResultadoIntento.Fallido && d.Motivo is { EsReintentable: false })
-                .Select(d => d.Motivo!.Nombre).Distinct().ToList();
-        return noReintentables.Count > 0
-            ? $"el motivo «{string.Join("», «", noReintentables)}» no permite reintentar la entrega"
-            : null;
+            // La regla vive en el dominio (Envio.ImpedimentoNuevaVisita); la pantalla solo la muestra.
+            envio.ImpedimentoNuevaVisita());
     }
 }
