@@ -7,6 +7,14 @@ de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIEN
 
 ## Estado actual
 
+La consulta de preparación y la API de despacho están documentadas en
+[Despacho operativo](docs/despacho-operativo.md). La [API de carga por código](docs/carga-rutas.md)
+también está disponible; las interfaces de carga y despacho siguen pendientes.
+
+El backend de importación masiva idempotente y su contrato para integrar al portal se
+describen en [Importación de envíos](docs/importacion-envios.md). La lectura de archivos
+y la pantalla de importación siguen pendientes.
+
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
 Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
 de persistencia y pruebas de arquitectura, la PWA del repartidor conectada a la API y el

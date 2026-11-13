@@ -59,12 +59,27 @@ public static class ApiOperativa
             Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
         despacho.MapPost("/rutas", async (CrearRutaPendientes solicitud, IDespachoPendientes gestion, CancellationToken ct) =>
             Results.Json(await gestion.CrearRutaAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
+        despacho.MapGet("/rutas/{rutaId:guid}/preparacion", async (Guid rutaId, DespacharRutaHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(rutaId, ct)));
+        despacho.MapPost("/rutas/{rutaId:guid}/despachar", async (Guid rutaId, DespacharRutaCommand solicitud,
+            DespacharRutaHandler gestion, CancellationToken ct) => Results.Ok(await gestion.Handle(rutaId, solicitud, ct)));
         despacho.MapPost("/rutas/{rutaId:guid}/pendientes", async (Guid rutaId, AsignarPendientes solicitud,
             IDespachoPendientes gestion, CancellationToken ct) =>
             Results.Json(await gestion.AsignarAsync(rutaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
         despacho.MapPost("/envios/{envioId:guid}/devolucion-pendientes", async (Guid envioId, DevolverPendientes solicitud,
             IDespachoPendientes gestion, CancellationToken ct) =>
             Results.Json(await gestion.DevolverAsync(envioId, solicitud.VersionEsperadaEnvio, ct), statusCode: StatusCodes.Status201Created));
+
+        var carga = app.MapGroup("/api/carga/rutas")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador),
+                nameof(RolUsuario.Despachador), nameof(RolUsuario.OperarioDeposito)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        MapearCarga(carga);
+        var cargaRepartidor = app.MapGroup("/api/repartidor/carga/rutas")
+            .WithMetadata(new ApiOperativaMetadata()).RequireCors(ApiRepartidor.Cors)
+            .RequireAuthorization(Politicas.Repartidor).AddEndpointFilter<ErroresApiFilter>();
+        MapearCarga(cargaRepartidor);
 
         var configuracion = app.MapGroup("/api/configuracion")
             .WithMetadata(new ApiOperativaMetadata())
@@ -93,6 +108,14 @@ public static class ApiOperativa
             return Results.Created($"/api/configuracion/tarifarios/{creada.Version.Id}", creada);
         });
         return app;
+    }
+
+    private static void MapearCarga(RouteGroupBuilder grupo)
+    {
+        grupo.MapGet("/{rutaId:guid}", async (Guid rutaId, RegistrarCargaRutaHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(rutaId, ct)));
+        grupo.MapPost("/{rutaId:guid}/bultos", async (Guid rutaId, RegistrarCargaRutaCommand solicitud,
+            RegistrarCargaRutaHandler gestion, CancellationToken ct) => Results.Ok(await gestion.Handle(rutaId, solicitud, ct)));
     }
 }
 

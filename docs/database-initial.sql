@@ -1382,3 +1382,42 @@ VALUES ('20261108000550_TraceContextOutbox', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "EventosDeEnvio" ALTER COLUMN "ResponsableId" DROP NOT NULL;
+
+ALTER TABLE "EventosDeEnvio" ADD CONSTRAINT "CK_EventosDeEnvio_ResponsableSegunOrigen" CHECK (("ResponsableId" IS NULL) = ("Origen" = 3));
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261112004717_EventosDelDestinatario', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "AltasImportadas" (
+    "Id" uuid NOT NULL,
+    "CuentaComercialKey" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "EnvioKey" uuid NOT NULL,
+    "Referencia" character varying(100) NOT NULL,
+    "Huella" character varying(64) NOT NULL,
+    "Resultado" text NOT NULL,
+    CONSTRAINT "PK_AltasImportadas" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_AltasImportadas_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "FK_AltasImportadas_CuentasComerciales_CuentaComercialKey_Tenan~" FOREIGN KEY ("CuentaComercialKey", "TenantId") REFERENCES "CuentasComerciales" ("Id", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AltasImportadas_Envios_EnvioKey_TenantId" FOREIGN KEY ("EnvioKey", "TenantId") REFERENCES "Envios" ("Id", "TenantId") ON DELETE RESTRICT,
+    CONSTRAINT "FK_AltasImportadas_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_AltasImportadas_CuentaComercialKey_TenantId" ON "AltasImportadas" ("CuentaComercialKey", "TenantId");
+
+CREATE INDEX "IX_AltasImportadas_EnvioKey_TenantId" ON "AltasImportadas" ("EnvioKey", "TenantId");
+
+CREATE INDEX "IX_AltasImportadas_TenantId" ON "AltasImportadas" ("TenantId");
+
+CREATE UNIQUE INDEX "IX_AltasImportadas_TenantId_CuentaComercialKey_Referencia" ON "AltasImportadas" ("TenantId", "CuentaComercialKey", "Referencia");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261113211919_ImportacionIdempotente', '10.0.12');
+
+COMMIT;
+

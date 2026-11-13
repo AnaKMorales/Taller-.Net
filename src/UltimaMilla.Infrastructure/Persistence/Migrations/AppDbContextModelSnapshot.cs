@@ -1527,6 +1527,51 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Envios.AltaImportada", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CuentaComercialKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EnvioKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Huella")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Resultado")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("CuentaComercialKey", "TenantId");
+
+                    b.HasIndex("EnvioKey", "TenantId");
+
+                    b.HasIndex("TenantId", "CuentaComercialKey", "Referencia")
+                        .IsUnique();
+
+                    b.ToTable("AltasImportadas", (string)null);
+                });
+
             modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Inbox.MensajeProcesado", b =>
                 {
                     b.Property<Guid>("MensajeId")
@@ -2457,6 +2502,33 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Operador");
+                });
+
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Envios.AltaImportada", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Comercios.CuentaComercial", "Cuenta")
+                        .WithMany()
+                        .HasForeignKey("CuentaComercialKey", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Envios.Envio", "Envio")
+                        .WithMany()
+                        .HasForeignKey("EnvioKey", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cuenta");
+
+                    b.Navigation("Envio");
                 });
 
             modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Inbox.MensajeProcesado", b =>

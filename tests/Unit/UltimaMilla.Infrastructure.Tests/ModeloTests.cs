@@ -15,7 +15,7 @@ public sealed class ModeloTests
             .Where(t => !t.IsAbstract && typeof(Entidad).IsAssignableFrom(t)).ToArray();
         Assert.Equal(36, domainTypes.Length);
         Assert.All(domainTypes, t => Assert.NotNull(db.Model.FindEntityType(t)));
-        Assert.Equal(39, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        Assert.Equal(40, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
         Assert.DoesNotContain(db.Model.GetEntityTypes(), t => t.ClrType == typeof(GeoPunto) || t.ClrType == typeof(ArchivoRef));
         Assert.All(db.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()), fk =>
         {

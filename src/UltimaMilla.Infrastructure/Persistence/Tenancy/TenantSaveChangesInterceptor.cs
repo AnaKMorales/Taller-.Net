@@ -27,6 +27,9 @@ internal sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
     private static async Task Validate(AppDbContext db, bool useAsync, CancellationToken token = default)
     {
         if (db.EsSeguimientoPublico) throw new AislamientoOperadorException();
+        if (db.ChangeTracker.Entries<Envios.AltaImportada>().Any(e =>
+                e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("El registro de importación es inmutable.");
         OutboxPreparation.Prepare(db);
         await TenantWriteGuard.ValidateAsync(db, db.OperadorIdActual, useAsync, token);
         await CuentaWriteGuard.ValidateAsync(db, db.ContextoTenant!, useAsync, token);

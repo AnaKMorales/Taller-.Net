@@ -118,6 +118,30 @@ y **70,33 % en Application**, con poco margen en Application.
 
 ## Registro de avances
 
+### 13/11: backend de carga de rutas (letra original, requisito 19)
+
+Consulta de esperados/cargados/faltantes y registro por código, con variante de backoffice
+y Bearer para el repartidor asignado. Reenvíos sin duplicar escaneos, códigos ambiguos
+desambiguados por bulto, versiones optimistas y rollback. Se conecta al despacho y respeta
+las visitas de pendientes. Sin migración ni cambios de pantallas; la integración de las
+interfaces y el resto del circuito de depósito siguen pendientes. Ver [contrato](docs/carga-rutas.md).
+
+### 13/11: backend de despacho (letra original, requisito 17)
+
+API autenticada de consulta de preparación y despacho, con antiforgery, versión esperada,
+carga verificada por composición activa y guardado transaccional con eventos/outbox.
+Admite nuevas visitas de pendientes. No requiere migración. Quedan la conexión visual
+en backoffice y el circuito de registro de carga; las demás operaciones de depósito y
+asignación regular siguen pendientes. Ver [contrato y límites](docs/despacho-operativo.md).
+
+### 13/11: backend de importación (letra original, requisito 7)
+
+Implementado el procesamiento por fila con referencia estable por operador/cuenta,
+reenvío sin duplicados, conflicto ante contenido distinto y transacción conjunta de alta,
+outbox y registro de importación. Reutiliza el cálculo automático del alta individual.
+Faltan la lectura del archivo y la conexión desde el portal, a cargo de la integración web.
+El alta por API para comercios continúa pendiente. Ver [contrato y límites](docs/importacion-envios.md).
+
 - **01/11:** creado este seguimiento y orden de trabajo. Entrega parcial todavía pendiente.
   Agregada y aprobada contra PostgreSQL real una prueba del flujo actual: alta persistida,
   recepción, asignación, carga, despacho, entrega, repetición de la misma operación y rendición.

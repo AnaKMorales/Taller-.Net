@@ -139,6 +139,8 @@ builder.Services.AddSingleton<ICalculadorTarifa, CalculadorTarifa>();
 builder.Services.AddScoped<IOpcionesAlta, OpcionesAlta>();
 builder.Services.AddSingleton(builder.Configuration.GetSection("Operacion").Get<OpcionesOperacion>() ?? new OpcionesOperacion());
 builder.Services.AddScoped<AltaEnvioPortalHandler>();
+builder.Services.AddScoped<UltimaMilla.Application.Envios.Importacion.IImportacionEnvios, ImportacionEnvios>();
+builder.Services.AddScoped<UltimaMilla.Application.Envios.Importacion.ImportarEnviosHandler>();
 // Reprogramación por el destinatario desde el seguimiento público (requisito 26).
 builder.Services.AddScoped<IReprogramacionPublicaRepository, ReprogramacionPublicaRepository>();
 builder.Services.AddScoped<ReprogramarPorDestinatarioHandler>();
@@ -146,6 +148,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();
 builder.Services.AddScoped<IDespachoPendientes, DespachoPendientes>();
+builder.Services.AddScoped<IDespachoRutaRepository, DespachoRutaRepository>();
+builder.Services.AddScoped<DespacharRutaHandler>();
+builder.Services.AddScoped<IRegistroCargaRutaRepository, DespachoRutaRepository>();
+builder.Services.AddScoped<RegistrarCargaRutaHandler>();
 builder.Services.AgregarRegistroIntentos();
 builder.Services.AgregarConfiguracionVersionada();
 

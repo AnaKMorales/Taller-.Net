@@ -10,6 +10,7 @@ internal static class CuentaOwnership
     {
         [typeof(CuentaComercial)] = ["Id"],
         [typeof(Envio)] = ["CuentaComercialKey"],
+        [typeof(Envios.AltaImportada)] = ["CuentaComercialKey"],
         [typeof(SuscripcionAviso)] = ["CuentaComercialKey"],
         [typeof(Bulto)] = ["Envio", "CuentaComercialKey"],
         [typeof(Destinatario)] = ["Envio", "CuentaComercialKey"],

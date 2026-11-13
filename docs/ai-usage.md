@@ -558,3 +558,62 @@ en Tempo, logs correlacionados en Loki, métricas y las consultas del tablero en
 También se publicó la PWA en Release y se arrancó el Worker real con una base temporal:
 declaró su topología, permaneció activo sin errores y sus logs llegaron por OTLP a Loki.
 Los servicios temporales se eliminaron y el tablero local quedó disponible.
+
+### 13/11/2026: cobertura e importación masiva idempotente
+
+El usuario autorizó mejorar la cobertura y después implementar el backend de importación,
+sin modificar las pantallas de las compañeras. Se propusieron y aceptaron resultados por
+fila y una referencia estable por operador/cuenta, sin depender de la identidad del lote.
+Se añadieron pruebas unitarias de alta, reprogramación y procesamiento del lote; un puerto
+en Application; persistencia técnica en Infrastructure; bloqueo transaccional por referencia,
+índice único, huella SHA-256 y guardado conjunto del alta/outbox/registro. Se reutilizó el
+alta del portal y se registraron los servicios en Web, sin exponer otro endpoint.
+
+Se ajustó la propuesta para normalizar la escala decimal de la huella y revalidar el usuario
+antes de recuperar resultados existentes. No se añadió lector de archivos ni interfaz.
+Se generaron migración, SQL y documentación de integración. Las pruebas propias de
+PostgreSQL incluyen simultaneidad, rollback e independencia entre cuentas y operadores.
+La última selección de ocho pruebas pasó. La regresión amplia detectó una expectativa
+genérica de tabla no vacía, corregida y comprobada, y dos timeouts de datos demo pendientes
+de investigar. No se presenta esa corrida completa como satisfactoria.
+La compilación final no tuvo advertencias ni errores; cobertura Domain 85,97 % y
+Application 74,12 %. No se aplicaron migraciones a desarrollo ni se hicieron commits.
+
+### 13/11/2026: backend de preparación y despacho de rutas
+
+El usuario autorizó el caso de uso y la API de despacho dentro del backend, dejando el
+botón del backoffice a su responsable. Se implementaron consulta de versión/carga y POST
+con permisos, antiforgery y concurrencia, reutilizando Ruta.Despachar y el outbox existente.
+La carga se comprueba sobre los bultos de la visita activa, con escaneos de esa ruta y
+posteriores a la última asignación. La lectura coherente del grafo usa una unidad propia;
+el guardado conserva las versiones originales para competir por ruta y envíos.
+
+Se aceptó la propuesta sin añadir API de escaneo/carga, pantalla ni migración. El alcance
+restante quedó explícito en docs/despacho-operativo.md y en el seguimiento de pendientes.
+Se probaron cinco escenarios con PostgreSQL temporal (API, falta de carga, rollback,
+concurrencia y pendientes), todos aprobados. Pasaron 200 casos de Domain/Application y
+13 de arquitectura. Compilación estricta sin advertencias; cobertura Domain 85,97 % y
+Application 75,65 %. No se repitió la suite completa de PostgreSQL; los dos timeouts de
+datos demo observados en la etapa previa siguen por investigar. Sin commits ni despliegue.
+
+### 13/11/2026: registro de carga por código
+
+El usuario autorizó continuar con el backend de carga. Se reutilizó la unidad de lectura
+de rutas, conservando separados los permisos de carga y despacho: depósito puede cargar;
+el repartidor usa Bearer y solo opera sobre su ruta; despachar continúa reservado al
+administrador/despachador. Se compartió el cálculo de bultos cargados entre ambos casos.
+
+Se aceptó el reconocimiento de cargas repetidas por ruta/bulto/asignación, sin otra
+migración, y la desambiguación explícita de códigos compartidos mediante BultoId. No se
+implementaron interfaces, lectura de cámara ni sincronización offline de carga. Los
+escaneos no cambian el estado del envío; ese cambio sigue ocurriendo al despachar.
+Se documentaron contrato, errores, permisos y límites en docs/carga-rutas.md.
+
+Se corrigieron datos de preparación de las pruebas (referencias a grafos desconectados
+y correos duplicados) y una expectativa de 401 que debía ser 403 para el acceso revocado.
+No se cambió la autenticación para acomodar las pruebas. Quedaron verificados diez casos
+de integración de carga/despacho con PostgreSQL, en una selección de nueve aprobados y
+la repetición aprobada del caso Bearer corregido. Pasaron 206 casos de Domain/Application
+y 13 de arquitectura. Cobertura final Domain 85,97 % y Application 77,26 %.
+La solución compila con advertencias como errores. Sin cambios de base de desarrollo,
+commits o despliegue; se eliminaron los contenedores temporales de prueba.
