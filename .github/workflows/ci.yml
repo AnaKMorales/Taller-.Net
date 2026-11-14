@@ -34,6 +34,66 @@ jobs:
           name: cobertura-domain-application
           path: ${{ runner.temp }}/ultimamilla-cobertura/**/coverage.cobertura.xml
 
+  # Pruebas E2E con Playwright contra la Web levantada en el runner
+  e2e:
+    needs: build-test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ultimamilla
+          POSTGRES_USER: ultimamilla
+          POSTGRES_HOST_AUTH_METHOD: trust # base descartable del runner
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U ultimamilla" --health-interval 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      ConnectionStrings__UltimaMilla: Host=localhost;Port=5432;Database=ultimamilla;Username=ultimamilla
+      ConnectionStrings__Redis: localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Compilar
+        run: |
+          dotnet tool restore
+          dotnet build UltimaMilla.slnx -c Release
+
+      - name: Migraciones
+        run: dotnet ef database update --project src/UltimaMilla.Infrastructure -c Release --no-build
+
+      - name: Levantar la Web
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5299
+        run: |
+          nohup dotnet src/UltimaMilla.Web/bin/Release/net10.0/UltimaMilla.Web.dll > web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:5299/live && exit 0; sleep 2; done
+          cat web.log; exit 1
+
+      - name: Instalar Chromium
+        run: pwsh tests/E2E/UltimaMilla.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Pruebas E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5299
+        run: dotnet test tests/E2E/UltimaMilla.E2E.Tests -c Release --no-build --logger "trx;LogFileName=e2e.trx"
+
+      - name: Log de la Web y resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: |
+            web.log
+            tests/E2E/UltimaMilla.E2E.Tests/TestResults/*.trx
+
   # Etapas 3 a 5 del pipeline (diseño, 3.4): solo sobre main, después de compilar y probar.
   # Se activan cuando el repositorio tiene la variable AWS_ROLE_ARN (salida de Terraform: ver deploy/terraform/README.md).
   imagenes:

@@ -30,7 +30,9 @@ public sealed class TarifasModel(IConfiguracionVersionada configuracion) : PageM
     public async Task OnGetAsync(CancellationToken ct)
     {
         await CargarAsync(ct);
-        Lineas = Base?.Lineas.Select(LineaFormulario.Desde).ToList() ?? [];
+        // Orden fijo: la base no garantiza el orden de las líneas
+        Lineas = Base?.Lineas.OrderBy(l => Zona(l.ZonaId)).ThenBy(l => l.Modalidad).ThenBy(l => l.PesoDesde)
+            .Select(LineaFormulario.Desde).ToList() ?? [];
         if (Lineas.Count == 0) Lineas.Add(new LineaFormulario { ZonaId = Zonas.FirstOrDefault()?.Id ?? Guid.Empty });
     }
 

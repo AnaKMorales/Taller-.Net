@@ -45,7 +45,7 @@ public static class SeguimientoSeguro
                 context.Request.Path.StartsWithSegments("/api/seguimiento"))
             {
                 // La página es estática (SSR): solo el script de Blazor del propio sitio y sus estilos en línea
-                h.ContentSecurityPolicy = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; " +
+                h.ContentSecurityPolicy = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; img-src 'self'; " +
                     "frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
                 // Datos de un envío concreto: que no los guarden proxies ni buscadores
                 h.CacheControl = "no-store";
