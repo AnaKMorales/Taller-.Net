@@ -19,7 +19,7 @@ public sealed class ReportesGestion(AppDbContext db) : IReportesGestion
         var filas = await envios
             .Select(e => new Fila(
                 e.Zona.Nombre,
-                e.CuentaComercial.Comercio.RazonSocial,
+                e.CuentaComercial.RazonSocial,
                 // El repartidor del último intento; si todavía no hubo intentos, el de la ruta asignada.
                 e.Intentos.OrderByDescending(i => i.Numero).Select(i => i.Parada.Ruta.Repartidor.Email).FirstOrDefault()
                     ?? (e.Parada != null ? e.Parada.Ruta.Repartidor.Email : null),

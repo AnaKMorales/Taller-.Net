@@ -28,6 +28,8 @@ internal sealed class CuentaComercialConfiguration : IEntityTypeConfiguration<Cu
     public void Configure(EntityTypeBuilder<CuentaComercial> b)
     {
         Mapping.Entity(b, "CuentasComerciales");
+        b.Property(c => c.Activa).HasDefaultValue(true);
+        b.Property(c => c.Version).IsConcurrencyToken().ValueGeneratedNever();
         Mapping.Key(b, "Operador");
         b.HasOne(x => x.Operador).WithMany(x => x.CuentasComerciales).HasForeignKey("OperadorKey");
         Mapping.Key(b, "Comercio");

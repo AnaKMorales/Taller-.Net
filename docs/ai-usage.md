@@ -964,5 +964,102 @@ zonas nuevas, flota, comercios/cuentas, API de comercios, configuración version
 alta del portal, datos demo y reenvío/sincronización PWA. El contenedor PostgreSQL
 temporal se eliminó al terminar; la base de desarrollo no se utilizó.
 
+### 14/11/2026: A1, modificación y baja de usuarios de comercio
+
+Se inició A1 por una etapa acotada: actualizar email y desactivar usuarios de Comercio
+de una sola cuenta propia. Nuevos contratos y métodos en IAdministracionComercios,
+implementación en AdministracionComercios, PUT de modificación y POST de baja en la API
+administrativa, y método de Domain ActualizarEmail (rechaza usuarios inactivos).
+Administrador activo, rol y cuenta se revalidan; las escrituras exigen antiforgery.
+No hay cambios de roles, cuentas, contraseñas, reactivaciones ni eliminación física.
+Usuarios multicuentas se rechazan para evitar cambiar acceso compartido desde una cuenta.
+
+Transacción y SELECT FOR UPDATE acotado por TenantId serializan operaciones por usuario;
+la comparación con email/activo esperados rechaza escrituras obsoletas con 409. Se compara
+estado, sin versión monotónica y sin detección ABA; esto queda explícito en el contrato.
+El índice existente resuelve las carreras por email entre usuarios distintos y el fallo
+se traduce a conflicto. No hay migración. Credencial, identidad e historial se conservan;
+el login y las peticiones de la API de comercios rechazan al usuario dado de baja.
+
+La primera ejecución tuvo dos fallos de pruebas: faltaba cargar Operador al preparar
+un usuario multicuentas y se esperaba 401 donde la API existente devuelve 403 para
+identidad revocada. Se corrigieron esas pruebas; luego se corrigió un aviso xUnit2031
+en el nuevo caso concurrente. Compilación Release estricta final aprobada, 429 pruebas
+unitarias/arquitectura y 19 integraciones aprobadas sin omisiones (seis nuevas y trece
+de regresión de administración/API de comercios). Se verificaron contraseña conservada,
+revocación de Bearer anterior, límites por cuenta/rol, validaciones/CSRF, rollback y
+carreras edición/baja y entre emails. Cobertura Domain 86,13 % (1223/1420), Application
+79,90 % (648/811). No se ejecutó toda la integración ni E2E.
+
+Se documentó el contrato y se actualizó el seguimiento. A1 sigue abierto para edición/baja
+del comercio/cuenta y revisión de perfiles/permisos. El usuario aclaró que cuenta corriente,
+etiquetas y pantalla de importación están en curso por sus compañeras: se registró en el
+plan y no se implementaron esas áreas. Se conserva el resto de cambios documentales
+previos del usuario. PostgreSQL temporal eliminado al terminar, sin usar la base de
+desarrollo. Sin commit, push ni cambios de pantallas/PWA/Worker.
+
+### 14/11/2026: A1, datos locales y baja de la cuenta comercial
+
+Se continuó A1 con edición de razón social/teléfono/email de la ficha del operador y
+baja lógica de CuentaComercial. No se relaja la prohibición de editar Comercio global:
+se mantienen sus vínculos compartidos y se agregan datos locales, Activa y Version.
+La migración AdministracionCuentaComercial copia los datos existentes y asigna versiones,
+sin perder envíos ni usuarios; EF protege cambios simultáneos con Version. La baja no
+desactiva globalmente usuarios, no oculta historial ni cancela envíos en curso. Login y
+resolución de claims limitan el acceso a cuentas activas; CuentaWriteGuard rechaza
+escrituras autenticadas de cuentas dadas de baja, conservando los ámbitos de mensajes.
+Dominio/repositorio y un trigger al insertar Envios bloquean nuevas altas. El trigger
+usa FOR SHARE sobre la cuenta para serializar con su baja; su rechazo específico se
+traduce en InvalidOperationException. No afecta cambios de envíos anteriores.
+
+Se agregaron dos endpoints con permisos/CSRF, contratos con versión esperada, cinco
+integraciones y una prueba de dominio. Se adaptaron las lecturas de nombre comercial
+en reportes/detalle/avisos de backoffice para usar la ficha local. Son nombres actuales,
+no se inventa una instantánea histórica del nombre. No se modificaron pantallas o
+interfaces de las compañeras, ni PWA o Worker. Se regeneró docs/database-initial.sql.
+
+La primera compilación corrigió una referencia de prueba a Envio.Comercio por su cuenta.
+La primera integración detectó falta de Include(Comercio) al devolver el DTO de cuenta
+tras guardar; se corrigió la carga de esa relación. La ejecución final aprobó 33
+integraciones de cuentas/usuarios/API de comercios y migraciones, sin omisiones. Incluye
+comercio compartido, baja/revocación, carrera edición/baja, rollback, recuperación de
+datos previos y procesamiento histórico tras la baja. Compilación Release estricta y
+430 pruebas unitarias/arquitectura aprobadas. El primer intento de cobertura no contenía
+líneas medibles mientras se recompilaba; se repitió tras terminar la compilación y
+aprobó Domain 86,25 % (1242/1440) y Application 79,61 % (648/814). No se ejecutó toda
+la integración ni E2E ni una demo remota.
+
+Se actualizó el contrato, README, plan y seguimiento de pendientes. Quedan revisión de
+perfiles/permisos y pantallas para A1; cuenta corriente, etiquetas e importación siguen
+a cargo de las compañeras. El contenedor PostgreSQL temporal se eliminó al terminar,
+sin aplicar migraciones a la base de desarrollo del usuario. Sin commit ni push.
+
+### 14/11/2026: cierre del backend A1 y revisión de perfiles/permisos
+
+El usuario pidió continuar y recibir un summary al cerrar A1. Se revisó el alcance:
+el perfil de los usuarios del comercio ya se asigna en servidor como Comercio; roles,
+cuenta y estado se validan en la base y las rutas administrativas requieren Administrador.
+La letra no prescribe perfiles comerciales adicionales ni un editor genérico de permisos.
+Se documentó la matriz existente, sin agregar privilegios, roles o pantallas nuevas.
+
+Se añadieron dos integraciones: todos los ocho endpoints de administración de cuentas
+y usuarios denegados a Despachador/OperarioDeposito/Repartidor, y alta/modificación de
+usuario con campos extra de elevación ignorados, persistencia del rol/cuenta correctos
+y prueba con Bearer real de acceso comercial permitido y administración/despacho denegados.
+La primera ejecución falló porque la matriz intentaba representar Comercio sin su claim
+de cuenta en la identidad ficticia. Se retiró de esa matriz: Comercio se verifica con
+el Bearer real del segundo caso. No se cambió la autenticación para satisfacer la prueba.
+
+Compilación Release con advertencias como errores aprobada. Selección final: 26 pruebas
+de integración aprobadas sin omisiones (dos nuevas y regresión A1/API). Domain/Application
+no cambiaron en esta etapa: se conservan las mediciones anteriores de 430 casos
+unitarios/arquitectura aprobados y cobertura Domain 86,25 %, Application 79,61 %.
+No se ejecutó toda la integración ni E2E ni una demo de las pantallas.
+
+Se cerró el backend A1 dentro del contrato documentado en README, plan y seguimiento.
+Las pantallas quedan pendientes de Web; V1 (alternativa de autenticación exigida) sigue
+como punto separado, y las extensiones multicuentas/roles granulares conservan sus límites
+sin afirmarlas implementadas. PostgreSQL temporal eliminado al terminar. Sin commit/push.
+
 Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
 README, referencias de administración y pendientes/cobertura. Sin commit ni push.

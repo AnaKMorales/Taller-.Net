@@ -12,7 +12,8 @@ internal static class CuentaWriteGuard
     {
         if (tenant.CuentaComercialId is not Guid scope) return;
         var accountQuery = db.Set<CuentaComercial>().IgnoreQueryFilters().Where(a => a.Id == scope &&
-            EF.Property<Guid>(a, TenantModel.TenantId) == tenant.OperadorId);
+            EF.Property<Guid>(a, TenantModel.TenantId) == tenant.OperadorId &&
+            (tenant.Origen != OrigenTenant.UsuarioAutenticado || a.Activa));
         if (!(useAsync ? await accountQuery.AnyAsync(cancellationToken) : accountQuery.Any())) throw new AislamientoOperadorException();
         if (tenant.Origen == OrigenTenant.UsuarioAutenticado)
         {

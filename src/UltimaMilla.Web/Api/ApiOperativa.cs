@@ -173,9 +173,19 @@ public static class ApiOperativa
             Results.Json(await gestion.CrearAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
         comercios.MapGet("/{cuentaId:guid}/usuarios", async (Guid cuentaId, IAdministracionComercios gestion, CancellationToken ct) =>
             Results.Ok(await gestion.UsuariosAsync(cuentaId, ct)));
+        comercios.MapPut("/{cuentaId:guid}", async (Guid cuentaId, ModificarCuentaComercial solicitud,
+            IAdministracionComercios gestion, CancellationToken ct) => Results.Ok(await gestion.ModificarCuentaAsync(cuentaId, solicitud, ct)));
+        comercios.MapPost("/{cuentaId:guid}/baja", async (Guid cuentaId, BajaCuentaComercial solicitud,
+            IAdministracionComercios gestion, CancellationToken ct) => Results.Ok(await gestion.DarBajaCuentaAsync(cuentaId, solicitud, ct)));
         comercios.MapPost("/{cuentaId:guid}/usuarios", async (Guid cuentaId, CrearUsuarioComercio solicitud,
             IAdministracionComercios gestion, CancellationToken ct) =>
             Results.Json(await gestion.CrearUsuarioAsync(cuentaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        comercios.MapPut("/{cuentaId:guid}/usuarios/{usuarioId:guid}", async (Guid cuentaId, Guid usuarioId,
+            ModificarUsuarioComercio solicitud, IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ModificarUsuarioAsync(cuentaId, usuarioId, solicitud, ct)));
+        comercios.MapPost("/{cuentaId:guid}/usuarios/{usuarioId:guid}/baja", async (Guid cuentaId, Guid usuarioId,
+            EstadoUsuarioEsperado solicitud, IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.DarBajaUsuarioAsync(cuentaId, usuarioId, solicitud, ct)));
         var zonas = app.MapGroup("/api/administracion/zonas")
             .WithMetadata(new ApiOperativaMetadata())
             .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))

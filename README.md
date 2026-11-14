@@ -4,6 +4,8 @@ Este repositorio está organizado siguiendo la estructura indicada en la documen
 
 El alcance, los pendientes y el orden de integración de la entrega parcial para el equipo
 de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIENTOS.md).
+El [plan de cierre de requisitos](PLAN-PENDIENTES.md) separa obligaciones confirmadas,
+verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
 
@@ -13,7 +15,10 @@ pantallas y las operaciones de edición/baja.
 
 La [administración de comercios](docs/administracion-comercios.md) permite crear y consultar
 comercios/cuentas y sus usuarios con credenciales, conservando el aislamiento. Quedan las
-pantallas y las operaciones de modificación/baja.
+pantallas. El backend de A1 incluye permisos por rol y cuenta verificados, permite cambiar el email y dar de baja lógica
+usuarios de Comercio de una única cuenta propia, así como editar la ficha local y dar
+de baja la cuenta comercial sin afectar otros operadores. Esta última etapa requiere
+aplicar la migración `AdministracionCuentaComercial`.
 
 La [administración de zonas y franjas](docs/administracion-zonas.md) permite crear y consultar
 zonas con sus horarios y añadir nuevas franjas. Se integra con el tarifario y las opciones

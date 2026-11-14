@@ -29,7 +29,7 @@ public sealed class TenantResolver(DbContextOptions<AppDbContext> options) : ITe
             return TenantContext.ParaUsuario(op, user, role);
         }
         if (account is null && commerce is null) throw new AislamientoOperadorException();
-        var matches = await db.Set<CuentaComercial>().Where(c => c.Usuarios.Any(u => u.Id == user) &&
+        var matches = await db.Set<CuentaComercial>().Where(c => c.Activa && c.Usuarios.Any(u => u.Id == user) &&
                 (account == null || c.Id == account) && (commerce == null || EF.Property<Guid>(c, "ComercioKey") == commerce))
             .Select(c => c.Id).Take(2).ToListAsync(cancellationToken);
         if (matches.Count != 1) throw new AislamientoOperadorException();

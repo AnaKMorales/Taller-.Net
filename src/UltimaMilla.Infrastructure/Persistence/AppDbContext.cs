@@ -44,6 +44,8 @@ public sealed class AppDbContext : DbContext
         try { return base.SaveChanges(acceptAllChangesOnSuccess); }
         catch (DbUpdateException error) when (IsConcurrencyConflict(error))
         { throw new ConflictoConcurrenciaException(error); }
+        catch (DbUpdateException error) when (IsInactiveAccount(error))
+        { throw new InvalidOperationException("La cuenta comercial no admite nuevos envíos.", error); }
     }
 
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
@@ -51,7 +53,12 @@ public sealed class AppDbContext : DbContext
         try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
         catch (DbUpdateException error) when (IsConcurrencyConflict(error))
         { throw new ConflictoConcurrenciaException(error); }
+        catch (DbUpdateException error) when (IsInactiveAccount(error))
+        { throw new InvalidOperationException("La cuenta comercial no admite nuevos envíos.", error); }
     }
+
+    private static bool IsInactiveAccount(DbUpdateException error) => error.InnerException is PostgresException
+        { SqlState: PostgresErrorCodes.CheckViolation, ConstraintName: "CK_Envios_CuentaActiva" };
 
     // Una operación concurrente puede chocar con su índice único antes del UPDATE de la raíz.
     private static bool IsConcurrencyConflict(DbUpdateException error) =>

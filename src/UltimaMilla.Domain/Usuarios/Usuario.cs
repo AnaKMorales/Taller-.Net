@@ -38,4 +38,10 @@ public class Usuario : Entidad
   }
 
   public void Desactivar() => Activo = false;
+
+  public void ActualizarEmail(string email)
+  {
+    if (!Activo) throw new InvalidOperationException("No se puede modificar un usuario inactivo.");
+    Email = Validacion.Texto(email, nameof(email));
+  }
 }
