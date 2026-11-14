@@ -50,7 +50,7 @@ repositorio: todo va por variables de entorno.
    ruta despachada cada uno. Para tener varios repartidores, correrlo varias veces: las cuentas y la clave quedan en
    `~/demo-cuentas.txt`, fuera del repositorio.
 3. **Solo para el escenario A (capacidad):** k6 sale de una sola IP, así que hay que subir temporalmente el límite del
-   seguimiento en la instancia (`Seguimiento__PedidosPorMinuto=100000` en el entorno del contenedor web) y volver a
+   seguimiento: `SEGUIMIENTO_PEDIDOS_POR_MINUTO=100000` en `/opt/ultimamilla/deploy/.env` de la instancia y recrear web; volver a
    bajarlo al terminar. El escenario A' se corre con el límite normal (30).
 
 ### 2. Ejecutar
@@ -62,7 +62,7 @@ k6 run -e BASE_URL=https://<dominio> -e TOKENS=<códigos de seguimiento separado
 # Escenario A'
 k6 run -e BASE_URL=https://<dominio> -e TOKENS=<códigos> -e MODO=proteccion seguimiento.js
 # Escenario B (consume las paradas: correr con datos recién sembrados y reiniciarlos después)
-k6 run -e BASE_URL=https://<dominio> -e REPARTIDORES=<emails separados por coma> -e CLAVE=<clave sembrada> -e DISPOSITIVOS=20 sincronizacion-repartidores.js
+k6 run -e BASE_URL=https://<dominio> -e REPARTIDORES=<email:clave,email:clave,...> -e DISPOSITIVOS=20 sincronizacion-repartidores.js
 ```
 
 Con Docker: `docker run --rm -v "$PWD:/scripts" grafana/k6:0.54.0 run -e ... /scripts/<script>.js`.

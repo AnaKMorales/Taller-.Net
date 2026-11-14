@@ -6,7 +6,8 @@ import { check, sleep, fail } from 'k6';
 import { BASE, lista, requerir, guid, FOTO, FIRMA, posicion, etapa } from './comun.js';
 
 const REPARTIDORES = requerir('REPARTIDORES', lista('REPARTIDORES'));
-const CLAVE = __ENV.CLAVE || fail('Falta la variable CLAVE.');
+// REPARTIDORES admite email:clave por cuenta (sembrar-demo.sh genera una clave por ejecución)
+const CLAVE = __ENV.CLAVE || '';
 const DISPOSITIVOS = Number(__ENV.DISPOSITIVOS || 20);
 const json = { headers: { 'Content-Type': 'application/json' } };
 
@@ -44,8 +45,10 @@ function autorizado(token, extra = {}) {
 export function setup() {
   const cuentas = [];
   const trabajos = [];
-  for (const email of REPARTIDORES) {
-    const login = http.post(`${BASE}/api/repartidor/sesion`, JSON.stringify({ email, contrasena: CLAVE }), json);
+  for (const entrada of REPARTIDORES) {
+    const [email, propia] = entrada.split(':');
+    const contrasena = propia || CLAVE || fail(`Falta la clave de ${email} (CLAVE o email:clave).`);
+    const login = http.post(`${BASE}/api/repartidor/sesion`, JSON.stringify({ email, contrasena }), json);
     if (login.status !== 200) fail(`No se pudo iniciar sesión con ${email} (HTTP ${login.status}).`);
     const token = login.json('accessToken');
     cuentas.push({ email, token });
