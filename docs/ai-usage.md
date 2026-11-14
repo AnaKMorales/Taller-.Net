@@ -699,3 +699,18 @@ colector completo aprobado (cero omitidos) contra PostgreSQL, RabbitMQ, Redis y 
 temporal levantado con ambos archivos compose. Se comprobó que /data/loki es tmpfs.
 La ejecución de GitHub con estos cambios todavía está pendiente. Los recursos temporales
 de la revisión se eliminaron y se conservó el LGTM local anterior. Sin commit ni push.
+
+### 14/11/2026: configuración de compilación en las migraciones del job E2E
+
+El usuario confirmó build-test aprobado en GitHub; E2E falló antes de ejecutar pruebas
+porque EF buscaba Infrastructure.deps.json en bin/Debug. El comando usaba `-c Release`:
+en dotnet ef esa opción selecciona el DbContext, mientras que la configuración de
+compilación requiere `--configuration Release`. Se comprobó en la ayuda de la herramienta
+local 10.0.12 y en https://learn.microsoft.com/en-us/ef/core/cli/dotnet.
+
+Se corrigió únicamente ese argumento del paso Migraciones, conservando --no-build y la
+compilación Release del job. El comando corregido encontró las migraciones sin conexión
+y aplicó las 14 a un PostgreSQL temporal desde cero, terminando en Done; se confirmó el
+conteo en __EFMigrationsHistory y se eliminó el contenedor temporal. No se ejecutó la
+suite E2E completa ni se modificaron sus pruebas; falta validar su corrida en GitHub.
+Sin cambios en la base de desarrollo, commit ni push.

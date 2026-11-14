@@ -157,7 +157,8 @@ jobs:
           dotnet build UltimaMilla.slnx -c Release
 
       - name: Migraciones
-        run: dotnet ef database update --project src/UltimaMilla.Infrastructure -c Release --no-build
+        # En dotnet ef, -c selecciona el DbContext; la compilación se elige con --configuration.
+        run: dotnet ef database update --project src/UltimaMilla.Infrastructure --configuration Release --no-build
 
       - name: Levantar la Web
         env:
