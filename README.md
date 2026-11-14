@@ -26,6 +26,9 @@ El backend de importación masiva idempotente y su contrato para integrar al por
 describen en [Importación de envíos](docs/importacion-envios.md). La lectura de archivos
 y la pantalla de importación siguen pendientes.
 
+El [alta por API para comercios](docs/api-comercios.md) permite autenticación Bearer,
+consulta de opciones, cotización y creación idempotente por referencia de pedido.
+
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
 Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
 de persistencia y pruebas de arquitectura, la PWA del repartidor conectada a la API y el

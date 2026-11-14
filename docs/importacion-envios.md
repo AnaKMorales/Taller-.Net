@@ -53,6 +53,13 @@ referencia se regeneró; no se aplicó la migración a la base de desarrollo.
 
 ## Verificación
 
+El alta por [API para comercios](api-comercios.md) reutiliza este servicio y el mismo
+espacio de referencias por operador/cuenta. Un reenvío idéntico entre los dos canales
+recupera el resultado existente. La API individual ya está implementada; la lectura de
+archivos y la conexión del importador al portal conservan su alcance de integración.
+
+### Registro de la verificación inicial (13/11)
+
 Pruebas unitarias del procesamiento por fila y pruebas con PostgreSQL real para lotes
 parciales, reenvíos, contenido diferente, solicitudes simultáneas, aislamiento de operador
 y cuenta, usuario desactivado, recuperación de respuesta histórica y rollback del registro.

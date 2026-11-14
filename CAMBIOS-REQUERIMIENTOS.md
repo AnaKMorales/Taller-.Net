@@ -84,11 +84,11 @@ en equipo según las áreas de «Nos organizamos».
 
 | Pendiente | Sección de la letra original | Estado y trabajo por revisar | Responsable propuesto |
 | --- | --- | --- | --- |
-| Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Las pruebas del flujo crítico y de aislamiento ya se ejecutan localmente con PostgreSQL. Falta proporcionar la conexión en CI y comprobar que se ejecuten sin omisiones. | Agustín, coordinando el pipeline con Aldana. |
-| Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | El dominio puede despachar y la PWA descarga rutas despachadas. Falta exponer la operación en backend y backoffice. El ensayo del 12/11 puede partir de una ruta ya despachada con `/dev/datos-demo-pwa`. Si se decide despachar una ruta nueva en vivo, esta operación pasa a ser un prerrequisito. | Agustín en backend y Ana en backoffice. |
+| Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Implementado con dependencias efímeras, resultados TRX y control de omisiones. El usuario confirmó build-test y E2E aprobados en main tras integrar depósito/rutas. Los nuevos cambios deben volver a pasar CI al subirlos. | Agustín, coordinando el pipeline con Aldana. |
+| Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | Backend de consulta de preparación y confirmación implementado, con carga, permisos y versiones verificadas. La PWA descarga las rutas despachadas. Falta conectar las pantallas del backoffice. Ver [despacho](docs/despacho-operativo.md). | Agustín en backend y Ana en backoffice. |
 | Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Ya hay modelos y algunas consultas. Queda comprobar y completar las operaciones de administración de comercios y sus usuarios y permisos, zonas y franjas, repartidores y vehículos con su capacidad. El punto 4 de Ana en el reparto cubre formularios de tarifas y reglas. | Ana en backoffice y Agustín en las operaciones de backend que falten. |
 | Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
-| Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | El alta individual está en el punto 1 de Ana. Ya existen el caso de uso y el calculador. Falta verificar la preparación del envío y conectar el cálculo automático a la tarifa vigente en el flujo real. La importación masiva debe permitir reintentar un lote completo o parcial sin duplicados. También falta el alta por API para comercios. | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
+| Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | Alta individual del portal con cálculo automático y backend de importación idempotente implementados. El alta por API para comercios ya expone login Bearer, opciones, cotización y confirmación por referencia, reutilizando la idempotencia de importación. Quedan lectura del archivo e integración de importación en el portal. Ver [API](docs/api-comercios.md) e [importación](docs/importacion-envios.md). | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
 | Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
 | Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | Ya hay backend de recepción con discrepancias, asignación regular con consultas de envíos/rutas/flota, carga, despacho, devolución y rendición operativa. Falta integrar esas operaciones en las interfaces y completar el aviso/control de sobrantes al cargar. El punto 4 de Aldana contempla el escaneo en la PWA y el punto 4 de Ana la vista de parciales y pendientes. Ver [recepción](docs/recepcion-deposito.md), [asignación](docs/asignacion-regular.md) y [cierre](docs/cierre-deposito.md). | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
 | Revisar el recálculo de indicadores y el cierre diario | **4 · Alcance, servicio de procesamiento en segundo plano** (pág. 3). | Los reportes actuales calculan sus resultados al consultar. Falta comprobar el procesamiento de indicadores y el cierre diario desde el Worker. El cierre aparece en el diagnóstico de «Nos organizamos» y quedó sin tarea numerada. | Aldana en Worker y Agustín para las reglas de cierre que falten. |
@@ -102,8 +102,10 @@ este documento.
 Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirmar
 qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
 Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
-integren cambios en Domain o Application. La última medición fue **85,81 % en Domain**
-y **70,33 % en Application**, con poco margen en Application.
+integren cambios en Domain o Application. La medición local actualizada del **14/11** es
+**85,97 % en Domain** y **81,30 % en Application**. Estos porcentajes no sustituyen la
+medición del CI de cada nueva versión. Las demás filas siguen siendo una lista de revisión;
+no se dan por completas áreas ajenas sin contrastarlas con su implementación e integración.
 
 ## Aclaraciones adicionales del PDF
 
@@ -117,6 +119,19 @@ y **70,33 % en Application**, con poco margen en Application.
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+Este registro conserva el alcance y los pendientes de cada etapa histórica. Para el
+estado actualizado de los puntos revisados se usa la tabla anterior y la entrada más
+reciente; una tarea pendiente en una entrada antigua puede haberse completado después.
+
+### 14/11: alta por API para comercios (letra original, requisitos 7 y 9)
+
+Login con credenciales de comercio y Bearer existente; consulta de opciones y cotización;
+alta con referencia estable por cuenta/operador. Reutiliza cálculo, reglas y guardado
+idempotente de la importación: 201 al crear, 200 al reconocer el reenvío y 409 si cambia
+el contenido de una referencia existente. Alta, historial, outbox y referencia se guardan
+juntos. El login exige una única cuenta y limita intentos por IP. Sin migración nueva,
+cambios de pantallas, PWA o Worker. Ver [contrato y alcance](docs/api-comercios.md).
 
 ### 14/11: devolución y rendición operativa (letra original, requisito 22)
 
