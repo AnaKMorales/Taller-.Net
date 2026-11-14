@@ -42,6 +42,18 @@ Para medir la cobertura de líneas de Domain y Application desde PowerShell:
 Cada capa debe superar el 70 %. GitHub Actions muestra ambos resultados en el resumen
 del job y publica los XML de Cobertura en el artefacto `cobertura-domain-application`.
 
+El job `build-test` levanta PostgreSQL, RabbitMQ y Redis temporales en el runner, además
+del compose de observabilidad para la prueba de trazabilidad. No depende del despliegue
+en AWS. Configura las conexiones de integración y publica los reportes TRX en
+`resultados-pruebas`. `scripts/Assert-TestResults.ps1` hace fallar el job si encuentra
+pruebas omitidas o incompletas, o si no hay resultados. Las credenciales de CI son
+exclusivamente para esos contenedores efímeros. La primera corrida completa de esta
+configuración debe validarse en Actions después de subir el cambio.
+
+La prueba con colector real se ejecuta en un proceso independiente dentro de `build-test`,
+con reporte `TestResults/colector/colector.trx` y control de omisiones propio. Continúa
+siendo obligatoria. El CI habilita los logs internos de Loki y del colector para diagnóstico.
+
 ## Logs estructurados de Web y Worker
 
 Web usa Serilog y escribe un objeto JSON por evento en la consola. Los mensajes de

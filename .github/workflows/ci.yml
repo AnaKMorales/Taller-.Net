@@ -7,6 +7,51 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Dependencias efímeras del runner; no requieren AWS ni secretos de producción.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ultimamilla_ci
+          POSTGRES_USER: ultimamilla
+          POSTGRES_PASSWORD: ci-only-postgres
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U ultimamilla -d ultimamilla_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: ultimamilla
+          RABBITMQ_DEFAULT_PASS: ci-only-rabbit
+        ports:
+          - 55672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 56379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      ULTIMAMILLA_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=15432;Database=ultimamilla_ci;Username=ultimamilla;Password=ci-only-postgres
+      ULTIMAMILLA_TEST_RABBITMQ_HOST: 127.0.0.1
+      ULTIMAMILLA_TEST_RABBITMQ_PUERTO: '55672'
+      ULTIMAMILLA_TEST_RABBITMQ_USUARIO: ultimamilla
+      ULTIMAMILLA_TEST_RABBITMQ_CLAVE: ci-only-rabbit
+      ULTIMAMILLA_TEST_COLECTOR: 'true'
+      ULTIMAMILLA_TEST_TEMPO: http://127.0.0.1:13200
+      ULTIMAMILLA_TEST_PROMETHEUS: http://127.0.0.1:19090
+      ULTIMAMILLA_TEST_GRAFANA: http://127.0.0.1:3300
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:14317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      ConnectionStrings__Redis: 127.0.0.1:56379
+      OBSERVABILIDAD_LOGS_INTERNOS: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -20,8 +65,47 @@ jobs:
       - name: Compilar (advertencias como errores)
         run: dotnet build UltimaMilla.slnx -c Release -warnaserror
 
+      - name: Iniciar observabilidad de pruebas
+        shell: bash
+        run: |
+          df -h /
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml up -d
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml exec -T lgtm df -h /data/loki
+          for intento in {1..60}; do
+            if curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:3300/api/health >/dev/null &&
+               curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:13200/ready >/dev/null &&
+               curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:19090/-/ready >/dev/null &&
+               curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:3300/api/datasources/proxy/uid/loki/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml logs --tail 100
+          exit 1
+
       - name: Probar
-        run: dotnet test UltimaMilla.slnx -c Release --no-build
+        id: pruebas
+        # E2E tiene su job; el colector usa otro proceso para aislar proveedores globales de telemetría.
+        run: dotnet test UltimaMilla.slnx -c Release --no-build --filter "FullyQualifiedName!~UltimaMilla.E2E.Tests&FullyQualifiedName!~ColectorRealRecibeTrazaPwaApiOutboxRabbitYMetricasDelTablero" --logger trx --results-directory TestResults
+
+      - name: Probar correlación con el colector real (proceso aislado)
+        shell: pwsh
+        run: |
+          dotnet test tests/Integration/UltimaMilla.Infrastructure.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~ColectorRealRecibeTrazaPwaApiOutboxRabbitYMetricasDelTablero" --logger "trx;LogFileName=colector.trx" --results-directory TestResults/colector
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba del colector real.' }
+          ./scripts/Assert-TestResults.ps1 -ResultsDirectory TestResults/colector
+
+      - name: Comprobar que no se omitieron pruebas
+        if: always() && steps.pruebas.outcome != 'skipped'
+        shell: pwsh
+        run: ./scripts/Assert-TestResults.ps1 -ResultsDirectory TestResults
+
+      - name: Publicar resultados de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-pruebas
+          path: TestResults/**/*.trx
 
       - name: Medir cobertura de Domain y Application
         shell: pwsh
@@ -33,6 +117,13 @@ jobs:
         with:
           name: cobertura-domain-application
           path: ${{ runner.temp }}/ultimamilla-cobertura/**/coverage.cobertura.xml
+
+      - name: Detener observabilidad de pruebas
+        if: always()
+        run: |
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml exec -T lgtm df -h /data/loki || true
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml logs --no-color --tail 200
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml down
 
   # Pruebas E2E con Playwright contra la Web levantada en el runner
   e2e:
@@ -66,7 +157,8 @@ jobs:
           dotnet build UltimaMilla.slnx -c Release
 
       - name: Migraciones
-        run: dotnet ef database update --project src/UltimaMilla.Infrastructure -c Release --no-build
+        # En dotnet ef, -c selecciona el DbContext; la compilación se elige con --configuration.
+        run: dotnet ef database update --project src/UltimaMilla.Infrastructure --configuration Release --no-build
 
       - name: Levantar la Web
         env:
@@ -81,9 +173,15 @@ jobs:
         run: pwsh tests/E2E/UltimaMilla.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
       - name: Pruebas E2E
+        id: pruebas-e2e
         env:
           E2E_BASE_URL: http://127.0.0.1:5299
         run: dotnet test tests/E2E/UltimaMilla.E2E.Tests -c Release --no-build --logger "trx;LogFileName=e2e.trx"
+
+      - name: Comprobar que no se omitieron pruebas E2E
+        if: always() && steps.pruebas-e2e.outcome != 'skipped'
+        shell: pwsh
+        run: ./scripts/Assert-TestResults.ps1 -ResultsDirectory tests/E2E/UltimaMilla.E2E.Tests/TestResults
 
       - name: Log de la Web y resultados
         if: always()

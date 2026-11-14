@@ -617,3 +617,100 @@ la repetición aprobada del caso Bearer corregido. Pasaron 206 casos de Domain/A
 y 13 de arquitectura. Cobertura final Domain 85,97 % y Application 77,26 %.
 La solución compila con advertencias como errores. Sin cambios de base de desarrollo,
 commits o despliegue; se eliminaron los contenedores temporales de prueba.
+
+### 13/11/2026: dependencias de pruebas en GitHub Actions
+
+El usuario cambió la prioridad para ejecutar las pruebas omitidas antes del resto del
+circuito de depósito. Se añadieron servicios efímeros PostgreSQL, RabbitMQ y Redis al
+runner, variables de integración y el compose existente de observabilidad con espera de
+disponibilidad. Se reutilizaron los puertos y la configuración de la prueba del colector.
+No se requieren credenciales ni infraestructura AWS para este job.
+
+Se agregó control de omisiones leyendo resultados TRX y publicación de dichos archivos.
+Se comprobó localmente el rechazo de un TRX con NotExecuted y la aceptación de los 13
+resultados reales de arquitectura. No se ejecutó el workflow completo localmente ni se
+afirma que haya pasado en Actions: requiere subir los cambios y revisar su primera corrida.
+Los dos timeouts de datos demo siguen pendientes de investigar; no se alteraron pruebas
+de negocio ni se desactivaron para hacer pasar CI. Sin commit, push ni despliegue.
+
+### 13/11/2026: investigación de la prueba de logs en Loki
+
+El usuario proporcionó los logs del CI: 579 casos aprobados y uno fallido al consultar
+el log correlacionado de la PWA en Loki. Se revisaron exportación, consulta y ciclo de
+vida del host. La prueba original pasó aislada contra PostgreSQL, RabbitMQ y LGTM reales;
+se comprobó además el registro en Loki con el trace_id exacto. No se pudo reproducir
+localmente el fallo de esa ejecución completa de GitHub.
+
+Se detectó que ForceFlush cubría métricas y trazas, pero no el sink asíncrono de Serilog.
+Se cerró explícitamente el host tras generar/exportar la telemetría y antes de consultar
+Loki para vaciar ese sink. Se preservó la aserción original y su tiempo de espera, y se
+añadió la traza al mensaje de error. El pipeline ahora conserva en su salida los últimos
+logs del colector antes de detenerlo. Es una corrección de sincronización; su relación
+causal con el fallo intermitente del CI requiere confirmarse en la siguiente corrida.
+
+La prueba ajustada y la prueba de logging aprobaron juntas con los servicios reales.
+Compilación estricta correcta. Se eliminaron los contenedores temporales y se conservó
+el LGTM local que ya estaba iniciado. No se modificó código de producción ni se hizo push.
+
+### 13/11/2026: persistencia del fallo del colector en CI
+
+El usuario aportó otra corrida con la misma falla después de vaciar Serilog. Eso descarta
+dar por suficiente el ajuste previo: la causa exacta del fallo en la suite remota sigue
+sin confirmarse. El log del contenedor mostraba `logging=false` para Loki y el colector.
+Se inspeccionaron los scripts de la imagen local para verificar los nombres de las variables
+de diagnóstico; se habilitan solo en CI mediante OBSERVABILIDAD_LOGS_INTERNOS.
+
+Se añadió una captura local de eventos Serilog para distinguir emisión de exportación,
+SelfLog para informar errores internos del sink y diagnóstico en la aserción de Loki.
+Se separó la prueba del colector en otro proceso dentro del mismo job, sin reintento,
+con su TRX y validación obligatoria de resultados no vacíos/no omitidos. La selección
+principal excluye únicamente esa prueba y E2E, ambas ejecutadas en sus pasos dedicados.
+La hipótesis de interferencia entre hosts/proveedores requiere confirmación en GitHub.
+
+La compilación estricta pasó y la prueba de colector con diagnóstico pasó localmente con
+PostgreSQL, RabbitMQ, Redis y LGTM reales. Se eliminaron los tres servicios temporales y
+se dejó el LGTM previo. No se desactivaron aserciones ni se ampliaron esperas. Sin push.
+
+### 14/11/2026: rechazo de escrituras del WAL de Loki en CI
+
+Los nuevos logs aportados por el usuario muestran reintentos del colector hacia Loki
+con HTTP 503 e `Ingester is shutting down` mientras las consultas continúan respondiendo.
+El fallo persiste aun ejecutando el caso en un proceso aislado. Se consultaron fuentes
+primarias de Loki: la incidencia https://github.com/grafana/loki/issues/23769 y el PR
+https://github.com/grafana/loki/pull/24750 describen ese mensaje engañoso cuando el WAL
+supera su umbral de uso de disco. No se dispone del porcentaje de disco de aquella
+ejecución remota, por lo que esa causa concreta sigue pendiente de confirmación en CI.
+
+Se reprodujo el mecanismo sin llenar el disco: en un Loki temporal con la misma imagen
+se redujo el umbral del WAL al 0,1 %. Apareció la advertencia de throttling y una escritura
+válida devolvió HTTP 500 con el mismo mensaje `Ingester is shutting down`. Con un tmpfs
+de 512 MiB y el WAL trasladado a él, manteniendo el mismo umbral reducido, la escritura
+respondió 204. La diferencia 500/503 corresponde a la entrada directa usada en esa
+reproducción frente a la exportación OTLP del log remoto; el rechazo del ingester coincide.
+
+Se agregó un override de compose exclusivo de CI para datos y WAL de Loki en ese tmpfs.
+La configuración normal conserva WAL habilitado y su umbral del 90 %. El workflow usa
+el override en arranque, diagnóstico y cierre, e imprime uso de disco del runner y Loki.
+Se documentó el alcance en docs/observabilidad.md. No cambia el compose de desarrollo,
+la configuración AWS ni código de negocio o aserciones.
+
+Validación: compose combinado válido, git diff sin errores de espacios y un caso del
+colector completo aprobado (cero omitidos) contra PostgreSQL, RabbitMQ, Redis y un LGTM
+temporal levantado con ambos archivos compose. Se comprobó que /data/loki es tmpfs.
+La ejecución de GitHub con estos cambios todavía está pendiente. Los recursos temporales
+de la revisión se eliminaron y se conservó el LGTM local anterior. Sin commit ni push.
+
+### 14/11/2026: configuración de compilación en las migraciones del job E2E
+
+El usuario confirmó build-test aprobado en GitHub; E2E falló antes de ejecutar pruebas
+porque EF buscaba Infrastructure.deps.json en bin/Debug. El comando usaba `-c Release`:
+en dotnet ef esa opción selecciona el DbContext, mientras que la configuración de
+compilación requiere `--configuration Release`. Se comprobó en la ayuda de la herramienta
+local 10.0.12 y en https://learn.microsoft.com/en-us/ef/core/cli/dotnet.
+
+Se corrigió únicamente ese argumento del paso Migraciones, conservando --no-build y la
+compilación Release del job. El comando corregido encontró las migraciones sin conexión
+y aplicó las 14 a un PostgreSQL temporal desde cero, terminando en Done; se confirmó el
+conteo en __EFMigrationsHistory y se eliminó el contenedor temporal. No se ejecutó la
+suite E2E completa ni se modificaron sus pruebas; falta validar su corrida en GitHub.
+Sin cambios en la base de desarrollo, commit ni push.
