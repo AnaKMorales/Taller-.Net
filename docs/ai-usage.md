@@ -1095,5 +1095,36 @@ No se afirma que esas aplicaciones ya muestren la identidad ni que se acordó su
 visual. El contenedor PostgreSQL temporal se eliminó al terminar; no se modificó la
 base de desarrollo del usuario. Sin commit ni push.
 
+### 14/11/2026: registro operativo de extravíos
+
+El usuario autorizó implementar el registro y pidió el summary al terminar. Se agregó
+RegistrarExtravioHandler y contratos en Application, ExtravioRepository en Infrastructure,
+DI y GET/POST /api/incidencias/envios/{envioId}/extravio en Web. Se reutiliza
+Envio.MarcarExtraviado, sin modificar la máquina de estados ni el modelo persistido.
+Administrador/Despachador activo del operador, antiforgery, detalle hasta 2000 caracteres,
+hora UTC del servidor, versiones esperadas de envío y ruta. Lectura consistente del
+grafo con bultos/parada/ruta/eventos. La concurrencia existente protege ambos agregados
+y SaveChanges guarda estados, parada finalizada, versiones, historial y outbox juntos.
+En parciales se conservan los entregados y se extravían los pendientes; no se selecciona
+un subconjunto arbitrario ni se agrega idempotencia por UUID. Quedan explícitos relectura
+tras conflicto, conservación de parada y ausencia de cierre automático de devolución/ruta.
+
+Se añadieron doce casos unitarios de Application y seis integraciones PostgreSQL.
+Las primeras ejecuciones corrigieron preparación de pruebas: guardar envío antes de
+asignarle parada para evitar la FK circular, leer enums con JsonApi y configurar el
+PlazoServicio requerido por el constructor de Domain en el fake unitario. No se relajó
+la lógica productiva para satisfacer esas pruebas. Compilación Release estricta aprobada.
+Regresión final: 451 casos unitarios/arquitectura y 14 integraciones (seis nuevas y ocho
+anteriores de concurrencia, outbox y hoja de ruta), sin fallos ni omisiones. Cobertura
+Domain 86,55 % (1274/1472) y Application 80,02 % (681/851). No se ejecutó toda la integración
+ni E2E ni una demo con formulario visual.
+
+Se agregó docs/registro-extravios.md, enlace en README y avance en plan/seguimiento.
+Sin migración ni cambios de PWA, Worker o pantallas; queda integrar el formulario en Web.
+El tema de reportes por clientes homónimos permanece pendiente de coordinación con
+las compañeras de liquidación y autenticación continúa con su responsable. Se conservó
+el cambio documental previo del usuario. Se eliminó el PostgreSQL temporal sin tocar
+su base de desarrollo. Sin commit ni push.
+
 Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
 README, referencias de administración y pendientes/cobertura. Sin commit ni push.

@@ -4,6 +4,7 @@ using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Administracion;
 using UltimaMilla.Application.Configuracion;
 using UltimaMilla.Application.Deposito;
+using UltimaMilla.Application.Envios.Extravio;
 using UltimaMilla.Application.Despacho;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Web.Seguridad;
@@ -41,6 +42,15 @@ public static class ApiOperativa
             var tokens = antiforgery.GetAndStoreTokens(context);
             return Results.Ok(new { token = tokens.RequestToken, cabecera = CabeceraAntiforgery });
         }).RequireAuthorization().WithMetadata(new ApiOperativaMetadata());
+
+        var incidencias = app.MapGroup("/api/incidencias/envios")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador), nameof(RolUsuario.Despachador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        incidencias.MapGet("/{envioId:guid}/extravio", async (Guid envioId, RegistrarExtravioHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
+        incidencias.MapPost("/{envioId:guid}/extravio", async (Guid envioId, RegistrarExtravioCommand solicitud, RegistrarExtravioHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.Handle(envioId, solicitud, ct)));
 
         var rutas = app.MapGroup("/api/repartidor/rutas")
             .RequireCors(ApiRepartidor.Cors)
