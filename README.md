@@ -9,6 +9,10 @@ verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
 
+Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por
+cuenta comercial, aunque dos clientes tengan el mismo nombre. La corrección conserva
+el formato de respuesta y no requiere migración.
+
 El [registro operativo de extravíos](docs/registro-extravios.md) dispone de consulta y API
 de confirmación con permisos, versiones y guardado de historial/outbox. Falta conectar
 el formulario del backoffice. No requiere migración.

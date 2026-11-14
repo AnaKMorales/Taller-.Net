@@ -22,14 +22,15 @@ pruebas nuevas):
   parada atómicos, con pruebas de concurrencia/rollback y entrega parcial. Sin migración.
   Solo queda conectar el botón/formulario en Web. Ver [contrato](docs/registro-extravios.md).
 - **Separación de comercios en reportes (letra 5.5, requisito 30, pág. 4):**
-  `ReportesGestion` proyecta el nombre de CuentaComercial y agrupa por ese texto, sin
-  conservar CuentaComercialId como clave. Dos clientes del mismo operador con el mismo
-  nombre terminan en un solo grupo de cumplimiento/liquidación. Es una corrección del
-  backend existente, no una función nueva. Confirmar con las compañeras de liquidación
-  antes de modificar esa consulta/DTOs y añadir un caso de regresión con nombres iguales.
+  corregido en el backend existente. `ReportesGestion` agrupa cumplimiento y liquidación
+  por CuentaComercialId; el nombre queda como etiqueta. Dos cuentas homónimas conservan
+  filas, importes y métricas separados, también tras renombrar o dar de baja lógica una
+  cuenta. Fallo reproducido antes de la corrección y verificado con PostgreSQL real.
+  No se modificaron DTOs, pantallas, fórmulas ni el módulo de liquidaciones en desarrollo
+  por las compañeras. Ver [alcance y consumo](docs/reportes-gestion.md).
 
-Estos hallazgos salen de lectura del código; esta revisión no certifica por sí sola
-el cumplimiento completo ni reemplaza una reproducción automatizada del caso de reportes.
+La revisión inicial fue de lectura; las correcciones posteriores indicadas arriba tienen
+pruebas automatizadas. Esto no certifica por sí solo el cumplimiento completo de la letra.
 
 Revisión posterior a A2: la pantalla `Pages/Backoffice/Envio.cshtml` y su PageModel ya
 ofrecen asignación y devolución de bultos pendientes mediante IDespachoPendientes.
