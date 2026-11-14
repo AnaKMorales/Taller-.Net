@@ -51,6 +51,7 @@ jobs:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:14317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       ConnectionStrings__Redis: 127.0.0.1:56379
+      OBSERVABILIDAD_LOGS_INTERNOS: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -82,8 +83,15 @@ jobs:
 
       - name: Probar
         id: pruebas
-        # Playwright se ejecuta en el job e2e, que levanta Web e instala Chromium.
-        run: dotnet test UltimaMilla.slnx -c Release --no-build --filter "FullyQualifiedName!~UltimaMilla.E2E.Tests" --logger trx --results-directory TestResults
+        # E2E tiene su job; el colector usa otro proceso para aislar proveedores globales de telemetría.
+        run: dotnet test UltimaMilla.slnx -c Release --no-build --filter "FullyQualifiedName!~UltimaMilla.E2E.Tests&FullyQualifiedName!~ColectorRealRecibeTrazaPwaApiOutboxRabbitYMetricasDelTablero" --logger trx --results-directory TestResults
+
+      - name: Probar correlación con el colector real (proceso aislado)
+        shell: pwsh
+        run: |
+          dotnet test tests/Integration/UltimaMilla.Infrastructure.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~ColectorRealRecibeTrazaPwaApiOutboxRabbitYMetricasDelTablero" --logger "trx;LogFileName=colector.trx" --results-directory TestResults/colector
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba del colector real.' }
+          ./scripts/Assert-TestResults.ps1 -ResultsDirectory TestResults/colector
 
       - name: Comprobar que no se omitieron pruebas
         if: always() && steps.pruebas.outcome != 'skipped'

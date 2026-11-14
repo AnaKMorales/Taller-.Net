@@ -651,3 +651,22 @@ causal con el fallo intermitente del CI requiere confirmarse en la siguiente cor
 La prueba ajustada y la prueba de logging aprobaron juntas con los servicios reales.
 Compilación estricta correcta. Se eliminaron los contenedores temporales y se conservó
 el LGTM local que ya estaba iniciado. No se modificó código de producción ni se hizo push.
+
+### 13/11/2026: persistencia del fallo del colector en CI
+
+El usuario aportó otra corrida con la misma falla después de vaciar Serilog. Eso descarta
+dar por suficiente el ajuste previo: la causa exacta del fallo en la suite remota sigue
+sin confirmarse. El log del contenedor mostraba `logging=false` para Loki y el colector.
+Se inspeccionaron los scripts de la imagen local para verificar los nombres de las variables
+de diagnóstico; se habilitan solo en CI mediante OBSERVABILIDAD_LOGS_INTERNOS.
+
+Se añadió una captura local de eventos Serilog para distinguir emisión de exportación,
+SelfLog para informar errores internos del sink y diagnóstico en la aserción de Loki.
+Se separó la prueba del colector en otro proceso dentro del mismo job, sin reintento,
+con su TRX y validación obligatoria de resultados no vacíos/no omitidos. La selección
+principal excluye únicamente esa prueba y E2E, ambas ejecutadas en sus pasos dedicados.
+La hipótesis de interferencia entre hosts/proveedores requiere confirmación en GitHub.
+
+La compilación estricta pasó y la prueba de colector con diagnóstico pasó localmente con
+PostgreSQL, RabbitMQ, Redis y LGTM reales. Se eliminaron los tres servicios temporales y
+se dejó el LGTM previo. No se desactivaron aserciones ni se ampliaron esperas. Sin push.

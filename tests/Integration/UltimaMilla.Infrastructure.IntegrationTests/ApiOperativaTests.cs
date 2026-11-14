@@ -42,7 +42,7 @@ public sealed partial class PostgresTests
     }
 
     private sealed class ServidorApi(string connection, bool usarIdentidadPrueba = true, string ambiente = "Testing",
-        bool exportarTelemetria = false)
+        bool exportarTelemetria = false, Action<IServiceCollection>? configurarServicios = null)
         : WebApplicationFactory<App>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -58,6 +58,7 @@ public sealed partial class PostgresTests
             }));
             builder.ConfigureServices(services =>
             {
+                configurarServicios?.Invoke(services);
                 if (!usarIdentidadPrueba) return;
                 services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new RelojConfiguracion());
                 services.AddAuthentication(o => o.DefaultAuthenticateScheme = "Test")

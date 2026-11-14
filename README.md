@@ -50,6 +50,10 @@ pruebas omitidas o incompletas, o si no hay resultados. Las credenciales de CI s
 exclusivamente para esos contenedores efímeros. La primera corrida completa de esta
 configuración debe validarse en Actions después de subir el cambio.
 
+La prueba con colector real se ejecuta en un proceso independiente dentro de `build-test`,
+con reporte `TestResults/colector/colector.trx` y control de omisiones propio. Continúa
+siendo obligatoria. El CI habilita los logs internos de Loki y del colector para diagnóstico.
+
 ## Logs estructurados de Web y Worker
 
 Web usa Serilog y escribe un objeto JSON por evento en la consola. Los mensajes de

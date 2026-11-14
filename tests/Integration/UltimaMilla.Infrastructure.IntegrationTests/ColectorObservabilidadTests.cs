@@ -1,6 +1,9 @@
 extern alias Pwa;
 
 using System.Diagnostics;
+using System.Collections.Concurrent;
+using Serilog.Core;
+using Serilog.Events;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,8 +41,11 @@ public sealed partial class PostgresTests
     [ColectorFact]
     public async Task ColectorRealRecibeTrazaPwaApiOutboxRabbitYMetricasDelTablero()
     {
+        using var diagnostico = new DiagnosticoSinkColector();
+        var captura = new LogsColector();
         using var servidor = new ServidorApi(_testConnection, usarIdentidadPrueba: false,
-            ambiente: "Development", exportarTelemetria: true);
+            ambiente: "Development", exportarTelemetria: true,
+            configurarServicios: services => services.AddSingleton<ILogEventSink>(captura));
         using var web = servidor.Cliente();
         using var creacion = await web.PostAsync("/dev/datos-demo-pwa", null);
         creacion.EnsureSuccessStatusCode();
@@ -102,6 +108,8 @@ public sealed partial class PostgresTests
             // antes de consultar Loki, sin debilitar la comprobación de correlación.
             web.Dispose();
             servidor.Dispose();
+            Assert.Contains(captura.Eventos, e => e.TraceId?.ToString() == contexto.TraceId.ToString() &&
+                e.Properties.TryGetValue("RequestPath", out var path) && path is ScalarValue { Value: "/api/repartidor/intentos" });
 
             using var consultas = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             var tempo = Environment.GetEnvironmentVariable("ULTIMAMILLA_TEST_TEMPO") ?? "http://127.0.0.1:13200";
@@ -133,7 +141,8 @@ public sealed partial class PostgresTests
             }
             using (var registros = JsonDocument.Parse(logs))
                 Assert.True(registros.RootElement.GetProperty("data").GetProperty("result").GetArrayLength() > 0,
-                    $"Loki debe recibir el log de la petición con la traza PWA {contexto.TraceId}. Se consultó tras vaciar Serilog.");
+                    $"Loki no devolvió la traza PWA {contexto.TraceId}, aunque Serilog emitió el log local. " +
+                    $"Diagnóstico del exportador: {diagnostico.Resumen}");
             using var metrica = JsonDocument.Parse(await consultas.GetStringAsync(
                 $"{prometheus}/api/v1/query?query=ultimamilla_mensajes_procesados_total"));
             Assert.True(metrica.RootElement.GetProperty("data").GetProperty("result").GetArrayLength() > 0);
@@ -160,6 +169,21 @@ public sealed partial class PostgresTests
                 .Concat(opciones.Esperas.Select(e => opciones.ColaEspera(e.Sufijo))))
                 await channel.QueueDeleteAsync(nombre);
         }
+    }
+
+    private sealed class LogsColector : ILogEventSink
+    {
+        public ConcurrentQueue<LogEvent> Eventos { get; } = new();
+        public void Emit(LogEvent e) => Eventos.Enqueue(e);
+    }
+
+    private sealed class DiagnosticoSinkColector : IDisposable
+    {
+        private readonly ConcurrentQueue<string> _mensajes = new();
+        public DiagnosticoSinkColector() => Serilog.Debugging.SelfLog.Enable(m => _mensajes.Enqueue(m));
+        public string Resumen => string.Join("\n", _mensajes.TakeLast(5)).Trim() is { Length: > 0 } texto
+            ? texto : "Sin errores internos registrados por Serilog.";
+        public void Dispose() => Serilog.Debugging.SelfLog.Disable();
     }
 
     private sealed class CapturarContexto(Guid id, TaskCompletionSource<ActivityContext> resultado) : IManejadorMensajes
