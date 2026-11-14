@@ -68,7 +68,9 @@ jobs:
       - name: Iniciar observabilidad de pruebas
         shell: bash
         run: |
-          docker compose -f deploy/observabilidad/compose.yaml up -d
+          df -h /
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml up -d
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml exec -T lgtm df -h /data/loki
           for intento in {1..60}; do
             if curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:3300/api/health >/dev/null &&
                curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:13200/ready >/dev/null &&
@@ -78,7 +80,7 @@ jobs:
             fi
             sleep 3
           done
-          docker compose -f deploy/observabilidad/compose.yaml logs --tail 100
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml logs --tail 100
           exit 1
 
       - name: Probar
@@ -119,8 +121,9 @@ jobs:
       - name: Detener observabilidad de pruebas
         if: always()
         run: |
-          docker compose -f deploy/observabilidad/compose.yaml logs --no-color --tail 200
-          docker compose -f deploy/observabilidad/compose.yaml down
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml exec -T lgtm df -h /data/loki || true
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml logs --no-color --tail 200
+          docker compose -f deploy/observabilidad/compose.yaml -f deploy/observabilidad/compose.ci.yaml down
 
   # Pruebas E2E con Playwright contra la Web levantada en el runner
   e2e:

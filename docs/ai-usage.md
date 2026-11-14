@@ -670,3 +670,32 @@ La hipótesis de interferencia entre hosts/proveedores requiere confirmación en
 La compilación estricta pasó y la prueba de colector con diagnóstico pasó localmente con
 PostgreSQL, RabbitMQ, Redis y LGTM reales. Se eliminaron los tres servicios temporales y
 se dejó el LGTM previo. No se desactivaron aserciones ni se ampliaron esperas. Sin push.
+
+### 14/11/2026: rechazo de escrituras del WAL de Loki en CI
+
+Los nuevos logs aportados por el usuario muestran reintentos del colector hacia Loki
+con HTTP 503 e `Ingester is shutting down` mientras las consultas continúan respondiendo.
+El fallo persiste aun ejecutando el caso en un proceso aislado. Se consultaron fuentes
+primarias de Loki: la incidencia https://github.com/grafana/loki/issues/23769 y el PR
+https://github.com/grafana/loki/pull/24750 describen ese mensaje engañoso cuando el WAL
+supera su umbral de uso de disco. No se dispone del porcentaje de disco de aquella
+ejecución remota, por lo que esa causa concreta sigue pendiente de confirmación en CI.
+
+Se reprodujo el mecanismo sin llenar el disco: en un Loki temporal con la misma imagen
+se redujo el umbral del WAL al 0,1 %. Apareció la advertencia de throttling y una escritura
+válida devolvió HTTP 500 con el mismo mensaje `Ingester is shutting down`. Con un tmpfs
+de 512 MiB y el WAL trasladado a él, manteniendo el mismo umbral reducido, la escritura
+respondió 204. La diferencia 500/503 corresponde a la entrada directa usada en esa
+reproducción frente a la exportación OTLP del log remoto; el rechazo del ingester coincide.
+
+Se agregó un override de compose exclusivo de CI para datos y WAL de Loki en ese tmpfs.
+La configuración normal conserva WAL habilitado y su umbral del 90 %. El workflow usa
+el override en arranque, diagnóstico y cierre, e imprime uso de disco del runner y Loki.
+Se documentó el alcance en docs/observabilidad.md. No cambia el compose de desarrollo,
+la configuración AWS ni código de negocio o aserciones.
+
+Validación: compose combinado válido, git diff sin errores de espacios y un caso del
+colector completo aprobado (cero omitidos) contra PostgreSQL, RabbitMQ, Redis y un LGTM
+temporal levantado con ambos archivos compose. Se comprobó que /data/loki es tmpfs.
+La ejecución de GitHub con estos cambios todavía está pendiente. Los recursos temporales
+de la revisión se eliminaron y se conservó el LGTM local anterior. Sin commit ni push.

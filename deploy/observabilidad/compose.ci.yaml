@@ -1,0 +1,11 @@
+# Almacenamiento efímero exclusivo para las pruebas del runner.
+# Loki protege el WAL rechazando escrituras al superar el 90 % del disco;
+# el filesystem de Docker comparte el espacio ocupado por las imágenes del runner.
+services:
+  lgtm:
+    tmpfs:
+      - /data/loki:rw,size=536870912,mode=1777
+    environment:
+      # Incluye el WAL en el mismo tmpfs que los índices y chunks de Loki.
+      # Se conserva su protección de espacio y el WAL habilitado.
+      LOKI_EXTRA_ARGS: "-ingester.wal-dir=/data/loki/wal"
