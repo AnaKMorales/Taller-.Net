@@ -7,6 +7,7 @@ internal static class ConcurrencyModel
 {
     internal const string RowVersion = "RowVersion";
     internal const string ActiveAssignmentIndex = "IX_Paradas_EnvioId";
+    internal const string StopOrderIndex = "IX_Paradas_RutaId_Cod";
 
     internal static void Configure(ModelBuilder model)
     {

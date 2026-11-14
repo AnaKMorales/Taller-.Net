@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Configuracion;
+using UltimaMilla.Application.Deposito;
 using UltimaMilla.Application.Despacho;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Web.Seguridad;
@@ -57,6 +58,15 @@ public static class ApiOperativa
             .AddEndpointFilter<AntiforgeryApiFilter>();
         despacho.MapGet("/envios/{envioId:guid}/pendientes", async (Guid envioId, IDespachoPendientes gestion, CancellationToken ct) =>
             Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
+        despacho.MapGet("/envios/disponibles", async (AsignarEnvioRutaHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ListarEnviosAsync(ct)));
+        despacho.MapGet("/rutas/planificables", async (AsignarEnvioRutaHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ListarRutasAsync(ct)));
+        despacho.MapGet("/recursos", async (AsignarEnvioRutaHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.RecursosAsync(ct)));
+        despacho.MapPost("/rutas/{rutaId:guid}/envios", async (Guid rutaId, AsignarEnvioRutaCommand solicitud,
+            AsignarEnvioRutaHandler gestion, CancellationToken ct) =>
+            Results.Json(await gestion.Handle(rutaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
         despacho.MapPost("/rutas", async (CrearRutaPendientes solicitud, IDespachoPendientes gestion, CancellationToken ct) =>
             Results.Json(await gestion.CrearRutaAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
         despacho.MapGet("/rutas/{rutaId:guid}/preparacion", async (Guid rutaId, DespacharRutaHandler gestion, CancellationToken ct) =>
@@ -80,6 +90,42 @@ public static class ApiOperativa
             .WithMetadata(new ApiOperativaMetadata()).RequireCors(ApiRepartidor.Cors)
             .RequireAuthorization(Politicas.Repartidor).AddEndpointFilter<ErroresApiFilter>();
         MapearCarga(cargaRepartidor);
+
+        var recepcion = app.MapGroup("/api/deposito/envios")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador),
+                nameof(RolUsuario.Despachador), nameof(RolUsuario.OperarioDeposito)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        recepcion.MapGet("/{envioId:guid}/recepcion", async (Guid envioId, RecepcionDepositoHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
+        recepcion.MapPost("/{envioId:guid}/recepcion/bultos", async (Guid envioId, EscanearRecepcionCommand solicitud,
+            RecepcionDepositoHandler gestion, CancellationToken ct) => Results.Ok(await gestion.EscanearAsync(envioId, solicitud, ct)));
+        recepcion.MapPost("/{envioId:guid}/recepcion/discrepancias", async (Guid envioId, RegistrarDiscrepanciaCommand solicitud,
+            RecepcionDepositoHandler gestion, CancellationToken ct) => Results.Ok(await gestion.RegistrarDiscrepanciaAsync(envioId, solicitud, ct)));
+        recepcion.MapPost("/{envioId:guid}/recepcion/confirmar", async (Guid envioId, ConfirmarRecepcionCommand solicitud,
+            RecepcionDepositoHandler gestion, CancellationToken ct) => Results.Ok(await gestion.ConfirmarAsync(envioId, solicitud, ct)));
+        recepcion.MapGet("/{envioId:guid}/devolucion", async (Guid envioId, DevolucionDepositoHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
+        recepcion.MapPost("/{envioId:guid}/devolucion/iniciar", async (Guid envioId, VersionDevolucionCommand solicitud,
+            DevolucionDepositoHandler gestion, CancellationToken ct) =>
+            Results.Json(await gestion.IniciarAsync(envioId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        recepcion.MapPost("/{envioId:guid}/devolucion/bultos", async (Guid envioId, EscanearDevolucionCommand solicitud,
+            DevolucionDepositoHandler gestion, CancellationToken ct) => Results.Ok(await gestion.EscanearAsync(envioId, solicitud, ct)));
+        recepcion.MapPost("/{envioId:guid}/devolucion/completar", async (Guid envioId, VersionDevolucionCommand solicitud,
+            DevolucionDepositoHandler gestion, CancellationToken ct) => Results.Ok(await gestion.CompletarAsync(envioId, solicitud, ct)));
+
+        var cierre = app.MapGroup("/api/deposito")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador),
+                nameof(RolUsuario.Despachador), nameof(RolUsuario.OperarioDeposito)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        cierre.MapGet("/devoluciones/abiertas", async (DevolucionDepositoHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ListarAbiertasAsync(ct)));
+        cierre.MapGet("/rutas/por-rendir", async (RendirRutaHandler gestion, CancellationToken ct) => Results.Ok(await gestion.ListarAsync(ct)));
+        cierre.MapGet("/rutas/{rutaId:guid}/rendicion", async (Guid rutaId, RendirRutaHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(rutaId, ct)));
+        cierre.MapPost("/rutas/{rutaId:guid}/rendir", async (Guid rutaId, RendirRutaCommand solicitud,
+            RendirRutaHandler gestion, CancellationToken ct) => Results.Ok(await gestion.Handle(rutaId, solicitud, ct)));
 
         var configuracion = app.MapGroup("/api/configuracion")
             .WithMetadata(new ApiOperativaMetadata())

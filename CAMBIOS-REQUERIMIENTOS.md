@@ -90,7 +90,7 @@ en equipo según las áreas de «Nos organizamos».
 | Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
 | Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | El alta individual está en el punto 1 de Ana. Ya existen el caso de uso y el calculador. Falta verificar la preparación del envío y conectar el cálculo automático a la tarifa vigente en el flujo real. La importación masiva debe permitir reintentar un lote completo o parcial sin duplicados. También falta el alta por API para comercios. | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
 | Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
-| Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | El dominio ya contempla escaneos, discrepancias, rutas, devoluciones y rendición. Falta conectar la recepción con discrepancias, la asignación de envíos regulares, el control de faltantes y sobrantes al cargar, el cierre de devolución y la rendición. El punto 4 de Aldana ya contempla el escaneo en la PWA y el punto 4 de Ana contempla la vista de parciales y pendientes. | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
+| Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | Ya hay backend de recepción con discrepancias, asignación regular con consultas de envíos/rutas/flota, carga, despacho, devolución y rendición operativa. Falta integrar esas operaciones en las interfaces y completar el aviso/control de sobrantes al cargar. El punto 4 de Aldana contempla el escaneo en la PWA y el punto 4 de Ana la vista de parciales y pendientes. Ver [recepción](docs/recepcion-deposito.md), [asignación](docs/asignacion-regular.md) y [cierre](docs/cierre-deposito.md). | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
 | Revisar el recálculo de indicadores y el cierre diario | **4 · Alcance, servicio de procesamiento en segundo plano** (pág. 3). | Los reportes actuales calculan sus resultados al consultar. Falta comprobar el procesamiento de indicadores y el cierre diario desde el Worker. El cierre aparece en el diagnóstico de «Nos organizamos» y quedó sin tarea numerada. | Aldana en Worker y Agustín para las reglas de cierre que falten. |
 | Confirmar la opción de autenticación exigida | **6.3 · Seguridad y autenticación** (pág. 5). | La aplicación usa cookies, tokens Bearer y `PasswordHasher`. En la revisión no se encontró ASP.NET Identity como almacén de usuarios ni OpenID Connect configurado. Confirmar con el equipo cómo se acredita o completa la opción de autenticación que pide la letra. | Agustín y Aldana, con Ana para validar el impacto en Web. |
 
@@ -117,6 +117,37 @@ y **70,33 % en Application**, con poco margen en Application.
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+### 14/11: devolución y rendición operativa (letra original, requisito 22)
+
+APIs de devoluciones abiertas, consulta por envío, inicio según reglas, recepción de sus
+bultos y cierre con historial/outbox. Respetan la composición parcial y los entregados.
+APIs de rutas por rendir, consulta y rendición, exigiendo despacho y ninguna parada activa.
+Permisos de depósito, antiforgery, versiones y rollback; escaneos repetidos reconocidos
+mientras la devolución siga abierta. La rendición no completa devoluciones automáticamente
+ni agrega cobros/liquidaciones. Sin migración ni cambios de pantallas/PWA/Worker.
+Quedan las integraciones de interfaz. Ver [contrato y límites](docs/cierre-deposito.md).
+
+### 14/11: asignación regular de envíos (letra original, requisitos 13–16)
+
+Consultas de envíos preparados, rutas abiertas con ocupación/capacidad y flota del
+operador. API para asignar un envío completo conservando programación y tarifa, con
+orden manual, validaciones del dominio y versiones de ambos agregados. Se reutiliza
+la creación de rutas existente. Estado, parada, composición, evento y outbox se guardan
+juntos. Se traduce también a conflicto la carrera por el mismo número de parada.
+Las entregas parciales siguen usando su flujo específico. Sin migración ni cambios de
+pantallas/PWA; quedan formularios, cierre de devoluciones y rendición. Ver
+[contrato](docs/asignacion-regular.md).
+
+### 14/11: recepción en depósito (letra original, requisito 10)
+
+Consulta de manifiesto y cantidades; escaneo por código; registro de discrepancias de
+envío o bulto con valores declarado y recibido; confirmación del ingreso cuando todos
+los bultos estén escaneados. Identidad del operador/responsable resuelta desde sesión,
+permisos de depósito, antiforgery, versiones y reconocimiento de reenvíos sin duplicar.
+La confirmación guarda estado, evento y outbox juntos. Se conservan los valores declarados
+y la tarifa. No requiere migración ni modifica pantallas/PWA. Asignación regular y cierre
+de devoluciones/rendición continúan pendientes. Ver [contrato](docs/recepcion-deposito.md).
 
 ### 13/11: servicios de integración en CI (letra original, 6.15)
 

@@ -18,7 +18,10 @@ Respuestas: 200 éxito; 400 solicitud/token CSRF inválidos; 401 sin sesión;
 
 El GET no sustituye al listado de rutas del backoffice ni registra escaneos. La carga debe
 estar registrada antes de confirmar. La [API de carga](carga-rutas.md) ya está disponible;
-faltan su integración de interfaz y las otras operaciones de depósito/armado regular anotadas.
+falta su integración de interfaz.
+La [recepción con discrepancias](recepcion-deposito.md) también tiene su propio backend.
+El [armado regular de rutas](asignacion-regular.md) dispone de consultas y API de asignación.
+El [cierre de devoluciones y rendición](cierre-deposito.md) también tiene backend disponible.
 Este cambio no completa todo ese circuito ni añade el botón de despacho.
 
 ## Validaciones y guardado

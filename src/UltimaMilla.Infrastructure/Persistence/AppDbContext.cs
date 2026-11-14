@@ -57,7 +57,9 @@ public sealed class AppDbContext : DbContext
     private static bool IsConcurrencyConflict(DbUpdateException error) =>
         error is DbUpdateConcurrencyException || error.InnerException is PostgresException
         { SqlState: PostgresErrorCodes.UniqueViolation } postgres && postgres.ConstraintName is
-            ConcurrencyModel.ActiveAssignmentIndex or "IX_IntentosEntrega_EnvioId_Numero" or
+            ConcurrencyModel.ActiveAssignmentIndex or ConcurrencyModel.StopOrderIndex or
+            "IX_Devoluciones_EnvioId" or "IX_Devoluciones_EnvioId_TenantId" or
+            "IX_Rendiciones_RutaId" or "IX_Rendiciones_RutaId_TenantId" or "IX_IntentosEntrega_EnvioId_Numero" or
             "IX_IntentosEntrega_EnvioId_IdOperacion" or "IX_EventosDeEnvio_EnvioId_IdOperacion" or
             "IX_RecargosVisita_ParadaId" or "IX_RecargosVisita_ParadaId_EnvioId_TenantId";
 

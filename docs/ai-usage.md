@@ -714,3 +714,120 @@ y aplicó las 14 a un PostgreSQL temporal desde cero, terminando en Done; se con
 conteo en __EFMigrationsHistory y se eliminó el contenedor temporal. No se ejecutó la
 suite E2E completa ni se modificaron sus pruebas; falta validar su corrida en GitHub.
 Sin cambios en la base de desarrollo, commit ni push.
+
+### 14/11/2026: backend de recepción en depósito con discrepancias
+
+Tras confirmar ambos jobs de CI aprobados, el usuario autorizó retomar el primer pendiente:
+recepción en depósito, requisito 10 de la letra original (5.2). Se contrastó el texto de
+Laboratorio__NET_2026.pdf: escaneo, verificación de lo declarado y registro de discrepancias.
+Se conservó la regla del dominio que exige recibir todos los bultos antes del ingreso.
+
+Se agregó RecepcionDepositoHandler en Application, contrato de unidad de operación,
+repositorio EF en Infrastructure y cuatro endpoints en Web: consulta de manifiesto,
+escaneo de código, discrepancia y confirmación. El contexto usa identidad autenticada,
+permisos de administrador/despachador/operario, lectura coherente y versión del envío;
+los POST exigen antiforgery. Se revalida usuario activo/rol contra la base. Escaneo y
+discrepancia idénticos se reconocen mientras la recepción permanezca abierta, sin otra
+escritura; no se añadió una clave idempotente global.
+
+El operario contrasta medidas/peso declarados devueltos en la consulta e informa valores
+declarado/recibido en la discrepancia; no se automatizan balanza o tolerancias, ni se
+sobrescriben medidas o tarifa. Un código sobrante no crea un bulto. Anotar un faltante
+no sustituye el escaneo y no permite confirmar un manifiesto incompleto. La confirmación
+reutiliza Domain, cambia los estados y guarda evento/outbox en una única transacción.
+No hay cambios de esquema ni migración. No se implementaron pantallas, cámara, offline,
+asignación regular o cierre/rendición de rutas, que quedan fuera de este avance.
+
+Durante la preparación de pruebas se corrigió el uso de un atributo Theory inexistente
+y se usaron sentencias SQL fijas para las restricciones temporales, respetando el analizador
+de seguridad. Compilación Release con advertencias como errores aprobada. Pasaron siete
+pruebas unitarias nuevas y ocho integraciones nuevas con PostgreSQL temporal: API/CSRF,
+aislamiento, identidad, conservación de declaración, reenvíos, concurrencia y rollback
+de escaneos, discrepancias y confirmación/outbox. La regresión pasó 402 casos unitarios/
+arquitectura y 12 integraciones anteriores (carga, despacho y flujo crítico), sin omisiones
+en los casos seleccionados. No se ejecutó la suite completa de integración ni E2E.
+
+Cobertura Domain 85,97 % (1213/1411 líneas) y Application 80,06 % (534/667).
+Se documentó el contrato en docs/recepcion-deposito.md y se enlazó desde README,
+los límites de carga/despacho y el seguimiento de pendientes. Se eliminó el PostgreSQL
+temporal; no se alteró la base de desarrollo. Sin commit, push ni despliegue.
+
+### 14/11/2026: asignación regular de envíos a rutas
+
+El usuario autorizó el segundo pendiente del backend, asignación regular de la letra
+original (5.3, requisitos 13–16), conservando el avance anterior de recepción sin commit.
+Se agregó AsignarEnvioRutaHandler y su puerto de unidad de operación en Application;
+el repositorio en Infrastructure carga envío/ruta con lectura coherente y versiones.
+Web expone consultas de envíos preparados, rutas abiertas con ocupación/capacidad,
+recursos del operador y POST de asignación. Se reutiliza el POST existente de creación
+de rutas, conservando su contrato para no romper a los consumidores de pendientes.
+
+La identidad se obtiene de la sesión, se revalida contra la base y solo administrador/
+despachador pueden planificar. POST exige antiforgery. Domain valida estado, ventana,
+capacidad por composición, máximo de paradas y orden manual único; se conservan tarifa
+y programación. Reprogramados preparados se reasignan sin otra reprogramación y las
+entregas parciales siguen usando su circuito. Una transacción de SaveChanges guarda
+parada, composición, estados, evento y outbox; los conflictos no dejan cambios parciales.
+
+La prueba de carrera con dos envíos y el mismo número de parada reveló que la base ya
+rechazaba el duplicado, pero el índice IX_Paradas_RutaId_Cod no se traducía al contrato
+de concurrencia. Se añadió ese índice a la traducción existente en AppDbContext, sin
+cambiar restricciones ni esquema. El caso ahora genera ConflictoConcurrenciaException
+y la API lo presenta como 409. También se corrigió una expectativa de prueba que suponía
+flota ajena vacía: el escenario persiste flota de ambos operadores; se comprobó que cada
+uno reciba sus propios identificadores, sin mezclarlos. No se debilitó el aislamiento.
+
+Compilación Release estricta aprobada. Pasaron 15 pruebas unitarias nuevas y las diez
+integraciones nuevas contra PostgreSQL temporal tras las correcciones, incluida la
+repetición aprobada de permisos. Verifican flujo recepción/asignación/carga/despacho/hoja,
+roles, CSRF, versiones, capacidades, ventanas, conservación de tarifa/programación,
+reprogramados, rechazo de parciales, rollback de outbox y carreras por envío, ruta y orden.
+La regresión final pasó 417 casos unitarios/arquitectura y 24 integraciones anteriores
+(recepción, carga, despacho, parciales, flujo crítico y restricciones), sin omisiones en
+la selección. No se ejecutó toda la integración ni E2E en esta etapa.
+
+Cobertura Domain 85,97 % (1213/1411) y Application 79,57 % (557/700). No requiere migración;
+no se aplicó nada a la base de desarrollo. Se documentó el contrato en
+docs/asignacion-regular.md y se actualizaron README, enlaces y seguimiento de pendientes.
+Sin cambios de pantallas, PWA o Worker. El cierre de devoluciones/rendición sigue pendiente.
+Se eliminó el PostgreSQL temporal de esta etapa. Sin commit, push ni despliegue.
+
+### 14/11/2026: devolución y rendición operativa en depósito
+
+El usuario autorizó el tercer pendiente, cierre de devoluciones y rendición del requisito
+22 de la letra original. Se conservaron sin commit los avances anteriores de recepción y
+asignación. Se añadieron dos casos de uso de Application y sus puertos, un repositorio
+de Infrastructure con unidades dedicadas y ocho endpoints en Web: consulta/listado,
+inicio, escaneo y cierre de devolución, y listado/consulta/rendición de rutas.
+
+Los roles administrador, despachador y operario de depósito se resuelven desde sesión
+y se revalidan activos contra la base; POST exige antiforgery. El inicio reutiliza las
+políticas del envío. Escaneo y cierre respetan la composición de la devolución, incluyendo
+parciales sin alterar entregados. Un reenvío de escaneo ya confirmado se reconoce mientras
+la devolución siga abierta. El cierre guarda estado, fecha, evento y outbox juntos.
+La rendición reutiliza Ruta.Rendir: ruta despachada y sin paradas activas. No completa
+devoluciones automáticamente ni agrega cobros, liquidaciones o cierre diario del Worker.
+La ruta y su rendición se guardan juntas; rendir no genera un evento de envío artificial.
+
+Las pruebas de dos inicios de devolución y dos rendiciones simultáneos mostraron que los
+índices existentes impedían duplicados antes del UPDATE de versión, pero faltaba traducir
+esa excepción al contrato de concurrencia. Se añadieron los nombres conocidos de los
+índices de Devoluciones/Envio y Rendiciones/Ruta (simples y con TenantId) a la traducción
+de AppDbContext, sin cambiar esquema. Las dos pruebas detectaron primero un fallo y
+pasaron después del ajuste, con un solo registro/evento y conflicto para el perdedor.
+Durante la preparación se corrigió un nombre de enum oculto por una propiedad de la
+fixture y una aserción conforme al analizador xUnit; sin cambios de reglas del dominio.
+
+Compilación Release con advertencias como errores aprobada. Pasaron diez pruebas unitarias
+nuevas y trece integraciones nuevas contra PostgreSQL temporal, tras repetir aprobadas
+las dos carreras corregidas. Verifican API, roles/CSRF/aislamiento, usuario revocado,
+políticas de reintento, devolución parcial/outbox V2, faltantes, reenvíos, cierres y carreras,
+rollback de inicio/escaneo/outbox/rendición y la independencia entre rendir y completar
+una devolución. La regresión final pasó 427 casos unitarios/arquitectura y 35 integraciones
+anteriores sin omisiones en la selección. No se ejecutó toda la integración ni E2E.
+
+Cobertura Domain 85,97 % (1213/1411) y Application 81,30 % (648/797). Sin migración ni
+cambios en la base de desarrollo. Se agregó docs/cierre-deposito.md y se actualizaron
+README, límites de las otras APIs y el seguimiento de pendientes. Las pantallas y acciones
+de PWA continúan a cargo de sus responsables; no se modificaron Web UI, PWA o Worker.
+Se eliminó el contenedor PostgreSQL temporal. Sin commit, push ni despliegue.

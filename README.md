@@ -11,6 +11,17 @@ La consulta de preparación y la API de despacho están documentadas en
 [Despacho operativo](docs/despacho-operativo.md). La [API de carga por código](docs/carga-rutas.md)
 también está disponible; las interfaces de carga y despacho siguen pendientes.
 
+La [recepción en depósito](docs/recepcion-deposito.md) cuenta con API de consulta,
+escaneo, registro de discrepancias y confirmación. Su interfaz sigue pendiente.
+
+La [asignación regular](docs/asignacion-regular.md) permite consultar envíos preparados,
+rutas abiertas y flota, y asignar con versiones, capacidad y ventana horaria verificadas.
+La conexión a los formularios del backoffice sigue pendiente.
+
+El [cierre en depósito](docs/cierre-deposito.md) tiene API para iniciar, escanear y
+completar devoluciones, y para consultar/rendir rutas. Falta conectar las pantallas;
+la rendición implementada es operativa y no incluye cobros o liquidaciones.
+
 El backend de importación masiva idempotente y su contrato para integrar al portal se
 describen en [Importación de envíos](docs/importacion-envios.md). La lectura de archivos
 y la pantalla de importación siguen pendientes.
