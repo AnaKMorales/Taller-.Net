@@ -98,8 +98,9 @@ Tras asignar se usan las APIs existentes de [carga](carga-rutas.md) y
 ## Alcance y pruebas
 
 Falta conectar las consultas y el POST a los formularios del backoffice. Este avance
-no agrega pantallas ni cambia la PWA. Tampoco incorpora administración de flota,
-retiro/reordenamiento de paradas ya asignadas ni reprogramación interna nueva.
+no agrega pantallas ni cambia la PWA. Las [altas y consultas de flota](administracion-flota.md)
+ya tienen su propio backend. Este caso no incorpora retiro/reordenamiento de paradas
+ya asignadas ni reprogramación interna nueva.
 El [cierre de devoluciones y rendición](cierre-deposito.md) tiene sus propias APIs.
 
 Pruebas unitarias y con PostgreSQL cubren capacidades, ventanas, orden, versiones, roles,

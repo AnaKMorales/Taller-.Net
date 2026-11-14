@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,10 @@ public sealed partial class PostgresTests
             }));
             builder.ConfigureServices(services =>
             {
+                // El host de Development puede registrar Redis antes de aplicar la configuración
+                // de la factory. Estas pruebas usan memoria; Redis real se verifica por separado.
+                services.RemoveAll<IDistributedCache>();
+                services.AddDistributedMemoryCache();
                 configurarServicios?.Invoke(services);
                 if (!usarIdentidadPrueba) return;
                 services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new RelojConfiguracion());

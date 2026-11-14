@@ -31,4 +31,13 @@ public sealed class ZonaCobertura : Entidad
     foreach (var franja in _franjas) franja.Vincular(this);
     Operador.Registrar(this);
   }
+
+  public void AgregarFranja(FranjaHoraria franja)
+  {
+    ArgumentNullException.ThrowIfNull(franja);
+    if (franja.Zona is not null)
+      throw new InvalidOperationException("La franja ya pertenece a una zona.");
+    franja.Vincular(this);
+    _franjas.Add(franja);
+  }
 }

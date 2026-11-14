@@ -869,3 +869,100 @@ despacho, modalidades de alta, cobertura y el registro de avances. Los nuevos ca
 todavía requieren su propia ejecución en GitHub. Las áreas ajenas no auditadas siguen
 marcadas para revisión; no se afirma haber completado todo el opcional de API pública.
 Sin commit, push ni despliegue.
+
+### 14/11/2026: altas y consultas administrativas de flota
+
+El usuario autorizó empezar por altas y consultas de repartidores/vehículos. Se agregó
+el puerto IAdministracionFlota y DTOs en Application, su implementación EF en Infrastructure
+y cuatro endpoints GET/POST administrativos en Web. El administrador activo se revalida
+en la base y el operador sale de la sesión; los POST usan antiforgery. No se aceptan roles
+u operadores del cuerpo. No se modifican flota anterior ni rutas ya planificadas.
+
+La creación de repartidor normaliza y valida email, exige contraseña de 8–256 caracteres
+y usa ContrasenasUsuario para guardar el hash junto con el usuario. El email no puede
+pertenecer a otro usuario del operador, aunque tenga otro rol o esté inactivo. Vehículos
+normalizan matrícula y usan las validaciones del dominio para capacidades positivas.
+Los índices existentes protegen ambos duplicados; sus rechazos concretos se traducen
+localmente a InvalidOperationException/409, también en una carrera. No hay migración.
+
+Se añadieron seis integraciones con PostgreSQL temporal, incluidas barreras antes del
+guardado para forzar las dos altas simultáneas. La selección de flota aprobó siete casos
+(seis nuevos y uno anterior): API/CSRF/roles, normalización, credenciales reales de PWA,
+planificación/creación de ruta con los nuevos recursos, ámbitos/revocación, duplicados,
+capacidades y rollback de usuario/credenciales. Regresión: 427 casos unitarios/arquitectura
+y 19 integraciones anteriores de asignación regular, API de comercios, PWA y restricciones,
+todos aprobados. Compilación Release con advertencias como errores correcta.
+No se ejecutó toda la suite de integración ni E2E.
+
+Cobertura Domain 85,97 % (1213/1411) y Application 80,90 % (648/801). Se documentaron
+contratos y límites en docs/administracion-flota.md y se actualizaron README, asignación
+regular y el seguimiento de pendientes/cobertura. Se conserva la unicidad de emails por
+operador; el login existente sigue rechazando emails ambiguos entre operadores, lo que
+se explica en el contrato. Quedan pantallas, edición/bajas/cambio de contraseña y los
+otros bloques de administración. No se implementó nada en PWA ni Worker.
+Se eliminó el PostgreSQL temporal sin tocar la base de desarrollo. Sin commit ni push.
+
+### 14/11/2026: altas y consultas de comercios, cuentas y usuarios
+
+El usuario autorizó continuar con el siguiente bloque administrativo de backend.
+Application define IAdministracionComercios y sus contratos; Infrastructure implementa
+altas/consultas con EF y Web expone cuatro endpoints administrativos. Cada operación
+revalida al administrador activo y usa su operador autenticado; los POST exigen CSRF.
+El alta de comercio guarda un Comercio nuevo y su CuentaComercial juntos. Se conserva
+el modelo compartido existente, sin editar datos globales ni vincular IDs ajenos.
+
+El alta de usuario recibe una cuenta propia, fija rol Comercio y vincula solo esa cuenta.
+Valida/normaliza email y guarda contraseña con el hash existente. Usuario, credencial y
+vínculo se confirman juntos; el índice existente resuelve duplicados concurrentes como
+409. No se agregaron migraciones, pantallas, cambios de PWA ni Worker. El alta de comercio
+no es idempotente y la creación del usuario es un segundo paso; estos límites, los de
+login y las operaciones aún pendientes se explican en docs/administracion-comercios.md.
+
+Compilación Release con advertencias como errores aprobada. Pasaron seis integraciones
+nuevas con PostgreSQL temporal: recorrido de alta hasta login y creación de envío,
+validaciones/CSRF/roles, aislamiento y datos compartidos, revocación, duplicado concurrente
+entre cuentas y rollback de comercio/cuenta y usuario/credenciales. También pasaron
+427 casos unitarios/arquitectura y 16 integraciones anteriores de flota, API de comercios
+y protección de comercios compartidos. Sin pruebas omitidas en las selecciones ejecutadas.
+No se ejecutó toda la integración ni E2E. Cobertura Domain 85,97 % (1213/1411) y
+Application 80,50 % (648/805). Se actualizaron README, contratos y pendientes.
+El PostgreSQL temporal se elimina al terminar, sin tocar la base de desarrollo.
+Sin commit, push ni despliegue.
+
+### 14/11/2026: altas y consultas de zonas y franjas
+
+El usuario autorizó continuar con la administración de zonas y franjas horarias.
+Se agregó IAdministracionZonas y sus DTOs en Application, la implementación EF en
+Infrastructure y cuatro endpoints GET/POST administrativos en Web. Domain incorpora
+AgregarFranja, que permite añadir una franja nueva sin compartirla con otra zona ni
+reemplazar la colección. Se revalida administrador activo, rol y operador; los POST
+exigen antiforgery. Zona y franjas iniciales se guardan juntas, con horarios del mismo
+día válidos y textos recortados. No se implementan edición ni bajas o unicidades que
+el modelo no exigía. Los POST no son idempotentes. No hay migración ni cambios de UI,
+PWA o Worker. Las zonas se reutilizan en la configuración tarifaria y las opciones de
+alta; una zona nueva necesita su línea aplicable en el tarifario vigente para cotizar.
+
+Se agregó una prueba de dominio y seis integraciones con PostgreSQL temporal. Incluyen
+API/permisos/CSRF, validaciones, ámbitos/revocación, adiciones concurrentes sin perder
+franjas, rollback y el recorrido hasta tarifario, cotización y alta de envío conservando
+el envío anterior. Compilación Release con advertencias como errores aprobada y
+428 casos unitarios/arquitectura aprobados. Cobertura Domain 86,03 % (1219/1417) y
+Application 80,10 % (648/809). No se ejecutó toda la integración ni E2E.
+
+La regresión detectó un timeout en la prueba existente de dos operadores demo, que
+se repitió aislada y al reducir logs. Las marcas temporales localizaron la demora
+durante guardados y se retiraron sin dejar cambios en EscenarioDemo.cs. El registro
+de caché del host Development podía usar Redis antes de aplicarse la configuración
+de la factory. Se corrigió solo ServidorApi de pruebas para sustituir IDistributedCache
+por memoria antes de personalizar servicios, conforme al aislamiento que ya se pretendía
+con ConnectionStrings:Redis vacío. No cambia el registro de Redis en la aplicación ni
+las pruebas específicas con Redis real. Las tres pruebas seleccionadas de DatosDemo
+pasaron después en 13 segundos, sin aumentar timeout ni omitir pruebas.
+
+La selección final posterior a la corrección aprobó 44 integraciones, sin omisiones:
+zonas nuevas, flota, comercios/cuentas, API de comercios, configuración versionada,
+alta del portal, datos demo y reenvío/sincronización PWA. El contenedor PostgreSQL
+temporal se eliminó al terminar; la base de desarrollo no se utilizó.
+
+Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
+README, referencias de administración y pendientes/cobertura. Sin commit ni push.
