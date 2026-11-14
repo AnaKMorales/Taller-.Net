@@ -5,8 +5,18 @@ funciones en esta revisión. Este documento distingue obligaciones, verificacion
 No significa que cada limitación documentada deba convertirse en una funcionalidad nueva.
 
 Coordinación posterior del 14/11: Agustín confirmó que sus compañeras trabajan en cuenta
-corriente, etiquetas y pantalla de importación. Esos trabajos quedan a cargo de ellas;
+corriente, etiquetas y pantalla de importación, y posteriormente indicó que también
+trabajan en liquidaciones (avance por confirmar con ellas). Esos trabajos quedan a cargo de ellas;
 Agustín no los implementa ni duplica. Solo se acordarán apoyos concretos de backend si los solicitan.
+
+Revisión posterior a A2: la pantalla `Pages/Backoffice/Envio.cshtml` y su PageModel ya
+ofrecen asignación y devolución de bultos pendientes mediante IDespachoPendientes.
+Ese desarrollo no vuelve a planificarse; queda comprobarlo en la demo. Persisten en el
+código revisado el uso de almacén propio de usuarios (V1), la conversión de eventos V2
+a salida externa V1 sin detalle de bultos y la ausencia de un proceso de cierre diario
+o recálculo de indicadores en Worker. Las dos últimas corresponden a coordinación con
+Aldana; no se implementan unilateralmente. A3 queda en seguimiento de las compañeras;
+Agustín solo apoyará si una integración concreta requiere backend faltante.
 
 Avance A1: implementado el cambio de email y baja lógica de usuarios de Comercio de
 una única cuenta propia, y la modificación de ficha local y baja lógica de la cuenta
@@ -35,7 +45,7 @@ capacidades de dispositivo, infraestructura remota u opcionales: requieren evide
 | ID | Fuente | Qué está y qué falta | Alcance y criterio de cierre |
 | --- | --- | --- | --- |
 | A1 | Letra 5.1, requisito 1, pág. 3 | Backend cubierto: altas/consultas, edición y baja de cuenta, modificación/baja de usuarios y autorización por rol Comercio y cuenta. Restan pantallas. | Agustín: cierre del backend y contrato con pruebas. Ana/responsables de Web: integración visual. No se agregan perfiles comerciales adicionales ni editor genérico de permisos como obligación implícita. Ver docs/administracion-comercios.md. |
-| A2 | Letra 5.1, requisito 5, pág. 3 | No se encontró configuración persistida de marca, colores y contacto del operador aplicada al producto. | Acordar contrato mínimo con Ana y Aldana. Agustín: persistencia y operaciones de configuración propias del operador. Ana: aplicar en portal y seguimiento. Aldana: comunicaciones. Cierra al cambiarlo desde configuración y verlo en las tres salidas sin filtrar otro operador. |
+| A2 | Letra 5.1, requisito 5, pág. 3 | Backend implementado: configuración por operador con versión y lecturas administrativa, autenticada, por token público y por ámbito de mensaje. Migración IdentidadVisualOperador. | Agustín: backend/contrato verificados. Ana: formulario y aplicación en portal/seguimiento. Aldana: consumo en comunicaciones. El requisito sigue abierto hasta demostrar las tres salidas. Ver docs/identidad-operador.md. |
 | A3 | Letra 4, portal, pág. 3 | Exige etiquetas, gestión de devoluciones y cuenta corriente/liquidaciones. Las consultas del portal revisadas ofrecen envíos y avisos; el reporte de liquidación es de backoffice y no acredita el acceso del comercio. | Agustín y Ana: precisar cada operación requerida y qué servicio existente se reutiliza. Agustín implementa solo consultas/reglas que falten, limitadas a la cuenta autenticada; Ana integra presentación/impresión. No inventar cobros, pasarela de pagos o un sistema contable completo. Cerrar cada subflujo con el comercio accediendo solo a su información. |
 | A4 | Cambio 2.3; reparto Agustín 6; letra 8.2 | ADR-007 existe y todavía figura en curso. Hay ADR con texto desactualizado (por ejemplo ADR-006 describe broker/host como pendientes). | Agustín: actualizar sus decisiones con el resultado real, dificultades y limitaciones. Cierre definitivo tras evidencia del ensayo integrado, sin dar por implementadas las partes ajenas que falten. Cada autora actualiza sus propios ADR. |
 

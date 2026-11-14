@@ -1456,3 +1456,25 @@ VALUES ('20261114213354_AdministracionCuentaComercial', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "Operadores" ADD "ColorPrimario" text NOT NULL DEFAULT '#1E40AF';
+
+ALTER TABLE "Operadores" ADD "ColorSecundario" text NOT NULL DEFAULT '#0F172A';
+
+ALTER TABLE "Operadores" ADD "EmailContacto" text;
+
+ALTER TABLE "Operadores" ADD "LogoUrl" text;
+
+ALTER TABLE "Operadores" ADD "Marca" text NOT NULL DEFAULT '';
+
+ALTER TABLE "Operadores" ADD "TelefonoContacto" text;
+
+ALTER TABLE "Operadores" ADD "VersionIdentidad" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+UPDATE "Operadores" SET "Marca" = "RazonSocial", "VersionIdentidad" = gen_random_uuid();
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261114215630_IdentidadVisualOperador', '10.0.12');
+
+COMMIT;
+

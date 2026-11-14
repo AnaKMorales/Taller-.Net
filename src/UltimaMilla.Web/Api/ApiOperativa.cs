@@ -198,6 +198,20 @@ public static class ApiOperativa
         zonas.MapPost("/{zonaId:guid}/franjas", async (Guid zonaId, CrearFranjaHoraria solicitud,
             IAdministracionZonas gestion, CancellationToken ct) =>
             Results.Json(await gestion.CrearFranjaAsync(zonaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        var identidad = app.MapGroup("/api/administracion/identidad")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        identidad.MapGet("/", async (IAdministracionIdentidadOperador gestion, CancellationToken ct) => Results.Ok(await gestion.ConsultarAsync(ct)));
+        identidad.MapPut("/", async (ModificarIdentidadOperador solicitud, IAdministracionIdentidadOperador gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ModificarAsync(solicitud, ct)));
+        app.MapGet("/api/operador/identidad", async (IConsultaIdentidadOperador consulta, CancellationToken ct) => Results.Ok(await consulta.ActualAsync(ct)))
+            .WithMetadata(new ApiOperativaMetadata()).RequireAuthorization().AddEndpointFilter<ErroresApiFilter>();
+        app.MapGet("/api/seguimiento/{token}/identidad", async (string token, HttpContext contexto, IConsultaIdentidadOperador consulta, CancellationToken ct) =>
+        {
+            contexto.Response.Headers.CacheControl = "no-store";
+            return await consulta.PorSeguimientoAsync(token, ct) is { } datos ? Results.Ok(datos) : Results.NotFound();
+        }).AllowAnonymous().RequireRateLimiting(SeguimientoSeguro.PoliticaTasa);
         return app;
     }
 

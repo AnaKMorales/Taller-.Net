@@ -116,8 +116,8 @@ public sealed partial class PostgresTests
         var e = await PrepararAdministracionFlota();
         await using (var db = Context())
         {
-            var migraciones = db.Database.GetMigrations().ToArray();
-            await db.GetService<IMigrator>().MigrateAsync(migraciones[^2]);
+            var anterior = db.Database.GetMigrations().TakeWhile(m => !m.EndsWith("_AdministracionCuentaComercial", StringComparison.Ordinal)).Last();
+            await db.GetService<IMigrator>().MigrateAsync(anterior);
             await db.Database.MigrateAsync();
         }
         var gestion = new AdministracionComercios(Options(), TenantFlota(e)); var cuenta = Assert.Single(await gestion.CuentasAsync());

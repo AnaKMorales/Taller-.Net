@@ -1485,9 +1485,38 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ColorPrimario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("#1E40AF");
+
+                    b.Property<string>("ColorSecundario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("#0F172A");
+
+                    b.Property<string>("EmailContacto")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Marca")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("RazonSocial")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("TelefonoContacto")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VersionIdentidad")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 

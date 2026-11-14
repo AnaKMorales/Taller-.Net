@@ -1061,5 +1061,39 @@ Las pantallas quedan pendientes de Web; V1 (alternativa de autenticación exigid
 como punto separado, y las extensiones multicuentas/roles granulares conservan sus límites
 sin afirmarlas implementadas. PostgreSQL temporal eliminado al terminar. Sin commit/push.
 
+### 14/11/2026: A2, backend de identidad visual del operador
+
+El usuario autorizó pasar a A2. Se implementó el backend de marca, colores HEX, contacto
+público opcional y URL HTTPS de logo. Domain agrega ConfigurarIdentidad en Operador,
+validación atómica/normalización y VersionIdentidad; conserva la razón social legal.
+Application define DTOs de datos públicos y administración, puertos separados de lectura
+y escritura. Infrastructure revalida el contexto de usuario y cuenta activa o el ámbito
+confiable de mensaje; solo Administrador puede escribir. La consulta pública proyecta
+seis campos de marca por token opaco sin IDs ni datos del destinatario. No hay catálogo
+público por ID de operador. Web registra el servicio y expone GET/PUT administrativos,
+GET autenticado y GET por token con limitación de tasa y no-store; escrituras con CSRF.
+
+No se modificaron formularios ni estilos de las compañeras, PWA, Worker, plantillas o
+contratos de eventos. La marca se consulta por separado sin caché; el contrato existente
+del seguimiento y su razón social no cambiaron. No se descarga/sube el logo ni se
+inventa contacto de operadores previos. La migración IdentidadVisualOperador copia
+razón social como marca inicial, colores base y versiones; se regeneró database-initial.sql.
+Se corrigió el test previo de backfill de CuentaComercial para elegir explícitamente
+la migración anterior a A1, en lugar de asumir que es siempre la penúltima al agregar A2.
+
+Se añadieron nueve casos unitarios de dominio y cinco integraciones. Compilación Release
+estricta aprobada; 439 pruebas unitarias/arquitectura y las cinco integraciones nuevas
+aprobadas. Regresión adicional: 24 integraciones aprobadas de migraciones, API de comercios,
+autorización A1, aislamiento, configuración y seguimiento. Sin omisiones en las selecciones.
+Cobertura Domain 86,55 % (1274/1472), Application 79,22 % (648/818). No se ejecutó toda
+la integración, E2E ni una demostración de identidad aplicada en interfaces/comunicaciones.
+
+Se documentó el contrato en docs/identidad-operador.md y se actualizaron README, plan y
+seguimiento. A2 sigue abierto en integración: Ana debe conectar formulario/portal/seguimiento
+y Aldana consumir el puerto en el ámbito de mensaje de Worker para las comunicaciones.
+No se afirma que esas aplicaciones ya muestren la identidad ni que se acordó su diseño
+visual. El contenedor PostgreSQL temporal se eliminó al terminar; no se modificó la
+base de desarrollo del usuario. Sin commit ni push.
+
 Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
 README, referencias de administración y pendientes/cobertura. Sin commit ni push.
