@@ -59,6 +59,7 @@ public sealed partial class Envio : Entidad
     ProgramacionEntrega programacion, Usuario responsable)
   {
     CuentaComercial = Validacion.Requerido(cuentaComercial, nameof(cuentaComercial));
+    if (!cuentaComercial.Activa) throw new InvalidOperationException("La cuenta comercial está dada de baja.");
     Destinatario = Validacion.Requerido(destinatario, nameof(destinatario));
     Zona = Validacion.Requerido(zona, nameof(zona));
     Reglas = Validacion.Requerido(reglas, nameof(reglas));

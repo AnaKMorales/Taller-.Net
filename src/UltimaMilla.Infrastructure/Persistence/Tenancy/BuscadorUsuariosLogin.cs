@@ -15,7 +15,8 @@ public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options
         await using var db = new AppDbContext(options);
         // Sin filtro de operador: todavía no se sabe a cuál pertenece el usuario.
         var encontrados = await db.Set<Usuario>().IgnoreQueryFilters().AsNoTracking()
-            .Where(u => u.Activo && EF.Property<string>(u, "EmailNormalizado") == normalizado)
+            .Where(u => u.Activo && EF.Property<string>(u, "EmailNormalizado") == normalizado &&
+                (u.Rol != RolUsuario.Comercio || u.CuentasComerciales.Any(c => c.Activa)))
             .Select(u => new
             {
                 u.Id,
@@ -23,7 +24,7 @@ public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options
                 u.Email,
                 u.Rol,
                 Hash = EF.Property<string?>(u, ContrasenasUsuario.Columna),
-                Cuentas = u.CuentasComerciales.Select(c => c.Id).Take(2).ToList()
+                Cuentas = u.CuentasComerciales.Where(c => c.Activa).Select(c => c.Id).Take(2).ToList()
             })
             .Take(2)
             .ToListAsync(cancellationToken);

@@ -1421,3 +1421,38 @@ VALUES ('20261113211919_ImportacionIdempotente', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "CuentasComerciales" ADD "Activa" boolean NOT NULL DEFAULT TRUE;
+
+ALTER TABLE "CuentasComerciales" ADD "Email" text NOT NULL DEFAULT '';
+
+ALTER TABLE "CuentasComerciales" ADD "RazonSocial" text NOT NULL DEFAULT '';
+
+ALTER TABLE "CuentasComerciales" ADD "Telefono" text NOT NULL DEFAULT '';
+
+ALTER TABLE "CuentasComerciales" ADD "Version" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
+UPDATE "CuentasComerciales" AS c
+SET "RazonSocial" = g."RazonSocial", "Telefono" = g."Telefono", "Email" = g."Email",
+    "Version" = gen_random_uuid()
+FROM "Comercios" AS g WHERE c."ComercioId" = g."Id";
+
+CREATE FUNCTION validar_cuenta_activa_envio() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE habilitada boolean;
+BEGIN
+    SELECT "Activa" INTO habilitada FROM "CuentasComerciales"
+    WHERE "Id" = NEW."CuentaComercialId" AND "TenantId" = NEW."TenantId" FOR SHARE;
+    IF habilitada IS NOT TRUE THEN
+        RAISE EXCEPTION 'La cuenta comercial no admite nuevos envíos'
+          USING ERRCODE = '23514', CONSTRAINT = 'CK_Envios_CuentaActiva';
+    END IF;
+    RETURN NEW;
+END $$;
+CREATE TRIGGER validar_cuenta_activa_envio BEFORE INSERT ON "Envios"
+FOR EACH ROW EXECUTE FUNCTION validar_cuenta_activa_envio();
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261114213354_AdministracionCuentaComercial', '10.0.12');
+
+COMMIT;
+

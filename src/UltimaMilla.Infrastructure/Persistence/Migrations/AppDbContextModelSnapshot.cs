@@ -49,15 +49,36 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("Activa")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<Guid>("ComercioKey")
                         .HasColumnType("uuid")
                         .HasColumnName("ComercioId");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid>("OperadorKey")
                         .HasColumnType("uuid")
                         .HasColumnName("OperadorId");
 
+                    b.Property<string>("RazonSocial")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Telefono")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("uuid");
 
