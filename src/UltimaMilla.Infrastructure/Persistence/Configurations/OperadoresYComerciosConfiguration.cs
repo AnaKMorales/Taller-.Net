@@ -5,6 +5,9 @@ internal sealed class OperadorConfiguration : IEntityTypeConfiguration<Operador>
     public void Configure(EntityTypeBuilder<Operador> b)
     {
         Mapping.Entity(b, "Operadores");
+        b.Property(o => o.VersionIdentidad).IsConcurrencyToken().ValueGeneratedNever();
+        b.Property(o => o.ColorPrimario).HasDefaultValue("#1E40AF");
+        b.Property(o => o.ColorSecundario).HasDefaultValue("#0F172A");
         Mapping.Collection(b, "CuentasComerciales", "_cuentasComerciales");
         Mapping.Collection(b, "Usuarios", "_usuarios");
         Mapping.Collection(b, "Vehiculos", "_vehiculos");

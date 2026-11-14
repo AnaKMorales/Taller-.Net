@@ -93,7 +93,7 @@ en equipo según las áreas de «Nos organizamos».
 | Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Implementado con dependencias efímeras, resultados TRX y control de omisiones. El usuario confirmó build-test y E2E aprobados en main tras integrar depósito/rutas. Los nuevos cambios deben volver a pasar CI al subirlos. | Agustín, coordinando el pipeline con Aldana. |
 | Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | Backend de consulta de preparación y confirmación implementado, con carga, permisos y versiones verificadas. La PWA descarga las rutas despachadas. Falta conectar las pantallas del backoffice. Ver [despacho](docs/despacho-operativo.md). | Agustín en backend y Ana en backoffice. |
 | Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Backend A1 cubierto dentro del contrato de comercios/cuentas/usuarios: altas, consultas, modificación, bajas y autorización por rol/cuenta. Hay altas/consultas de flota y zonas/franjas. Restan pantallas y validar la gestión de flota en la demo; no son pendientes automáticos un editor genérico de permisos ni CRUD completo de todos los catálogos. Ver [A1](docs/administracion-comercios.md) y [plan](PLAN-PENDIENTES.md). | Agustín en backend y validación; Ana/responsables de Web en pantallas. |
-| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
+| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Backend de marca/colores/contacto y URL de logo con migración y concurrencia, API administrativa y lecturas seguras disponibles. Falta formulario y aplicar los datos en portal, seguimiento y comunicaciones. Ver [contrato](docs/identidad-operador.md). | Agustín backend; Ana pantallas; Aldana comunicaciones. |
 | Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | Alta individual del portal con cálculo automático y backend de importación idempotente implementados. El alta por API para comercios ya expone login Bearer, opciones, cotización y confirmación por referencia, reutilizando la idempotencia de importación. Quedan lectura del archivo e integración de importación en el portal. Ver [API](docs/api-comercios.md) e [importación](docs/importacion-envios.md). | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
 | Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
 | Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | Ya hay backend de recepción con discrepancias, asignación regular con consultas de envíos/rutas/flota, carga, despacho, devolución y rendición operativa. Falta integrar esas operaciones en las interfaces y completar el aviso/control de sobrantes al cargar. El punto 4 de Aldana contempla el escaneo en la PWA y el punto 4 de Ana la vista de parciales y pendientes. Ver [recepción](docs/recepcion-deposito.md), [asignación](docs/asignacion-regular.md) y [cierre](docs/cierre-deposito.md). | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
@@ -109,7 +109,7 @@ Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirm
 qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
 Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
 integren cambios en Domain o Application. La medición local actualizada del **14/11** es
-**86,25 % en Domain** y **79,61 % en Application**. Estos porcentajes no sustituyen la
+**86,55 % en Domain** y **79,22 % en Application**. Estos porcentajes no sustituyen la
 medición del CI de cada nueva versión. Las demás filas siguen siendo una lista de revisión;
 no se dan por completas áreas ajenas sin contrastarlas con su implementación e integración.
 
@@ -125,6 +125,17 @@ no se dan por completas áreas ajenas sin contrastarlas con su implementación e
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+### 14/11: A2, backend de identidad visual y contacto del operador
+
+Configuración persistida de marca, colores HEX, contacto y URL HTTPS de logo por operador,
+con versión de concurrencia. API administrativa con permisos/antiforgery; lectura por
+sesión y lectura pública mínima por token de seguimiento. Puerto de lectura para el
+ámbito confiable de mensajes, sin modificar Worker ni contratos de eventos. Migración
+`IdentidadVisualOperador` copia razón social a marca, asigna versiones y mantiene contacto
+previo vacío. La marca se consulta sin caché, separada del estado del envío, sin cambiar
+su contrato existente. Quedan formulario y aplicación visual con Ana y consumo en
+comunicaciones con Aldana: A2 integrado sigue abierto. Ver [contrato](docs/identidad-operador.md).
 
 ### 14/11: cierre de revisión de perfiles/permisos del backend A1
 

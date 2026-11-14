@@ -9,6 +9,11 @@ verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
 
+La [identidad visual del operador](docs/identidad-operador.md) tiene backend para configurar
+marca, colores, contacto público y URL de logo, con lecturas para las aplicaciones y el
+seguimiento por token. Requiere la migración `IdentidadVisualOperador`. Queda integrar
+los formularios, la aplicación visual y las comunicaciones con las responsables de esas áreas.
+
 La [administración de flota](docs/administracion-flota.md) permite al administrador crear
 y consultar repartidores con credenciales y vehículos con sus capacidades. Faltan las
 pantallas y las operaciones de edición/baja.
