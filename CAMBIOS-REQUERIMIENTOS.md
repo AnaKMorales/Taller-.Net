@@ -118,6 +118,14 @@ y **70,33 % en Application**, con poco margen en Application.
 
 ## Registro de avances
 
+### 13/11: servicios de integración en CI (letra original, 6.15)
+
+Configurado el runner con PostgreSQL, RabbitMQ, Redis y el compose de observabilidad;
+variables de prueba, espera de disponibilidad y publicación de reportes TRX. El pipeline
+rechaza pruebas omitidas mediante `Assert-TestResults.ps1`. No requiere AWS activo.
+Pendiente confirmar la ejecución completa sin omisiones en GitHub Actions después del
+push. Los timeouts de datos demo anotados previamente no se ocultan ni se dan por resueltos.
+
 ### 13/11: backend de carga de rutas (letra original, requisito 19)
 
 Consulta de esperados/cargados/faltantes y registro por código, con variante de backoffice

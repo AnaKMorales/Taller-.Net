@@ -7,6 +7,50 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # Dependencias efímeras del runner; no requieren AWS ni secretos de producción.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ultimamilla_ci
+          POSTGRES_USER: ultimamilla
+          POSTGRES_PASSWORD: ci-only-postgres
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U ultimamilla -d ultimamilla_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: ultimamilla
+          RABBITMQ_DEFAULT_PASS: ci-only-rabbit
+        ports:
+          - 55672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 56379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      ULTIMAMILLA_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=15432;Database=ultimamilla_ci;Username=ultimamilla;Password=ci-only-postgres
+      ULTIMAMILLA_TEST_RABBITMQ_HOST: 127.0.0.1
+      ULTIMAMILLA_TEST_RABBITMQ_PUERTO: '55672'
+      ULTIMAMILLA_TEST_RABBITMQ_USUARIO: ultimamilla
+      ULTIMAMILLA_TEST_RABBITMQ_CLAVE: ci-only-rabbit
+      ULTIMAMILLA_TEST_COLECTOR: 'true'
+      ULTIMAMILLA_TEST_TEMPO: http://127.0.0.1:13200
+      ULTIMAMILLA_TEST_PROMETHEUS: http://127.0.0.1:19090
+      ULTIMAMILLA_TEST_GRAFANA: http://127.0.0.1:3300
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:14317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      ConnectionStrings__Redis: 127.0.0.1:56379
     steps:
       - uses: actions/checkout@v4
 
@@ -20,8 +64,37 @@ jobs:
       - name: Compilar (advertencias como errores)
         run: dotnet build UltimaMilla.slnx -c Release -warnaserror
 
+      - name: Iniciar observabilidad de pruebas
+        shell: bash
+        run: |
+          docker compose -f deploy/observabilidad/compose.yaml up -d
+          for intento in {1..60}; do
+            if curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:3300/api/health >/dev/null &&
+               curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:13200/ready >/dev/null &&
+               curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:19090/-/ready >/dev/null &&
+               curl --fail --silent --connect-timeout 2 --max-time 3 http://127.0.0.1:3300/api/datasources/proxy/uid/loki/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -f deploy/observabilidad/compose.yaml logs --tail 100
+          exit 1
+
       - name: Probar
-        run: dotnet test UltimaMilla.slnx -c Release --no-build
+        id: pruebas
+        run: dotnet test UltimaMilla.slnx -c Release --no-build --logger trx --results-directory TestResults
+
+      - name: Comprobar que no se omitieron pruebas
+        if: always() && steps.pruebas.outcome != 'skipped'
+        shell: pwsh
+        run: ./scripts/Assert-TestResults.ps1 -ResultsDirectory TestResults
+
+      - name: Publicar resultados de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-pruebas
+          path: TestResults/**/*.trx
 
       - name: Medir cobertura de Domain y Application
         shell: pwsh
@@ -33,6 +106,10 @@ jobs:
         with:
           name: cobertura-domain-application
           path: ${{ runner.temp }}/ultimamilla-cobertura/**/coverage.cobertura.xml
+
+      - name: Detener observabilidad de pruebas
+        if: always()
+        run: docker compose -f deploy/observabilidad/compose.yaml down
 
   # Etapas 3 a 5 del pipeline (diseño, 3.4): solo sobre main, después de compilar y probar.
   # Se activan cuando el repositorio tiene la variable AWS_ROLE_ARN (salida de Terraform: ver deploy/terraform/README.md).

@@ -617,3 +617,18 @@ la repetición aprobada del caso Bearer corregido. Pasaron 206 casos de Domain/A
 y 13 de arquitectura. Cobertura final Domain 85,97 % y Application 77,26 %.
 La solución compila con advertencias como errores. Sin cambios de base de desarrollo,
 commits o despliegue; se eliminaron los contenedores temporales de prueba.
+
+### 13/11/2026: dependencias de pruebas en GitHub Actions
+
+El usuario cambió la prioridad para ejecutar las pruebas omitidas antes del resto del
+circuito de depósito. Se añadieron servicios efímeros PostgreSQL, RabbitMQ y Redis al
+runner, variables de integración y el compose existente de observabilidad con espera de
+disponibilidad. Se reutilizaron los puertos y la configuración de la prueba del colector.
+No se requieren credenciales ni infraestructura AWS para este job.
+
+Se agregó control de omisiones leyendo resultados TRX y publicación de dichos archivos.
+Se comprobó localmente el rechazo de un TRX con NotExecuted y la aceptación de los 13
+resultados reales de arquitectura. No se ejecutó el workflow completo localmente ni se
+afirma que haya pasado en Actions: requiere subir los cambios y revisar su primera corrida.
+Los dos timeouts de datos demo siguen pendientes de investigar; no se alteraron pruebas
+de negocio ni se desactivaron para hacer pasar CI. Sin commit, push ni despliegue.
