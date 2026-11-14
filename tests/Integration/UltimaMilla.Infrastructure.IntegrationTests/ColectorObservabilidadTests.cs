@@ -97,6 +97,12 @@ public sealed partial class PostgresTests
             Assert.True(trazasWorker.ForceFlush());
             Assert.True(metricasWorker.ForceFlush());
 
+            // ForceFlush de OTel solo cubre los proveedores anteriores: los logs usan
+            // el sink asíncrono de Serilog. Cerrar el host vacía y dispone ese sink
+            // antes de consultar Loki, sin debilitar la comprobación de correlación.
+            web.Dispose();
+            servidor.Dispose();
+
             using var consultas = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             var tempo = Environment.GetEnvironmentVariable("ULTIMAMILLA_TEST_TEMPO") ?? "http://127.0.0.1:13200";
             var prometheus = Environment.GetEnvironmentVariable("ULTIMAMILLA_TEST_PROMETHEUS") ?? "http://127.0.0.1:19090";
@@ -127,7 +133,7 @@ public sealed partial class PostgresTests
             }
             using (var registros = JsonDocument.Parse(logs))
                 Assert.True(registros.RootElement.GetProperty("data").GetProperty("result").GetArrayLength() > 0,
-                    "Loki debe recibir el log de la petición con el identificador de traza de la PWA.");
+                    $"Loki debe recibir el log de la petición con la traza PWA {contexto.TraceId}. Se consultó tras vaciar Serilog.");
             using var metrica = JsonDocument.Parse(await consultas.GetStringAsync(
                 $"{prometheus}/api/v1/query?query=ultimamilla_mensajes_procesados_total"));
             Assert.True(metrica.RootElement.GetProperty("data").GetProperty("result").GetArrayLength() > 0);

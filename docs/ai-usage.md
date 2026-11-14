@@ -632,3 +632,22 @@ resultados reales de arquitectura. No se ejecutó el workflow completo localment
 afirma que haya pasado en Actions: requiere subir los cambios y revisar su primera corrida.
 Los dos timeouts de datos demo siguen pendientes de investigar; no se alteraron pruebas
 de negocio ni se desactivaron para hacer pasar CI. Sin commit, push ni despliegue.
+
+### 13/11/2026: investigación de la prueba de logs en Loki
+
+El usuario proporcionó los logs del CI: 579 casos aprobados y uno fallido al consultar
+el log correlacionado de la PWA en Loki. Se revisaron exportación, consulta y ciclo de
+vida del host. La prueba original pasó aislada contra PostgreSQL, RabbitMQ y LGTM reales;
+se comprobó además el registro en Loki con el trace_id exacto. No se pudo reproducir
+localmente el fallo de esa ejecución completa de GitHub.
+
+Se detectó que ForceFlush cubría métricas y trazas, pero no el sink asíncrono de Serilog.
+Se cerró explícitamente el host tras generar/exportar la telemetría y antes de consultar
+Loki para vaciar ese sink. Se preservó la aserción original y su tiempo de espera, y se
+añadió la traza al mensaje de error. El pipeline ahora conserva en su salida los últimos
+logs del colector antes de detenerlo. Es una corrección de sincronización; su relación
+causal con el fallo intermitente del CI requiere confirmarse en la siguiente corrida.
+
+La prueba ajustada y la prueba de logging aprobaron juntas con los servicios reales.
+Compilación estricta correcta. Se eliminaron los contenedores temporales y se conservó
+el LGTM local que ya estaba iniciado. No se modificó código de producción ni se hizo push.

@@ -110,7 +110,9 @@ jobs:
 
       - name: Detener observabilidad de pruebas
         if: always()
-        run: docker compose -f deploy/observabilidad/compose.yaml down
+        run: |
+          docker compose -f deploy/observabilidad/compose.yaml logs --no-color --tail 200
+          docker compose -f deploy/observabilidad/compose.yaml down
 
   # Pruebas E2E con Playwright contra la Web levantada en el runner
   e2e:
