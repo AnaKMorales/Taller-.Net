@@ -104,4 +104,23 @@ Docker), para validar los scripts. **No reemplaza la corrida sobre AWS**, que es
 
 ### Corrida sobre AWS
 
-_Pendiente: completar con la salida de k6 y capturas de Grafana de cada escenario._
+14/11/2026, contra `https://3-139-241-162.sslip.io` (EC2 c7i-flex.large: 2 vCPU, 4 GB; modo Production). k6 corrió desde
+Montevideo, así que unos 165 ms de cada respuesta son latencia de red hasta Ohio (us-east-2). Datos: tres ejecuciones de
+`sembrar-demo.sh` (6 operadores, 6 repartidores, 18 códigos de seguimiento).
+
+| Escenario | Carga | Resultado | SLO |
+| --- | --- | --- | --- |
+| A'. Protección | 2 pedidos/s desde una IP, 1 min | 121 pedidos: 67 respondieron 429. p95 190 ms | ✓ |
+| B. Regreso al depósito | 6 cuentas, 20 dispositivos, 2 min 50 s | 2.236 pedidos, 0 % de fallas. 6 entregas registradas y 324/324 envíos de entrega correctos (los reenvíos no duplicaron). Subida p95 679 ms; hoja de ruta p95 179 ms (lista) y 199 ms (detalle) | ✓ |
+| A. Capacidad, pico de 60 pedidos/s | Rampa, 6 min 30 s | 18.149 pedidos, 0 % de fallas. API p95 173 ms; página p95 175 ms | ✓ |
+| A. Capacidad, pico de 100 pedidos/s | Rampa, 6 min 30 s | Llegó a unos 67 pedidos/s efectivos. p95 1,1 s y 9 % de fallas: al acercarse al pico, el servidor rechazó conexiones durante cerca de un minuto (`connection refused` en el 443). No hubo reinicios de contenedores ni falta de memoria (`docker ps` y `dmesg`) | ✗ |
+
+Conclusiones:
+
+- **La instancia sostiene unos 60 pedidos por segundo en el seguimiento cumpliendo los SLO.** Entre 60 y 100 se satura:
+  con 2 vCPU no alcanza para abrir tantas conexiones HTTPS nuevas a la vez. Para más carga, el camino es escalar
+  (más vCPU o más instancias detrás de un balanceador; el equipo de tres está eximido del balanceo).
+- **La sincronización de repartidores cumple con margen.** En AWS la subida de una entrega tarda la cuarta parte que en la
+  verificación local (p95 679 ms contra 3,2 s): confirma que gran parte del costo local era el modo Development, que
+  registra cada consulta SQL.
+- **La limitación de tasa funciona**: una IP que insiste recibe 429 a partir del pedido 31 del minuto.
