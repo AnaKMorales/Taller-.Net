@@ -109,7 +109,7 @@ Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirm
 qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
 Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
 integren cambios en Domain o Application. La medición local actualizada del **14/11** es
-**86,55 % en Domain** y **79,22 % en Application**. Estos porcentajes no sustituyen la
+**86,55 % en Domain** y **80,02 % en Application**. Estos porcentajes no sustituyen la
 medición del CI de cada nueva versión. Las demás filas siguen siendo una lista de revisión;
 no se dan por completas áreas ajenas sin contrastarlas con su implementación e integración.
 
@@ -125,6 +125,15 @@ no se dan por completas áreas ajenas sin contrastarlas con su implementación e
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+### 14/11: registro operativo de extravíos (letra original, requisito 11)
+
+Caso de uso y API para consultar y registrar extravíos sobre las reglas existentes:
+Administrador/Despachador activo, envío propio, versiones de envío y ruta, detalle y
+hora del servidor. Conserva bultos entregados en parciales y libera la parada activa
+con historial/outbox/estados/versiones en una sola escritura atómica. Pruebas de permisos,
+concurrencia y rollback. Sin migración ni cambios de pantallas/PWA/Worker. Queda el
+formulario del backoffice. Ver [contrato](docs/registro-extravios.md).
 
 ### 14/11: A2, backend de identidad visual y contacto del operador
 

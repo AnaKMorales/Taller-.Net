@@ -9,6 +9,28 @@ corriente, etiquetas y pantalla de importación, y posteriormente indicó que ta
 trabajan en liquidaciones (avance por confirmar con ellas). Esos trabajos quedan a cargo de ellas;
 Agustín no los implementa ni duplica. Solo se acordarán apoyos concretos de backend si los solicitan.
 
+Autenticación V1: el usuario informó que la compañera responsable de esa parte la
+revisará. Agustín no inicia una integración paralela de Identity/OIDC mientras esté
+en revisión por ella.
+
+Revisión adicional de backend posterior a esa coordinación (sin implementar ni ejecutar
+pruebas nuevas):
+
+- **Registro operativo de extravío (letra 5.2, requisito 11, pág. 4):** backend implementado
+  posteriormente a esta revisión: caso de uso y API GET/POST para Administrador/Despachador,
+  versiones de envío/ruta, detalle y reloj del servidor. Historial/outbox y liberación de
+  parada atómicos, con pruebas de concurrencia/rollback y entrega parcial. Sin migración.
+  Solo queda conectar el botón/formulario en Web. Ver [contrato](docs/registro-extravios.md).
+- **Separación de comercios en reportes (letra 5.5, requisito 30, pág. 4):**
+  `ReportesGestion` proyecta el nombre de CuentaComercial y agrupa por ese texto, sin
+  conservar CuentaComercialId como clave. Dos clientes del mismo operador con el mismo
+  nombre terminan en un solo grupo de cumplimiento/liquidación. Es una corrección del
+  backend existente, no una función nueva. Confirmar con las compañeras de liquidación
+  antes de modificar esa consulta/DTOs y añadir un caso de regresión con nombres iguales.
+
+Estos hallazgos salen de lectura del código; esta revisión no certifica por sí sola
+el cumplimiento completo ni reemplaza una reproducción automatizada del caso de reportes.
+
 Revisión posterior a A2: la pantalla `Pages/Backoffice/Envio.cshtml` y su PageModel ya
 ofrecen asignación y devolución de bultos pendientes mediante IDespachoPendientes.
 Ese desarrollo no vuelve a planificarse; queda comprobarlo en la demo. Persisten en el

@@ -9,6 +9,10 @@ verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
 
+El [registro operativo de extravíos](docs/registro-extravios.md) dispone de consulta y API
+de confirmación con permisos, versiones y guardado de historial/outbox. Falta conectar
+el formulario del backoffice. No requiere migración.
+
 La [identidad visual del operador](docs/identidad-operador.md) tiene backend para configurar
 marca, colores, contacto público y URL de logo, con lecturas para las aplicaciones y el
 seguimiento por token. Requiere la migración `IdentidadVisualOperador`. Queda integrar
