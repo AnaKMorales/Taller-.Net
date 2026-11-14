@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using UltimaMilla.Application.Abstractions;
+using UltimaMilla.Application.Administracion;
 using UltimaMilla.Application.Configuracion;
 using UltimaMilla.Application.Deposito;
 using UltimaMilla.Application.Despacho;
@@ -153,6 +154,40 @@ public static class ApiOperativa
             var creada = await gestion.CrearTarifarioAsync(solicitud, ct);
             return Results.Created($"/api/configuracion/tarifarios/{creada.Version.Id}", creada);
         });
+        var flota = app.MapGroup("/api/administracion/flota")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        flota.MapGet("/repartidores", async (IAdministracionFlota gestion, CancellationToken ct) => Results.Ok(await gestion.RepartidoresAsync(ct)));
+        flota.MapGet("/vehiculos", async (IAdministracionFlota gestion, CancellationToken ct) => Results.Ok(await gestion.VehiculosAsync(ct)));
+        flota.MapPost("/repartidores", async (CrearRepartidor solicitud, IAdministracionFlota gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearRepartidorAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
+        flota.MapPost("/vehiculos", async (CrearVehiculo solicitud, IAdministracionFlota gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearVehiculoAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
+        var comercios = app.MapGroup("/api/administracion/comercios")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        comercios.MapGet("/", async (IAdministracionComercios gestion, CancellationToken ct) => Results.Ok(await gestion.CuentasAsync(ct)));
+        comercios.MapPost("/", async (CrearComercio solicitud, IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
+        comercios.MapGet("/{cuentaId:guid}/usuarios", async (Guid cuentaId, IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.UsuariosAsync(cuentaId, ct)));
+        comercios.MapPost("/{cuentaId:guid}/usuarios", async (Guid cuentaId, CrearUsuarioComercio solicitud,
+            IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearUsuarioAsync(cuentaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        var zonas = app.MapGroup("/api/administracion/zonas")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        zonas.MapGet("/", async (IAdministracionZonas gestion, CancellationToken ct) => Results.Ok(await gestion.ZonasAsync(ct)));
+        zonas.MapPost("/", async (CrearZonaCobertura solicitud, IAdministracionZonas gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearZonaAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
+        zonas.MapGet("/{zonaId:guid}/franjas", async (Guid zonaId, IAdministracionZonas gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.FranjasAsync(zonaId, ct)));
+        zonas.MapPost("/{zonaId:guid}/franjas", async (Guid zonaId, CrearFranjaHoraria solicitud,
+            IAdministracionZonas gestion, CancellationToken ct) =>
+            Results.Json(await gestion.CrearFranjaAsync(zonaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
         return app;
     }
 

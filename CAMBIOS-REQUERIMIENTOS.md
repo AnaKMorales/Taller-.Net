@@ -86,7 +86,7 @@ en equipo según las áreas de «Nos organizamos».
 | --- | --- | --- | --- |
 | Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Implementado con dependencias efímeras, resultados TRX y control de omisiones. El usuario confirmó build-test y E2E aprobados en main tras integrar depósito/rutas. Los nuevos cambios deben volver a pasar CI al subirlos. | Agustín, coordinando el pipeline con Aldana. |
 | Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | Backend de consulta de preparación y confirmación implementado, con carga, permisos y versiones verificadas. La PWA descarga las rutas despachadas. Falta conectar las pantallas del backoffice. Ver [despacho](docs/despacho-operativo.md). | Agustín en backend y Ana en backoffice. |
-| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Ya hay modelos y algunas consultas. Queda comprobar y completar las operaciones de administración de comercios y sus usuarios y permisos, zonas y franjas, repartidores y vehículos con su capacidad. El punto 4 de Ana en el reparto cubre formularios de tarifas y reglas. | Ana en backoffice y Agustín en las operaciones de backend que falten. |
+| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Hay backend de altas/consultas de flota, comercios/cuentas/usuarios y zonas/franjas, incluyendo adición de franjas a zonas propias. Quedan pantallas, edición/bajas y permisos adicionales. Los datos compartidos y los usados en envíos/rutas conservan sus restricciones. El punto 4 de Ana cubre formularios de tarifas/reglas. Ver [flota](docs/administracion-flota.md), [comercios](docs/administracion-comercios.md) y [zonas](docs/administracion-zonas.md). | Ana en backoffice y Agustín en las operaciones de backend que falten. |
 | Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
 | Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | Alta individual del portal con cálculo automático y backend de importación idempotente implementados. El alta por API para comercios ya expone login Bearer, opciones, cotización y confirmación por referencia, reutilizando la idempotencia de importación. Quedan lectura del archivo e integración de importación en el portal. Ver [API](docs/api-comercios.md) e [importación](docs/importacion-envios.md). | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
 | Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
@@ -103,7 +103,7 @@ Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirm
 qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
 Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
 integren cambios en Domain o Application. La medición local actualizada del **14/11** es
-**85,97 % en Domain** y **81,30 % en Application**. Estos porcentajes no sustituyen la
+**86,03 % en Domain** y **80,10 % en Application**. Estos porcentajes no sustituyen la
 medición del CI de cada nueva versión. Las demás filas siguen siendo una lista de revisión;
 no se dan por completas áreas ajenas sin contrastarlas con su implementación e integración.
 
@@ -119,6 +119,35 @@ no se dan por completas áreas ajenas sin contrastarlas con su implementación e
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+### 14/11: altas y consultas de zonas/franjas (letra original, 5.1)
+
+API administrativa para crear zonas con al menos una franja, consultar zonas y horarios
+y añadir franjas a una zona propia. Administrador activo revalidado, aislamiento y CSRF.
+El alta de zona/franjas es atómica; las adiciones concurrentes no reemplazan la colección.
+Se reutilizan los catálogos del tarifario y las opciones de alta existentes, sin modificar
+ventanas o precios históricos. Una zona nueva requiere una línea de tarifa para cotizar.
+Sin migración ni cambios de pantallas/PWA/Worker. Quedan edición/bajas y pantallas;
+los POST no son idempotentes. Ver [contrato y límites](docs/administracion-zonas.md).
+
+### 14/11: altas y consultas de comercios/cuentas/usuarios (letra original, 5.1)
+
+API administrativa para crear comercio y cuenta propia juntos, listarlos y crear/listar
+usuarios de Comercio vinculados a una cuenta del operador. Hash y vínculo se guardan
+juntos; email normalizado único por operador, incluso ante carreras. Se conservan los
+comercios compartidos existentes sin permitir descubrir/enlazar o editar datos ajenos.
+Roles, antiforgery, identidad y aislamiento verificados. Sin migración ni cambios de
+pantallas/PWA/Worker. Quedan edición/bajas/permisos adicionales y zonas/franjas. Ver
+[contrato y límites](docs/administracion-comercios.md).
+
+### 14/11: altas y consultas de flota (letra original, requisito 6)
+
+API administrativa para registrar/listar repartidores con contraseña hasheada y vehículos
+con capacidades positivas. Normaliza email/matrícula y valida duplicados del operador,
+también ante altas simultáneas. Revalida administrador activo, exige antiforgery y deriva
+el operador de la sesión. Los recursos aparecen en planificación y permiten crear rutas.
+Sin migración ni cambios de pantallas, PWA o Worker. No incluye edición ni bajas; los
+otros bloques administrativos siguen pendientes. Ver [contrato](docs/administracion-flota.md).
 
 Este registro conserva el alcance y los pendientes de cada etapa histórica. Para el
 estado actualizado de los puntos revisados se usa la tabla anterior y la entrada más

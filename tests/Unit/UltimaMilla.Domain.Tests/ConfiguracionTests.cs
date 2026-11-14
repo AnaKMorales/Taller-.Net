@@ -3,6 +3,24 @@ namespace UltimaMilla.Domain.Tests;
 public sealed class ConfiguracionTests
 {
   [Fact]
+  public void AgregarFranjaConservaLasAnterioresYRechazaReutilizarUnaFranjaVinculada()
+  {
+    var e = new Escenario();
+    var anteriores = e.Zona.Franjas.ToArray();
+    var nueva = new FranjaHoraria("Noche", new TimeOnly(19, 0), new TimeOnly(22, 0));
+    e.Zona.AgregarFranja(nueva);
+    Assert.Same(e.Zona, nueva.Zona);
+    Assert.All(anteriores, f => Assert.Contains(f, e.Zona.Franjas));
+    Assert.Throws<InvalidOperationException>(() => e.Zona.AgregarFranja(nueva));
+    var otra = new ZonaCobertura(e.Operador, "Otra", "12000",
+      [new FranjaHoraria("Día", new TimeOnly(8, 0), new TimeOnly(18, 0))]);
+    Assert.Throws<InvalidOperationException>(() => otra.AgregarFranja(nueva));
+    Assert.Throws<ArgumentNullException>(() => otra.AgregarFranja(null!));
+    Assert.Single(otra.Franjas);
+    Assert.Same(e.Zona, nueva.Zona);
+  }
+
+  [Fact]
   public void ReglasSinOpcionesNuevasMantienenEntregaCompleta()
   {
     var e = new Escenario();

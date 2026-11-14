@@ -7,6 +7,18 @@ de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIEN
 
 ## Estado actual
 
+La [administración de flota](docs/administracion-flota.md) permite al administrador crear
+y consultar repartidores con credenciales y vehículos con sus capacidades. Faltan las
+pantallas y las operaciones de edición/baja.
+
+La [administración de comercios](docs/administracion-comercios.md) permite crear y consultar
+comercios/cuentas y sus usuarios con credenciales, conservando el aislamiento. Quedan las
+pantallas y las operaciones de modificación/baja.
+
+La [administración de zonas y franjas](docs/administracion-zonas.md) permite crear y consultar
+zonas con sus horarios y añadir nuevas franjas. Se integra con el tarifario y las opciones
+de alta existentes; quedan las pantallas y la edición/baja.
+
 La consulta de preparación y la API de despacho están documentadas en
 [Despacho operativo](docs/despacho-operativo.md). La [API de carga por código](docs/carga-rutas.md)
 también está disponible; las interfaces de carga y despacho siguen pendientes.
