@@ -228,6 +228,36 @@ public sealed partial class PostgresTests
             Assert.Empty(await new ConsultasPortal(interno).EnviosAsync());
     }
 
+    [PostgresFact]
+    public async Task EtiquetaSoloParaElComercioDelEnvio()
+    {
+        var escenario = Escenario();
+        var comercio = escenario.Envio.CuentaComercial.Usuarios.Single();
+        var codigo = escenario.Envio.CodigoSeguimiento;
+        await using (var db = Context())
+        {
+            db.Add(escenario.Envio);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var propia = new AppDbContext(Options(), new TenantActual(TenantContext.ParaUsuario(
+            escenario.Operador.Id, comercio.Id, RolUsuario.Comercio, escenario.Envio.CuentaComercial.Id))))
+        {
+            var etiqueta = await new ConsultasPortal(propia).EtiquetaAsync(codigo);
+            Assert.NotNull(etiqueta);
+            Assert.Equal(escenario.Envio.Destinatario.Nombre, etiqueta.Destinatario);
+            Assert.Equal(escenario.Envio.Bultos.Count, etiqueta.Bultos.Count);
+            Assert.Null(await new ConsultasPortal(propia).EtiquetaAsync("NO-EXISTE"));
+        }
+
+        await using (var otraCuenta = new AppDbContext(Options(), new TenantActual(TenantContext.ParaUsuario(
+            escenario.Operador.Id, comercio.Id, RolUsuario.Comercio, Guid.NewGuid()))))
+            Assert.Null(await new ConsultasPortal(otraCuenta).EtiquetaAsync(codigo));
+
+        await using (var interno = Context())
+            Assert.Null(await new ConsultasPortal(interno).EtiquetaAsync(codigo));
+    }
+
     private sealed class NotificadorEspia : INotificadorTablero
     {
         public List<IReadOnlyList<CambioEnvio>> Publicaciones { get; } = [];

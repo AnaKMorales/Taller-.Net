@@ -28,7 +28,10 @@
                 <td>@e.Destinatario</td>
                 <td>@Textos.Estado(e.Estado)</td>
                 <td>@Textos.Fecha(e.FechaAdmision)</td>
-                <td><a href="/seguimiento/@e.CodigoSeguimiento" target="_blank" rel="noopener">Ver seguimiento</a></td>
+                <td>
+                    <a href="/seguimiento/@e.CodigoSeguimiento" target="_blank" rel="noopener">Ver seguimiento</a> ·
+                    <a href="/portal/envios/@e.CodigoSeguimiento/etiqueta" target="_blank" data-enhance-nav="false">Etiquetas</a>
+                </td>
             </tr>
         }
         @if (envios.Count == 0)

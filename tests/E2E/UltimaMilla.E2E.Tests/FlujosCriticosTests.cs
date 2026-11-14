@@ -49,6 +49,18 @@ public sealed class FlujosCriticosTests(Entorno entorno)
     }
 
     [E2EFact]
+    public async Task ElComercioImprimeUnaEtiquetaPorBulto()
+    {
+        var pagina = await entorno.NuevaPaginaAsync();
+        await Entorno.IngresarAsync(pagina, entorno.Express.Comercio, entorno.Express.Contrasena);
+
+        await pagina.GotoAsync($"/portal/envios/{entorno.Express.SeguimientoParcial}/etiqueta");
+
+        await Expect(pagina.Locator(".etiqueta")).ToHaveCountAsync(3);
+        await Expect(pagina.Locator(".etiqueta").Last).ToContainTextAsync("3 de 3");
+    }
+
+    [E2EFact]
     public async Task ElDestinatarioVeElAvanceDeUnaEntregaParcial()
     {
         var pagina = await entorno.NuevaPaginaAsync();
