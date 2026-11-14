@@ -125,6 +125,8 @@
         ForwardedHeaders__RedConfiable: ${RED_INTERNA_SUBNET:-172.28.0.0/16}
         # Claves de cookies/antiforgery: en el volumen, para que las sesiones sobrevivan a un reinicio.
         DataProtection__RutaClaves: /claves
+        # Límite del seguimiento por IP; se sube solo durante la prueba de carga (tests/carga)
+        Seguimiento__PedidosPorMinuto: ${SEGUIMIENTO_PEDIDOS_POR_MINUTO:-30}
       volumes:
         - claves_data:/claves
       ports:

@@ -14,6 +14,9 @@
   <Folder Name="/tests/Architecture/">
     <Project Path="tests/Architecture/UltimaMilla.Architecture.Tests/UltimaMilla.Architecture.Tests.csproj" />
   </Folder>
+  <Folder Name="/tests/E2E/">
+    <Project Path="tests/E2E/UltimaMilla.E2E.Tests/UltimaMilla.E2E.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/Integration/">
     <Project Path="tests/Integration/UltimaMilla.Infrastructure.IntegrationTests/UltimaMilla.Infrastructure.IntegrationTests.csproj" />
   </Folder>

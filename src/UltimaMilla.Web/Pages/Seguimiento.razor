@@ -141,7 +141,7 @@
         envio = await Consulta.ConsultarAsync(Token, Cancelacion);
         if (envio is null)
         {
-            if (HttpContext is not null) HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            Navegacion.NotFound(); // 404 con la página NoEncontrado
             return;
         }
         // Solo si lo pide: cargar las opciones es pesado
