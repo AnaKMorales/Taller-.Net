@@ -81,6 +81,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 // Razor Pages para el Backoffice y Blazor para el Portal
 builder.Services.AddRazorPages();
 builder.Services.AddAntiforgery(o => o.HeaderName = ApiOperativa.CabeceraAntiforgery);
+builder.Services.AgregarApiComercios();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Sesión con cookie para backoffice y portal; token Bearer para la PWA del repartidor.
@@ -239,6 +240,7 @@ app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
 app.MapearApiOperativa();
+app.MapearApiComercios();
 app.MapApiRepartidor();
 app.MapHealthChecks("/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();

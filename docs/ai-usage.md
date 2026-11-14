@@ -831,3 +831,41 @@ cambios en la base de desarrollo. Se agregó docs/cierre-deposito.md y se actual
 README, límites de las otras APIs y el seguimiento de pendientes. Las pantallas y acciones
 de PWA continúan a cargo de sus responsables; no se modificaron Web UI, PWA o Worker.
 Se eliminó el contenedor PostgreSQL temporal. Sin commit, push ni despliegue.
+
+### 14/11/2026: alta por API para comercios y actualización de pendientes
+
+El usuario autorizó implementar el alta por API de la letra original y actualizar el
+documento de pendientes. Se agregó ApiComercios en Web: login por contraseña validada
+con el servicio existente y token Bearer, opciones, cotización y alta por referencia.
+El esquema Bearer se comparte con la PWA y el rol/cuenta lo restringe al comercio; no se
+modificó la autenticación de PWA o cookies. El login exige exactamente una cuenta, devuelve
+401 ante ambigüedad y limita diez peticiones por minuto/IP/instancia. No se agregaron
+API keys ni endpoint de refresh: tras vencer el access token se inicia sesión otra vez.
+
+Se reutilizaron AltaEnvioPortalHandler para opciones/cotización y una fila del importador
+para confirmar. Operador/cuenta/reglas/tarifa se resuelven en el servidor. API e importación
+comparten referencias por cuenta: 201 al crear, 200 al reenviar idéntico y 409 ante otro
+contenido. Se conserva el bloqueo/índice, la huella y la transacción conjunta del alta,
+historial, outbox y referencia. No hay migración, tabla, caso de dominio o cambio de UI nuevo.
+
+Se añadieron siete pruebas contra PostgreSQL con credenciales, Bearer y cookies reales:
+cálculo y rechazo de suplantación por campos extra, reenvío histórico y entre canales,
+cuentas/operadores aislados, credenciales/roles/revocación, cookies excluidas aunque válidas
+para Web, simultaneidad, rollback, errores, cuenta ambigua y límite de login.
+La primera ejecución tuvo cinco aprobadas y una fallida al avanzar el reloj veinte días
+con un token de ocho horas; se corrigió la prueba iniciando sesión nuevamente, sin cambiar
+la expiración. Esa prueba y la nueva prueba de otro operador pasaron; después pasó la
+ampliación de autenticación con cookie. Las siete quedan verificadas en las selecciones.
+
+Docker estaba detenido; se inició con docker desktop start y se usó un PostgreSQL temporal,
+eliminado al terminar, sin tocar la base de desarrollo. Compilación Release estricta
+aprobada, regresión de 427 casos unitarios/arquitectura y nueve integraciones anteriores
+de alta/importación/autenticación aprobadas. No se ejecutó toda la integración ni E2E.
+Cobertura medida Domain 85,97 % (1213/1411) y Application 81,30 % (648/797).
+
+Se agregó docs/api-comercios.md, enlaces en README e importación, y se actualizaron en
+CAMBIOS-REQUERIMIENTOS.md CI (confirmado en main por el usuario antes de esta etapa),
+despacho, modalidades de alta, cobertura y el registro de avances. Los nuevos cambios
+todavía requieren su propia ejecución en GitHub. Las áreas ajenas no auditadas siguen
+marcadas para revisión; no se afirma haber completado todo el opcional de API pública.
+Sin commit, push ni despliegue.
