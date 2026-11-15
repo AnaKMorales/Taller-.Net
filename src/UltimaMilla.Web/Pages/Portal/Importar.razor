@@ -1,0 +1,108 @@
+@page "/portal/envios/importar"
+@* Alta masiva por archivo CSV. Cada envío se importa por separado: uno con error no frena al resto,
+   y reimportar el mismo archivo no duplica (la referencia es la clave de idempotencia). *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Abstractions
+@using UltimaMilla.Application.Envios.AltaPortal
+@using UltimaMilla.Application.Envios.Importacion
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject AltaEnvioPortalHandler Alta
+@inject ImportarEnviosHandler Importador
+
+<PageTitle>Importar envíos - Portal UltimaMilla</PageTitle>
+
+<h1>Importar envíos</h1>
+<p class="nota">
+    Un archivo CSV con una línea por bulto; las líneas con la misma <code>referencia</code> forman un envío.
+    Si volvés a subir el mismo archivo, los envíos ya creados no se duplican.
+    <a href="/plantillas/importacion-envios.csv" download>Descargar plantilla</a>
+</p>
+
+@if (opciones is not null)
+{
+    <p class="nota">
+        Zonas: @string.Join(" · ", opciones.Zonas.Select(z => $"{z.Nombre} (franjas: {string.Join(", ", z.Franjas.Select(f => f.Nombre))})"))
+    </p>
+}
+
+<form method="post" enctype="multipart/form-data" @formname="importar" @onsubmit="ImportarAsync" class="formulario">
+    <AntiforgeryToken />
+    @if (error is not null) { <p class="error">@error</p> }
+    <label>Archivo <input type="file" name="archivo" accept=".csv,text/csv" required /></label>
+    <div><button type="submit">Importar</button></div>
+</form>
+
+@if (resultados is not null)
+{
+    <div class="contadores">
+        <div><span>@Cuantos(EstadoFilaImportacion.Creado)</span>creados</div>
+        <div><span>@Cuantos(EstadoFilaImportacion.Existente)</span>ya importados</div>
+        <div><span>@Cuantos(EstadoFilaImportacion.Conflicto)</span>en conflicto</div>
+        <div><span>@Cuantos(EstadoFilaImportacion.Error)</span>con error</div>
+    </div>
+    <table>
+        <thead><tr><th>Referencia</th><th>Resultado</th><th>Código de seguimiento</th><th>Detalle</th></tr></thead>
+        <tbody>
+            @foreach (var r in resultados)
+            {
+                <tr>
+                    <td>@r.Referencia</td>
+                    <td class="@(r.Estado is EstadoFilaImportacion.Creado or EstadoFilaImportacion.Existente ? "" : "error")">@Estado(r.Estado)</td>
+                    <td>
+                        @if (r.Envio is { } envio)
+                        {
+                            <code>@envio.CodigoSeguimiento</code>
+                            <a href="/portal/envios/@envio.CodigoSeguimiento/etiqueta" target="_blank" data-enhance-nav="false">Etiquetas</a>
+                        }
+                    </td>
+                    <td>@(r.Envio is { } e ? Textos.Importe(e.Tarifa) : r.Error)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private const long TamanoMaximo = 1024 * 1024;
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private OpcionesAltaDto? opciones;
+    private IReadOnlyList<ResultadoFilaImportacion>? resultados;
+    private string? error;
+
+    private CancellationToken Cancelacion => HttpContext?.RequestAborted ?? default;
+
+    protected override async Task OnInitializedAsync() => opciones = await Alta.OpcionesAsync(Cancelacion);
+
+    private async Task ImportarAsync()
+    {
+        var archivo = HttpContext!.Request.Form.Files["archivo"];
+        if (archivo is null || archivo.Length == 0) { error = "Elegí un archivo."; return; }
+        if (archivo.Length > TamanoMaximo) { error = "El archivo supera 1 MB."; return; }
+        if (opciones is null) { error = "Tu operador todavía no tiene reglas de entrega vigentes."; return; }
+        try
+        {
+            using var lector = new StreamReader(archivo.OpenReadStream());
+            var lectura = LectorImportacion.Leer(await lector.ReadToEndAsync(Cancelacion), opciones);
+            var importados = lectura.Filas.Count > 0 ? await Importador.Handle(lectura.Filas, Cancelacion) : [];
+            resultados = [.. lectura.Errores, .. importados];
+        }
+        catch (AislamientoOperadorException) { error = "No se pudo validar tu cuenta comercial. Volvé a iniciar sesión."; }
+        catch (ArgumentException e) { error = e.Message; }
+    }
+
+    private int Cuantos(EstadoFilaImportacion estado) => resultados!.Count(r => r.Estado == estado);
+
+    private static string Estado(EstadoFilaImportacion estado) => estado switch
+    {
+        EstadoFilaImportacion.Creado => "Creado",
+        EstadoFilaImportacion.Existente => "Ya importado",
+        EstadoFilaImportacion.Conflicto => "Conflicto",
+        _ => "Error"
+    };
+}

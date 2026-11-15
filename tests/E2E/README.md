@@ -7,6 +7,8 @@ levantada y recorren los flujos críticos:
 | --- | --- |
 | `ElAdministradorPublicaUnaNuevaVersionDelTarifario` | Admin cambia un precio y publica una versión nueva |
 | `ElComercioDaDeAltaUnEnvioConLaTarifaCalculada` | Comercio carga un envío, calcula la tarifa y confirma |
+| `ElComercioImportaUnArchivoSinDuplicarAlReimportar` | Comercio sube un CSV dos veces: crea y después marca "Ya importado" |
+| `ElComercioImprimeUnaEtiquetaPorBulto` | Comercio abre las etiquetas del envío de 3 bultos |
 | `ElDestinatarioVeElAvanceDeUnaEntregaParcial` | Seguimiento público con "2 de 3 bultos entregados" |
 | `ElDestinatarioReprogramaTrasUnIntentoFallido` | Destinatario elige otro día desde el seguimiento |
 | `UnTokenInexistenteNoRevelaNada` | Token inválido: 404 con mensaje genérico |

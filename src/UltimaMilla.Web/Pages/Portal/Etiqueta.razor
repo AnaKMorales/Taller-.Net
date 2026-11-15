@@ -1,0 +1,74 @@
+@page "/portal/envios/{Codigo}/etiqueta"
+@* Etiquetas imprimibles: una por bulto. Sin layout para que la hoja salga limpia. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Envios.AltaPortal
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Domain.Envios
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@inject IConsultasPortal Consultas
+@inject OpcionesOperacion Operacion
+@inject NavigationManager Navegacion
+
+<PageTitle>Etiquetas @Codigo</PageTitle>
+<HeadContent>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/css/etiqueta.css" />
+    <script src="/js/imprimir.js" defer></script>
+</HeadContent>
+
+@if (etiqueta is not null)
+{
+    <div class="acciones">
+        <a href="/portal">← Mis envíos</a>
+        <button type="button" id="imprimir">Imprimir</button>
+        <span>@etiqueta.Bultos.Count etiqueta(s), una por bulto.</span>
+    </div>
+
+    @for (var i = 0; i < etiqueta.Bultos.Count; i++)
+    {
+        var bulto = etiqueta.Bultos[i];
+        <section class="etiqueta">
+            <header>
+                <strong>@etiqueta.Operador</strong>
+                <span class="modalidad @(etiqueta.Modalidad == ModalidadServicio.Urgente ? "urgente" : "")">
+                    @(etiqueta.Modalidad == ModalidadServicio.Urgente ? "URGENTE" : "Estándar")
+                </span>
+            </header>
+            <div class="codigo">@etiqueta.CodigoSeguimiento</div>
+            <div class="para">
+                <small>Para</small>
+                <strong>@etiqueta.Destinatario</strong>
+                <span>@etiqueta.Calle @etiqueta.Numero</span>
+                <span>@etiqueta.Localidad, CP @etiqueta.CodigoPostal</span>
+                <span>Tel. @etiqueta.Telefono</span>
+            </div>
+            <dl>
+                <div><dt>Zona</dt><dd>@etiqueta.Zona</dd></div>
+                <div><dt>Entrega</dt><dd>@Entrega</dd></div>
+                <div><dt>Bulto</dt><dd class="grande">@(i + 1) de @etiqueta.Bultos.Count</dd></div>
+                <div><dt>Código bulto</dt><dd>@bulto.Codigo</dd></div>
+                <div><dt>Peso</dt><dd>@bulto.Peso.ToString("0.##") kg</dd></div>
+            </dl>
+            <footer>Remite: @etiqueta.Comercio · Seguimiento: /seguimiento/@etiqueta.CodigoSeguimiento</footer>
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public string Codigo { get; set; } = "";
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private EtiquetaEnvioDto? etiqueta;
+
+    private string Entrega => etiqueta is null ? "" :
+        DateTime.SpecifyKind(etiqueta.FechaComprometida, DateTimeKind.Utc).Add(Operacion.DesfaseHorario).ToString("dd/MM/yyyy");
+
+    protected override async Task OnInitializedAsync()
+    {
+        etiqueta = await Consultas.EtiquetaAsync(Codigo, HttpContext?.RequestAborted ?? default);
+        // Mismo 404 para inexistente o ajeno
+        if (etiqueta is null) Navegacion.NotFound();
+    }
+}
