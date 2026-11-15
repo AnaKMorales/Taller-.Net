@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><title>Cifrado en reposo de la PWA</title><pre id="r">corriendo</pre>
+<script type="module">
+const r = [];
+const ok = (n, c, extra = '') => r.push(`${c ? 'OK ' : 'FALLA'} ${n} ${extra}`);
+const raw = (version, fn) => new Promise((res, rej) => {
+  const p = indexedDB.open('ultimamilla-repartidor', version);
+  p.onupgradeneeded = () => { if (!p.result.objectStoreNames.contains('datos')) p.result.createObjectStore('datos'); };
+  p.onsuccess = () => { const db = p.result; const tx = db.transaction(db.objectStoreNames.contains('claves') ? ['datos','claves'] : ['datos'], 'readwrite');
+    const out = fn(tx); tx.oncomplete = () => { db.close(); res(out.v); }; tx.onerror = () => rej(tx.error); };
+  p.onerror = () => rej(p.error);
+});
+const get = (store, k) => raw(undefined, tx => { const o = {}; const q = tx.objectStore(store).get(k); q.onsuccess = () => o.v = q.result; return o; });
+const put = (store, k, v) => raw(undefined, tx => { tx.objectStore(store).put(v, k); return {}; });
+const bytes = reg => new TextDecoder('latin1').decode(new Uint8Array(reg.datos));
+try {
+  const recarga = location.hash === '#recarga';
+  if (!recarga) {
+    // 0. Base vieja (versión 1) con datos en texto plano, como la deja la versión anterior de la PWA.
+    await raw(1, tx => { tx.objectStore('datos').put('{"token":"VIEJO-SECRETO"}', 'cola-acciones'); return {}; });
+  }
+  const m = await import('/src/UltimaMilla.Repartidor/wwwroot/js/repartidor.js');
+  if (recarga) {
+    ok('9 la clave persiste al recargar (se lee lo guardado antes)', await m.leer('persistente') === 'sigue-aca');
+  } else {
+    ok('0a dato viejo se lee igual', await m.leer('cola-acciones') === '{"token":"VIEJO-SECRETO"}');
+    const migrado = await get('datos', 'cola-acciones');
+    ok('0b dato viejo quedó cifrado', typeof migrado === 'object' && !bytes(migrado).includes('VIEJO'));
+    const valor = '{"token":"SECRETO-123","destinatario":"Marta Rodríguez","calle":"18 de Julio 1234"}';
+    await m.guardar('sesion', valor);
+    ok('1 ida y vuelta', await m.leer('sesion') === valor);
+    const reg = await get('datos', 'sesion');
+    ok('2 en disco no está el texto', typeof reg === 'object' && !bytes(reg).includes('SECRETO') && !bytes(reg).includes('Marta'), JSON.stringify(Object.keys(reg)));
+    const clave = await get('claves', 'aes');
+    let exportable = true; try { await crypto.subtle.exportKey('raw', clave); } catch { exportable = false; }
+    ok('3 clave AES-GCM 256 no exportable', clave.algorithm.name === 'AES-GCM' && clave.algorithm.length === 256 && !clave.extractable && !exportable);
+    await m.guardar('sesion', valor); const reg2 = await get('datos', 'sesion');
+    ok('4 IV distinto en cada guardado', bytes(reg2) !== bytes(reg) && reg2.iv.join() !== reg.iv.join());
+    await put('datos', 'otra-clave', reg2);
+    ok('5 registro movido a otra clave no se lee', await m.leer('otra-clave') === null);
+    const alterado = { ...reg2, datos: new Uint8Array(reg2.datos).map((b, i) => i === 3 ? b ^ 1 : b).buffer };
+    await put('datos', 'sesion', alterado);
+    ok('6 byte alterado no se lee', await m.leer('sesion') === null);
+    await m.guardar('sesion', valor); await m.borrar('sesion');
+    ok('7 borrar', await m.leer('sesion') === null && await get('datos', 'sesion') === undefined);
+    const cola = JSON.stringify([{ foto: 'data:image/jpeg;base64,' + 'A'.repeat(200000) }]);
+    await m.guardar('cola-acciones', cola);
+    ok('8 cola grande con foto', await m.leer('cola-acciones') === cola);
+    await m.guardar('persistente', 'sigue-aca');
+  }
+} catch (e) { r.push('ERROR ' + e); }
+document.getElementById('r').textContent = r.join('\n'); await fetch('/resultado' + (location.hash === '#recarga' ? '2' : '1'), { method: 'POST', body: r.join('\n') });
+</script>

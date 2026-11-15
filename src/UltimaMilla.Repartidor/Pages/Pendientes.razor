@@ -39,6 +39,21 @@ else
                 }
                 @if (item.Estado == EstadoAccion.Rechazada)
                 {
+                    @if (item.Conflicto is { } conflicto)
+                    {
+                        <div class="alert alert-warning mt-2 mb-2">
+                            <strong>La visita no se guardó.</strong>
+                            <p>@(conflicto.ParadaActiva ? "La parada sigue activa, pero el envío cambió." : "La parada ya está cerrada.")</p>
+                            <table class="table table-sm"><thead><tr><th>Bulto</th><th>Estado en el servidor</th><th>Motivo</th></tr></thead><tbody>
+                            @foreach (var b in conflicto.Bultos)
+                            {
+                                <tr><td>@(b.Codigo ?? "Bulto sin identificar")</td><td>@EstadoBultoVisible(b.EstadoActual)</td><td>@MotivoVisible(b.Motivo)</td></tr>
+                            }
+                            </tbody></table>
+                            <p>Se conservan tu visita y sus evidencias. Revisá la hoja actualizada antes de registrar otra visita; esta acción no se reenviará automáticamente.</p>
+                            <a href="">Ir a la hoja para actualizarla</a>
+                        </div>
+                    }
                     <button class="btn btn-sm btn-outline-danger mt-1" @onclick="() => DescartarAsync(item.Accion.IdOperacion)">Entendido, descartar</button>
                 }
             </li>
@@ -61,6 +76,20 @@ else
 }
 
 @code {
+    private static string MotivoVisible(string motivo) => motivo switch
+    {
+        "EstadoCambio" => "El estado del bulto cambió",
+        "ParadaCerrada" => "La parada ya está cerrada",
+        "FueraDeParada" => "El bulto no pertenece a esta parada",
+        "SinCambioDeEstado" => "El envío cambió, aunque este bulto conserva su estado",
+        _ => "Revisá el estado actual en la hoja"
+    };
+    private static string EstadoBultoVisible(string? estado) => estado switch
+    {
+        "EnDeposito" => "En depósito", "AsignadoARuta" => "Asignado a ruta", "EnTransito" => "En tránsito",
+        "NoEntregado" => "No entregado", "EnDevolucion" => "En devolución", null => "No disponible",
+        _ => estado
+    };
     private IReadOnlyList<AccionPendiente> _cola = [];
     private HojaDeRutaDto? _hoja;
     private SesionRepartidor? _sesion;

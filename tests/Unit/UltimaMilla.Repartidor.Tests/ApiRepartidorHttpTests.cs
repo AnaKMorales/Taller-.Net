@@ -203,6 +203,27 @@ public sealed class ApiRepartidorHttpTests
         Assert.Contains("El envío cambió. Actualizá la hoja", respuesta.Detalle);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConflictoPorBultoConservaDiagnosticoSoloDeLaParadaEnviada(bool mismaParada)
+    {
+        var (_, accion) = Datos.VisitaParcial();
+        var intento = accion.Intento!;
+        var parada = mismaParada ? intento.ParadaId : Guid.NewGuid();
+        var version = Guid.NewGuid();
+        _servidor.Responder(HttpMethod.Post, HttpStatusCode.Conflict, $$"""
+            {"detail":"El envío cambió.","conflicto":{"paradaId":"{{parada}}","versionActualEnvio":"{{version}}","paradaActiva":false,
+            "bultos":[{"bultoId":"{{intento.Bultos[0].BultoId}}","codigo":"B-01","estadoActual":"Entregado","motivo":"EstadoCambio"}] } }
+            """, "application/problem+json");
+        var respuesta = await _api.EnviarAccionAsync(Datos.Sesion, accion);
+        Assert.Equal(ResultadoAccion.Rechazada, respuesta.Resultado);
+        if (!mismaParada) { Assert.Null(respuesta.Conflicto); return; }
+        Assert.Equal(version, respuesta.Conflicto!.VersionActualEnvio);
+        Assert.Equal("B-01", Assert.Single(respuesta.Conflicto.Bultos).Codigo);
+        Assert.Equal("EstadoCambio", respuesta.Conflicto.Bultos[0].Motivo);
+    }
+
     private sealed record Pedido(string Url, string? Autorizacion, string Cuerpo);
 
     private sealed class ServidorHttpFalso : HttpMessageHandler

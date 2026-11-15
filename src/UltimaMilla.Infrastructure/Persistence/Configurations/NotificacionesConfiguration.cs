@@ -5,6 +5,8 @@ internal sealed class SuscripcionAvisoConfiguration : IEntityTypeConfiguration<S
     public void Configure(EntityTypeBuilder<SuscripcionAviso> b)
     {
         Mapping.Entity(b, "SuscripcionesAviso");
+        b.Property(x => x.VersionContrato).HasDefaultValue(1);
+        b.ToTable(t => t.HasCheckConstraint("CK_SuscripcionesAviso_VersionContrato", "\"VersionContrato\" IN (1, 2)"));
         Mapping.Key(b, "CuentaComercial");
         b.HasOne(x => x.CuentaComercial).WithMany(x => x.Suscripciones).HasForeignKey("CuentaComercialKey");
         Mapping.EnumSet(b.Property(x => x.TiposEvento));

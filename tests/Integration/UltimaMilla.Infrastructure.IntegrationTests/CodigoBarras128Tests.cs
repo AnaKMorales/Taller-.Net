@@ -23,7 +23,9 @@ public sealed class CodigoBarras128Tests
     public void ElDigitoDeControlEsElDelEstandar()
     {
         // Valor = ASCII - 32; control = (104 + Σ valor·posición) mod 103. "PJJ123C": 879 mod 103 = 55.
-        Assert.Equal([104, 48, 42, 42, 17, 18, 19, 35, 55, 106], CodigoBarras128.Simbolos("PJJ123C"));
+        var simbolos = CodigoBarras128.Simbolos("PJJ123C")
+            ?? throw new InvalidOperationException("El código ASCII de prueba debe producir símbolos.");
+        Assert.Equal([104, 48, 42, 42, 17, 18, 19, 35, 55, 106], simbolos);
         var b001 = CodigoBarras128.Simbolos("B001")!;
         Assert.Equal((104, 106), (b001[0], b001[^1]));
         Assert.Equal((104 + 34 * 1 + 16 * 2 + 16 * 3 + 17 * 4) % 103, b001[^2]);

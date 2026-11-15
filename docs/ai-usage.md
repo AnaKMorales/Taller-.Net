@@ -1224,3 +1224,82 @@ emails repetidos de dos operadores: se corrigió el email del comercio ajeno, si
 la autenticación productiva. No se ejecutó navegador ni toda la solución/E2E. La carga
 real del logo externo y el aspecto se comprobarán con el usuario. No cambian Domain ni
 Application. Se actualizaron contrato, README, plan y seguimiento. Sin commit ni push.
+
+### 15/11/2026: conflictos por bulto en PWA y webhooks V2 optativos
+
+El usuario autorizó explícitamente ambos pendientes, ampliando el alcance a PWA y Worker.
+ApiRepartidorHttp lee el diagnóstico del 409 (solo de la parada/bultos enviados), la cola
+lo persiste por repartidor y Pendientes muestra estado/motivo por bulto. Conserva versión,
+IdOperacion y evidencias originales. No aplica un subconjunto ni cambia versiones para
+reenviar; las acciones rechazadas requieren revisión y descarte explícito. El JSON local
+agrega una propiedad opcional para conservar compatibilidad con registros anteriores.
+
+SuscripcionAviso incorpora VersionContrato 1/2 inmutable al crearla. El panel permite
+elegir formato y mantiene V1 predeterminado. Migración VersionWebhookPorSuscripcion con
+default 1 y CHECK de rango, snapshot y SQL de instalación actualizados. EntregaWebhooks
+conserva el cuerpo V1 y arma V2 desde el intento histórico con HuellaSolicitud, resultados,
+motivos y referencias a pruebas inmutables. No consulta los estados actuales para inferir
+resultados. Eventos sin intento llevan bultos vacíos. La proyección V1 interna del Worker
+se conserva: sirve también al reenvío manual con MensajeId nuevo, que recupera V2 desde
+el mismo historial. No se alteran HMAC, restricciones de destino, idempotencia de entrega,
+reintentos/DLQ ni el nuevo aviso al destinatario.
+
+Web/solución Release estricta aprobada. Los primeros intentos corrigieron exclusivamente
+preparación/análisis de pruebas y formulario: llaves de JSON interpolado, advertencia
+Blazor por inicializar SupplyParameterFromForm y dos advertencias de Assert.Single.
+La regresión detectó una suposición de la prueba nueva sobre cuál evento era el último
+cuando dos fechas coincidían: se suscribió al tipo real del fixture, sin modificar la
+lógica de negocio. Regresión final seleccionada: 479 pruebas unitarias/arquitectura y
+24 integraciones únicas aprobadas sin omisiones (23 en regresión y una de formulario
+añadida después; otras selecciones repiten casos). La prueba HTTP usa receptor Kestrel
+local y cliente real con firmas, dos fallos 503 y recuperación; compara V2 con outbox,
+cambia después el envío, comprueba reenvío manual y evita repetir el V1 exitoso. La prueba
+PWA usa cliente/cola reales con API y Bearer, almacenamiento en memoria y PostgreSQL.
+La migración se verifica en base temporal conservando suscripciones previas en V1.
+EF informa modelo alineado. Cobertura Domain 86,65 % (1279/1476), Application 81,78 %
+(835/1021). No se ejecutó toda la integración, E2E ni navegador/RabbitMQ del ensayo final.
+
+No se aplicó la migración a desarrollo ni se crearon cuentas demo para el usuario.
+Documentados contratos y ensayo en conflictos-pwa-webhooks-v2.md, con actualizaciones
+de README, seguimiento, plan y ADR-007, que permanece en curso hasta el ensayo completo.
+El SQL se generó con el formato existente, sin convertir el script entero a idempotente.
+Sin commit ni push. Los otros pendientes de revisión de liquidaciones/CSV/etiquetas y
+cierre automático del Worker no se implementaron en este bloque.
+
+### 15/11/2026: cierre diario e indicadores en Worker
+
+Agustín autorizó explícitamente implementar este bloque si no existía. Se revisaron
+Worker, reportes y la letra original Laboratorio__NET_2026.pdf, sección 4, pág. 3,
+mediante la skill de PDF y extracción local. No se encontró el proceso periódico.
+La letra no define un cierre contable: se documentó como decisión de implementación un
+cierre estadístico por operador/día, sin finalizar rutas, devoluciones ni pagos.
+
+Se agregó CierreOperativoWorker con ejecución inicial e intervalo configurable de cinco
+minutos. Application define los puertos y calendario UTC−03:00; Infrastructure reutiliza
+ReportesGestion y guarda un modelo de lectura técnico. El primer cierre se conserva y
+el resumen actual se recalcula ante datos tardíos. El cierre representa el primer cálculo
+posterior al día, no una reconstrucción exacta de la medianoche. Rotación de fechas
+históricas con máximo por ciclo, transacción Repeatable Read y bloqueo asesor PostgreSQL
+por operador/día. Cada operador utiliza contextos aislados y un fallo no detiene a los demás.
+La API GET /api/operacion/cierres valida identidad activa y rol Administrador/Despachador.
+No se agregó pantalla ni se sustituyeron las fórmulas financieras del reporte actual.
+
+Migración 20261115222840_ResumenesOperativosDiarios, snapshot y SQL de instalación
+actualizados. EF confirmó que el modelo coincide con las migraciones. Se actualizaron
+los recuentos de tablas de dos pruebas existentes y se agregó comprobación del índice
+único operador/fecha. Se corrigió además la comprobación nullable de Simbolos en
+CodigoBarras128Tests, un bloqueo preexistente de compilación estricta tras el nuevo merge;
+no se modificó el escáner ni el cifrado de la PWA.
+
+Validación: build Release con warnaserror, sin errores/advertencias; 494 pruebas unitarias
+y de arquitectura (139 Application, 144 Domain, 111 Infrastructure, 62 Repartidor,
+25 Worker y 13 arquitectura), y 22 integraciones seleccionadas con PostgreSQL real,
+todas aprobadas y sin omisiones. Incluyen las cuatro nuevas de cierre, además de reportes,
+cierre en depósito/pantallas y migración desde cero. Los cuatro casos unitarios nuevos
+cubren calendario y ejecución/reintento/parada del Worker. Cobertura Domain 86,65 %
+(1279/1476), Application 81,62 % (844/1034).
+
+No se ejecutó la integración completa, E2E ni el ensayo desplegado con todos los servicios.
+Las pruebas usaron bases temporales; no se aplicó la migración a desarrollo ni se crearon
+cuentas demo para el usuario. Contrato y límites en docs/cierre-diario-indicadores.md;
+README, PLAN-PENDIENTES y seguimiento actualizados. Sin commit ni push.

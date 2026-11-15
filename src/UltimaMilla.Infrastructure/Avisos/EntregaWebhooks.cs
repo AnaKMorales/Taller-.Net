@@ -48,7 +48,28 @@ public sealed class EntregaWebhooks(DbContextOptions<AppDbContext> opciones, ICl
 
         var existentes = await db.Set<EntregaAviso>().Include(e => e.Suscripcion)
             .Where(e => EF.Property<Guid>(e, "EventoKey") == evento.EventoId).ToListAsync(cancellationToken);
-        var cuerpo = JsonSerializer.Serialize(evento, Json);
+        var cuerpoV1 = JsonSerializer.Serialize(evento, Json);
+        string? cuerpoV2 = null;
+        if (coinciden.Any(s => s.VersionContrato == 2))
+        {
+            // El intento y sus evidencias son históricos e inmutables. No se lee el estado
+            // actual de los bultos: un reintento o reenvío manual debe conservar el resultado original.
+            var intento = dominio.IdOperacion is Guid operacion
+                ? await db.Set<IntentoEntrega>().AsNoTracking()
+                    .Include(i => i.Detalles).ThenInclude(d => d.Bulto)
+                    .Include(i => i.Detalles).ThenInclude(d => d.Motivo)
+                    .Include(i => i.Detalles).ThenInclude(d => d.Evidencias).ThenInclude(p => p.Prueba)
+                    .SingleOrDefaultAsync(i => i.Envio.Id == dominio.EnvioId && i.IdOperacion == operacion &&
+                        i.HuellaSolicitud != null, cancellationToken)
+                : null;
+            var v2 = new EventoEnvioV2(evento.MensajeId, 2, tenant.OperadorId, cuentaId, dominio.EnvioId,
+                dominio.Id, dominio.Tipo.ToString(), dominio.Origen.ToString(), dominio.EstadoAnterior?.ToString(),
+                dominio.EstadoNuevo.ToString(), dominio.OcurridoEn, intento?.IdOperacion,
+                intento is null ? [] : intento.Detalles.OrderBy(d => d.Bulto.Id).Select(d => new ResultadoBultoV2(
+                    d.Bulto.Id, d.Resultado.ToString(), d.Motivo?.Id,
+                    d.Evidencias.Select(p => p.Prueba.Id).Order().ToArray())).ToArray());
+            cuerpoV2 = JsonSerializer.Serialize(v2, Json);
+        }
         var fallidas = new List<Guid>();
 
         foreach (var suscripcion in coinciden)
@@ -64,6 +85,7 @@ public sealed class EntregaWebhooks(DbContextOptions<AppDbContext> opciones, ICl
 
             var ahora = reloj.GetUtcNow();
             ResultadoWebhook resultado;
+            var cuerpo = suscripcion.VersionContrato == 2 ? cuerpoV2! : cuerpoV1;
             try { resultado = await cliente.EnviarAsync(new SolicitudWebhook(suscripcion.UrlDestino, suscripcion.SecretoFirma, cuerpo, evento.EventoId, ahora), cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception error)

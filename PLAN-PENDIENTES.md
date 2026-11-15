@@ -1,5 +1,20 @@
 # Plan de cierre de requisitos
 
+Avance 15/11, V3: por autorización explícita de Agustín se implementaron el cierre diario
+estadístico y el recálculo periódico en Worker. Resúmenes aislados por operador/fecha,
+primer cierre conservado, recuperación de fechas atrasadas y consulta administrativa.
+Requiere `ResumenesOperativosDiarios`. Ver [criterios y límites](docs/cierre-diario-indicadores.md).
+Queda el ensayo desplegado; no se cierran rutas ni devoluciones automáticamente.
+Este avance reemplaza las menciones históricas al proceso como ausente o reservado
+exclusivamente a Aldana. No amplía el alcance a los demás trabajos de las compañeras.
+
+Avance 15/11: implementados diagnóstico por bulto persistido/visible en la PWA y salida
+webhook V2 optativa por suscripción, con V1 predeterminado para receptores anteriores.
+Ver [contratos y ensayo](docs/conflictos-pwa-webhooks-v2.md). Las menciones históricas a
+esas implementaciones como faltantes quedan reemplazadas por este avance. Resta el
+ensayo manual integrado de navegador/RabbitMQ en el entorno final, no otro desarrollo
+del núcleo para esos dos puntos. Requiere migración VersionWebhookPorSuscripcion.
+
 Avance 15/11: por acuerdo del equipo, Agustín toma las pantallas de cierre operativo,
 extravíos e identidad visual; PWA queda para el final. Integradas las de devoluciones
 y rendición en `/backoffice/deposito/cierre`, con enlace desde Depósito y desde el detalle
@@ -106,7 +121,7 @@ se adelanta ese contrato. Las pantallas, PWA y Worker no se implementan unilater
 | --- | --- | --- | --- |
 | V1 | Letra 6.3, pág. 5 | Exige OIDC/OAuth 2.1 con PKCE o ASP.NET Identity como almacén. Se encontraron cookies, Bearer y PasswordHasher sobre usuarios propios; no una integración completa de esas alternativas. Usar el hasher de Identity no demuestra que se use como almacén. Acordar cómo cumplir antes de cambiar autenticación. | Agustín y Aldana, coordinando impacto con Ana. No está asignado como tarea nueva independiente en el reparto. |
 | V2 | Letra 5.4, requisito 19, pág. 4 | La API calcula faltantes y rechaza el código que no pertenece a la ruta con un mensaje explícito. Eso puede servir como aviso de sobrante: comprobar que PWA/backoffice lo muestran en el flujo de carga, también offline según corresponda. **La letra no pide un historial persistido de sobrantes**; no crear tablas solo por esa limitación del contrato. | Aldana en carga/PWA, Ana si hay interfaz de backoffice; Agustín solo si la comprobación revela una brecha real del backend. |
-| V3 | Letra 4, Worker, pág. 3 | Exige recálculo de indicadores y cierre diario. Hay reportes bajo demanda; no se encontró la ejecución programada correspondiente en Worker. Precisar el cierre y comprobar qué cambios pendientes tiene Aldana antes de definir reglas o tablas. | Aldana en Worker; Agustín únicamente para las reglas/consultas faltantes acordadas. El diagnóstico del reparto lo menciona, pero no asigna tarea numerada al cierre. |
+| V3 | Letra 4, Worker, pág. 3 | Implementado: ciclo periódico en Worker, resúmenes diarios por operador, primer cierre conservado e indicadores actualizables ante datos tardíos. Migración ResumenesOperativosDiarios y consulta administrativa. Criterio: cierre estadístico en la primera ejecución posterior al día, sin reconstrucción exacta de medianoche ni cierre automático de rutas. Resta ensayo desplegado. Ver docs/cierre-diario-indicadores.md. | Agustín implementó este bloque por autorización explícita; ensayo final coordinado con Aldana en el entorno Worker. |
 | V4 | Letra 5.1, requisito 6, pág. 4 | Se exige gestión de repartidores/vehículos con capacidad. Hay altas, consultas y uso en planificación. Contrastar con la demo y el equipo qué gestión adicional necesita cumplir ese flujo. No convertir automáticamente cada combinación de edición, reactivación y eliminación en requisito separado. | Agustín en backend; Ana en presentación. |
 | V5 | Cambio 31–36 y 2.3; reparto Ana 4, Aldana 4–5, Agustín 2–3 y 6 | Núcleo, outbox V1/V2 y APIs existen. Pendientes documentados: operación de pendientes en backoffice, diagnóstico por bulto en PWA y avisos externos con detalle por bulto compatibles. Verificar cada uno y ejecutar entrega parcial offline → sincronización → backoffice → seguimiento → receptor. | Ana y Aldana en sus adaptaciones; Agustín en contratos/núcleo, regresión y ADR. No basta probar solamente PostgreSQL. |
 | V6 | Letra 6.15, 7 y 8.3–8.4; reparto Agustín 1, 4–5 | Hay CI y cobertura local >70 %. Confirmar el CI del commit final, las evidencias de los opcionales elegidos (mínimo 8 puntos en equipo de tres), la demo remota y los entregables. No afirmar que puntos o despliegue se acreditan solo por existir código. | Cada integrante aporta evidencia de lo suyo; revisión conjunta. |

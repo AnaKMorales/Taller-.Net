@@ -22,10 +22,14 @@ public sealed class SuscripcionAviso : Entidad
   public string SecretoFirma { get; private set; }
   public Uri UrlDestino { get; private set; }
   public bool Activa { get; private set; } = true;
+  public int VersionContrato { get; private set; } = 1;
   public IReadOnlyCollection<EntregaAviso> Entregas => _entregas.AsReadOnly();
 
-  public SuscripcionAviso(CuentaComercial cuentaComercial, IEnumerable<TipoEvento> tiposEvento, string secretoFirma, Uri urlDestino)
+  public SuscripcionAviso(CuentaComercial cuentaComercial, IEnumerable<TipoEvento> tiposEvento, string secretoFirma, Uri urlDestino,
+      int versionContrato = 1)
   {
+    if (versionContrato is not (1 or 2)) throw new ArgumentException("La versión del webhook debe ser 1 o 2.", nameof(versionContrato));
+    VersionContrato = versionContrato;
     CuentaComercial = Validacion.Requerido(cuentaComercial, nameof(cuentaComercial));
     ArgumentNullException.ThrowIfNull(tiposEvento);
     TiposEvento = tiposEvento.Select(t => Validacion.Enumeracion(t, nameof(tiposEvento))).ToFrozenSet();

@@ -42,7 +42,8 @@ public sealed partial class PostgresTests
             IdOperacion = idCompetidor,
             Intento = visita.Intento! with { IdOperacion = idCompetidor }
         };
-        var colaCompetidora = new ColaAcciones(new AlmacenPwa());
+        var almacenCompetidor = new AlmacenPwa();
+        var colaCompetidora = new ColaAcciones(almacenCompetidor);
         Assert.Empty(await new ColaAcciones(almacen).EncolarAsync(visita, hoja, sesion.RepartidorId));
         Assert.Empty(await colaCompetidora.EncolarAsync(competidora, hoja, sesion.RepartidorId));
         Assert.Empty(red.Solicitudes);
@@ -71,6 +72,14 @@ public sealed partial class PostgresTests
         var rechazada = Assert.Single(await colaCompetidora.ListarAsync(sesion.RepartidorId));
         Assert.Equal(EstadoAccion.Rechazada, rechazada.Estado);
         Assert.Contains("Actualizá la hoja", rechazada.Detalle);
+        Assert.NotNull(rechazada.Conflicto);
+        Assert.False(rechazada.Conflicto.ParadaActiva);
+        Assert.Equal(parada.ParadaId, rechazada.Conflicto.ParadaId);
+        Assert.Contains(rechazada.Conflicto.Bultos, b => b.Codigo == "PARCIAL-01" && b.EstadoActual == "Entregado" && b.Motivo == "EstadoCambio");
+        var reabierta = Assert.Single(await new ColaAcciones(almacenCompetidor).ListarAsync(sesion.RepartidorId));
+        Assert.Equal(rechazada.Conflicto.VersionActualEnvio, reabierta.Conflicto!.VersionActualEnvio);
+        Assert.Equal(competidora.Intento!.VersionEsperada, reabierta.Accion.Intento!.VersionEsperada);
+        Assert.Equal(competidora.Intento.Evidencias.Count, reabierta.Accion.Intento.Evidencias.Count);
         Assert.Equal(HttpStatusCode.Conflict, red.Estados[^1]);
         await otroDispositivo.SincronizarAsync(sesion, ignorarEspera: true);
         Assert.Equal(3, red.Solicitudes.Count);

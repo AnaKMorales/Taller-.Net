@@ -11,7 +11,7 @@ public enum EstadoAviso
 }
 
 public sealed record SuscripcionDto(Guid Id, string Destino, IReadOnlyCollection<TipoEvento> Eventos, bool Activa,
-    int Entregados, int Fallidos, int Pendientes);
+    int Entregados, int Fallidos, int Pendientes, int VersionContrato = 1);
 
 public sealed record AvisoDto(Guid Id, string CodigoSeguimiento, TipoEvento Evento, EstadoAviso Estado, int Intentos,
     DateTime OcurridoEn, DateTime? UltimoIntentoEn);
@@ -32,6 +32,11 @@ public interface IPanelAvisos
     // Lanza ArgumentException si la URL o los eventos no son válidos.
     Task<SuscripcionCreada> CrearSuscripcionAsync(Uri destino, IReadOnlyCollection<TipoEvento> eventos,
         CancellationToken cancellationToken = default);
+
+    Task<SuscripcionCreada> CrearSuscripcionAsync(Uri destino, IReadOnlyCollection<TipoEvento> eventos,
+        int versionContrato, CancellationToken cancellationToken = default) => versionContrato == 1
+        ? CrearSuscripcionAsync(destino, eventos, cancellationToken)
+        : throw new NotSupportedException("Este adaptador no admite webhooks V2.");
 
     // false si la suscripción no existe o es de otra cuenta.
     Task<bool> DesactivarSuscripcionAsync(Guid id, CancellationToken cancellationToken = default);

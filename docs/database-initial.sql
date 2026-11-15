@@ -1561,3 +1561,39 @@ VALUES ('20261115190814_AgregarIdentidad', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "SuscripcionesAviso" ADD "VersionContrato" integer NOT NULL DEFAULT 1;
+
+ALTER TABLE "SuscripcionesAviso" ADD CONSTRAINT "CK_SuscripcionesAviso_VersionContrato" CHECK ("VersionContrato" IN (1, 2));
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261115215128_VersionWebhookPorSuscripcion', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "ResumenesOperativosDiarios" (
+    "Id" uuid NOT NULL,
+    "Dia" date NOT NULL,
+    "ActualizadoEn" timestamp with time zone NOT NULL,
+    "CerradoEn" timestamp with time zone,
+    "Recalculos" integer NOT NULL,
+    "VersionCalculo" integer NOT NULL,
+    "ActualJson" jsonb NOT NULL,
+    "AlCierreJson" jsonb,
+    "TenantId" uuid NOT NULL,
+    CONSTRAINT "PK_ResumenesOperativosDiarios" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_ResumenesOperativosDiarios_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "CK_ResumenOperativo_Cierre" CHECK (("CerradoEn" IS NULL) = ("AlCierreJson" IS NULL)),
+    CONSTRAINT "FK_ResumenesOperativosDiarios_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_ResumenesOperativosDiarios_TenantId" ON "ResumenesOperativosDiarios" ("TenantId");
+
+CREATE UNIQUE INDEX "IX_ResumenesOperativosDiarios_TenantId_Dia" ON "ResumenesOperativosDiarios" ("TenantId", "Dia");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261115222840_ResumenesOperativosDiarios', '10.0.12');
+
+COMMIT;
+
