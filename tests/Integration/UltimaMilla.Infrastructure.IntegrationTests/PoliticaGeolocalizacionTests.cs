@@ -20,4 +20,22 @@ public sealed class PoliticaGeolocalizacionTests
 
         Assert.Contains(esperado, Assert.Single(respuesta.Headers.GetValues("Permissions-Policy")));
     }
+
+    // La cámara solo para la PWA (escaneo de bultos con BarcodeDetector); el micrófono, nunca.
+    [Theory]
+    [InlineData("/repartidor/", "camera=(self)")]
+    [InlineData("/login", "camera=()")]
+    [InlineData("/seguimiento/abc", "camera=()")]
+    public async Task SoloLaPwaDelRepartidorPuedeUsarLaCamara(string ruta, string esperado)
+    {
+        using var host = new WebApplicationFactory<App>();
+        using var server = host.WithWebHostBuilder(b => b.UseEnvironment("Testing"));
+        using var client = server.CreateClient();
+
+        using var respuesta = await client.GetAsync(ruta);
+
+        var politica = Assert.Single(respuesta.Headers.GetValues("Permissions-Policy"));
+        Assert.Contains(esperado, politica);
+        Assert.Contains("microphone=()", politica);
+    }
 }

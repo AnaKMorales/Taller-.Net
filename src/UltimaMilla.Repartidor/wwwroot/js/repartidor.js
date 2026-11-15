@@ -151,3 +151,58 @@ export function limpiarFirma(lienzo) {
     lienzo.getContext('2d').clearRect(0, 0, lienzo.width, lienzo.height);
     firmas.get(lienzo).trazada = false;
 }
+
+// --- Escaneo de códigos con la cámara (BarcodeDetector, nativo del navegador: funciona sin conexión) ---
+// Chrome y Edge en Android lo traen; Safari/iOS y Firefox no: ahí queda el ingreso manual o un lector externo.
+const FORMATOS = ['code_128', 'qr_code', 'code_39', 'ean_13', 'ean_8', 'itf', 'upc_a', 'data_matrix'];
+let escaneo = null;
+
+export function escanerDisponible() {
+    return 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
+}
+
+// Abre la cámara trasera en el <video> y avisa cada código leído (el mismo código, como mucho cada 2 s).
+// Devuelve null si arrancó, o el motivo: 'no-disponible', 'permiso' (cámara denegada) o 'camara' (otro error).
+export async function iniciarEscaneo(video, receptor) {
+    detenerEscaneo();
+    if (!escanerDisponible()) return 'no-disponible';
+    let stream;
+    try {
+        const soportados = await BarcodeDetector.getSupportedFormats();
+        const formatos = FORMATOS.filter(f => soportados.includes(f));
+        if (formatos.length === 0) return 'no-disponible';
+        const detector = new BarcodeDetector({ formats: formatos });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream;
+        video.setAttribute('playsinline', '');
+        await video.play();
+        const estado = { stream, activo: true, ultimo: null, ultimoEn: 0 };
+        escaneo = estado;
+        const ciclo = async () => {
+            if (!estado.activo) return;
+            try {
+                const valor = (await detector.detect(video))[0]?.rawValue;
+                const ahora = Date.now();
+                if (valor && (valor !== estado.ultimo || ahora - estado.ultimoEn > 2000)) {
+                    estado.ultimo = valor;
+                    estado.ultimoEn = ahora;
+                    navigator.vibrate?.(80);
+                    await receptor.invokeMethodAsync('CodigoLeido', valor);
+                }
+            } catch { /* cuadro sin imagen todavía: se sigue intentando */ }
+            if (estado.activo) setTimeout(ciclo, 250);
+        };
+        ciclo();
+        return null;
+    } catch (error) {
+        stream?.getTracks().forEach(t => t.stop());
+        return error?.name === 'NotAllowedError' || error?.name === 'SecurityError' ? 'permiso' : 'camara';
+    }
+}
+
+export function detenerEscaneo() {
+    if (!escaneo) return;
+    escaneo.activo = false;
+    escaneo.stream.getTracks().forEach(t => t.stop());
+    escaneo = null;
+}

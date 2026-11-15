@@ -10,6 +10,7 @@
 
 <form class="mb-3" @onsubmit="ConfirmarCodigo" @onsubmit:preventDefault>
     <label class="form-label" for="codigo-bulto">Código del bulto entregado</label>
+    <EscanerCodigo AlLeer="CodigoEscaneado" Deshabilitado="_procesando" />
     <div class="input-group">
         <input id="codigo-bulto" class="form-control" placeholder="Escaneá con un lector o ingresá el código"
                autocomplete="off" @bind="_codigo" @bind:event="oninput" disabled="@_procesando" />
@@ -115,7 +116,7 @@
     private void ConfirmarCodigo()
     {
         if (_procesando) return;
-        var bulto = Parada.Bultos!.FirstOrDefault(b => string.Equals(b.Codigo, _codigo.Trim(), StringComparison.Ordinal));
+        var bulto = LecturaCodigo.Buscar(Parada.Bultos!, _codigo);
         if (bulto is null)
         {
             _mensajeCodigo = "Ese código no pertenece a la visita.";
@@ -124,6 +125,13 @@
         _capturas[bulto.BultoId].Resultado = ResultadoIntento.Entregado;
         _mensajeCodigo = $"Bulto {bulto.Codigo} marcado como entregado.";
         _codigo = "";
+    }
+
+    // Código leído con la cámara: mismo tratamiento que si se escribiera y se confirmara.
+    private void CodigoEscaneado(string codigo)
+    {
+        _codigo = codigo;
+        ConfirmarCodigo();
     }
 
     private async Task RegistrarAsync()
