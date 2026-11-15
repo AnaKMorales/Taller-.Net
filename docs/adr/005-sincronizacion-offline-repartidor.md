@@ -136,7 +136,8 @@ una app nativa o un contenedor (por ejemplo, .NET MAUI) con permiso de ubicació
 - El repartidor trabaja sin red y reenviar nunca duplica intentos.
 - Puede pasar un tiempo hasta que el backoffice vea una entrega (consistencia eventual).
 - Se confía en el reloj del dispositivo para `OcurridoEn`; el servidor puede rechazar fechas futuras.
-- La sesión y la cola en IndexedDB **no están cifradas** todavía: quien tenga el dispositivo
-  desbloqueado puede leerlas. Las fotos y las firmas se guardan con la visita para poder
-  capturarlas sin conexión.
+- La sesión, la hoja de ruta y la cola en IndexedDB se guardan **cifradas** (AES-GCM de 256 bits, clave
+  no exportable generada en el dispositivo; 15/11/2026, ver `docs/cifrado-pwa.md`). Protege los datos copiados
+  del almacenamiento del navegador, pero no de quien usa la propia app con el dispositivo desbloqueado. Las fotos
+  y las firmas se guardan (cifradas) con la visita para poder capturarlas sin conexión.
 - Si el usuario borra los datos del sitio en el navegador, se pierden las acciones no sincronizadas.
