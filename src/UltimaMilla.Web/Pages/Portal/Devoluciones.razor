@@ -1,0 +1,54 @@
+@page "/portal/devoluciones"
+@* Devoluciones de la cuenta comercial del usuario, de solo lectura. Las inicia y completa el depósito del operador;
+   la mercadería siempre vuelve al comercio. El plazo límite sale de la política de la versión de reglas del envío. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Domain.Deposito
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Pages.Backoffice
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject IConsultasCuentaPortal Consultas
+
+<PageTitle>Devoluciones - Portal UltimaMilla</PageTitle>
+
+<h1>Devoluciones</h1>
+<p class="nota">Envíos que el operador te está devolviendo o ya te devolvió. La mercadería vuelve a tu comercio;
+    el plazo límite lo fija la política de devolución vigente cuando se dio de alta el envío. Horas de Uruguay.</p>
+
+<table>
+    <thead>
+        <tr><th>Envío</th><th>Destinatario</th><th>Estado</th><th>Inicio</th><th>Plazo límite</th><th>Cierre</th>
+            <th>Bultos</th><th>Destino</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var d in devoluciones)
+        {
+            <tr>
+                <td><a href="/seguimiento/@d.CodigoSeguimiento" target="_blank" rel="noopener"><code>@d.CodigoSeguimiento</code></a></td>
+                <td>@d.Destinatario</td>
+                <td>@(d.Estado == EstadoDevolucion.Completado ? "Completada" : "En proceso")</td>
+                <td>@HoraLocal.Fecha(d.FechaInicio)</td>
+                <td>@HoraLocal.Fecha(d.PlazoLimite)</td>
+                <td>@HoraLocal.Fecha(d.FechaCierre)</td>
+                <td>@d.Bultos</td>
+                <td>Vuelve al comercio (hasta @d.DiasEnDeposito días en depósito)</td>
+            </tr>
+        }
+        @if (devoluciones.Count == 0)
+        {
+            <tr><td colspan="8" class="vacio">No hay devoluciones.</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<DevolucionPortalDto> devoluciones = [];
+
+    protected override async Task OnInitializedAsync() =>
+        devoluciones = await Consultas.DevolucionesAsync(HttpContext?.RequestAborted ?? default);
+}

@@ -18,6 +18,7 @@ public static class BackofficeServiceCollectionExtensions
         services.AddScoped<IConsultasBackoffice, ConsultasBackoffice>();
         services.AddScoped<IDetalleEnvio, DetalleEnvio>();
         services.AddScoped<IConsultasPortal, ConsultasPortal>();
+        services.AddScoped<IConsultasCuentaPortal, ConsultasCuentaPortal>();
         services.AddScoped<IPanelAvisos, PanelAvisos>();
         services.AddScoped<IReportesGestion, ReportesGestion>();
         services.AddScoped<ITenantResolver, TenantResolver>();
