@@ -51,6 +51,11 @@
                 <div><dt>Código bulto</dt><dd>@bulto.Codigo</dd></div>
                 <div><dt>Peso</dt><dd>@bulto.Peso.ToString("0.##") kg</dd></div>
             </dl>
+            @* Code 128 del código del bulto: lo escanea la cámara de la PWA del repartidor. *@
+            @if (CodigoBarras128.Svg(bulto.Codigo) is { } barras)
+            {
+                <div class="barras">@((MarkupString)barras)</div>
+            }
             <footer>Remite: @etiqueta.Comercio · Seguimiento: /seguimiento/@etiqueta.CodigoSeguimiento</footer>
         </section>
     }
