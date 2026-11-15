@@ -49,7 +49,7 @@ public sealed partial class PostgresTests
         var guardado = await db.Set<Usuario>().Include(u => u.CuentasComerciales).SingleAsync(u => u.Id == usuario.Id);
         Assert.Equal(RolUsuario.Comercio, guardado.Rol);
         Assert.Equal(cuenta.CuentaId, Assert.Single(guardado.CuentasComerciales).Id);
-        Assert.NotEqual(ClaveApiComercio, db.Entry(guardado).Property<string>(ContrasenasUsuario.Columna).CurrentValue);
+        Assert.NotEqual(ClaveApiComercio, (await db.Set<CuentaAcceso>().SingleAsync(c => c.Id == usuario.Id)).PasswordHash);
     }
 
     [PostgresFact]

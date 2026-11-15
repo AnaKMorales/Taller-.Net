@@ -10,6 +10,7 @@ using UltimaMilla.Domain.Notificaciones;
 using UltimaMilla.Domain.Operadores;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Infrastructure.Persistence;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 
 namespace UltimaMilla.Web.Desarrollo;
@@ -82,7 +83,7 @@ public static class DatosDemo
         db.AddRange(admitido, fallido, entregado, admin, usuarioComercio, repartidor);
         if (visitaParcial is not null) db.Add(visitaParcial);
         foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
-            ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
+            await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, usuario, ContrasenaDemo);
         await db.SaveChangesAsync(ct);
 
         var ruta = new Ruta(repartidor, vehiculo, 10);

@@ -1,38 +1,57 @@
-using Microsoft.AspNetCore.Identity;
+using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Tenancy;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
-public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options) : IBuscadorUsuariosLogin
+// Login con ASP.NET Identity: UserManager sobre el store de EF Core (AspNetUsers). Hace lo mismo que
+// SignInManager.CheckPasswordSignInAsync (bloqueo, intentos fallidos) sin emitir la sesión: la cookie o el Bearer
+// los emite Web con los claims de siempre.
+public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options, FabricaCuentasAcceso? fabrica = null) : IBuscadorUsuariosLogin
 {
-    // Para que el tiempo de respuesta no revele si el email existe.
-    private static readonly string HashFicticio = ContrasenasUsuario.Hasher.HashPassword(null!, Guid.NewGuid().ToString());
+    private readonly FabricaCuentasAcceso _fabrica = fabrica ?? FabricaCuentasAcceso.Predeterminada;
 
     public async Task<UsuarioLogin?> ValidarAsync(string email, string contrasena, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrEmpty(contrasena)) return null;
-        var normalizado = email.Trim().ToLowerInvariant();
+        // Sin tenant: todavía no se sabe a qué operador pertenece el usuario. Solo puede guardar el registro del login.
         await using var db = new AppDbContext(options);
-        // Sin filtro de operador: todavía no se sabe a cuál pertenece el usuario.
-        var encontrados = await db.Set<Usuario>().IgnoreQueryFilters().AsNoTracking()
-            .Where(u => u.Activo && EF.Property<string>(u, "EmailNormalizado") == normalizado &&
-                (u.Rol != RolUsuario.Comercio || u.CuentasComerciales.Any(c => c.Activa)))
+        using var usuarios = _fabrica.Para(db);
+        var cuenta = await usuarios.FindByNameAsync(email.Trim());
+        var usuario = cuenta is null ? null : await db.Set<Usuario>().IgnoreQueryFilters().AsNoTracking()
+            .Where(u => u.Id == cuenta.Id && u.Activo && (u.Rol != RolUsuario.Comercio || u.CuentasComerciales.Any(c => c.Activa)))
             .Select(u => new
             {
                 u.Id,
                 OperadorId = u.Operador.Id,
                 u.Email,
                 u.Rol,
-                Hash = EF.Property<string?>(u, ContrasenasUsuario.Columna),
                 Cuentas = u.CuentasComerciales.Where(c => c.Activa).Select(c => c.Id).Take(2).ToList()
             })
-            .Take(2)
-            .ToListAsync(cancellationToken);
+            .SingleOrDefaultAsync(cancellationToken);
 
-        // El email es único por operador: si se repite, no se elige uno.
-        var usuario = encontrados.Count == 1 ? encontrados[0] : null;
-        var resultado = ContrasenasUsuario.Hasher.VerifyHashedPassword(null!, usuario?.Hash ?? HashFicticio, contrasena);
-        if (usuario?.Hash is null || resultado == PasswordVerificationResult.Failed) return null;
+        // Email inexistente, usuario inactivo o cuenta bloqueada: misma respuesta y un costo de hash parecido.
+        if (cuenta is null || usuario is null || await usuarios.IsLockedOutAsync(cuenta))
+        {
+            _fabrica.VerificarFicticio(contrasena);
+            return null;
+        }
+
+        try
+        {
+            if (!await usuarios.CheckPasswordAsync(cuenta, contrasena))
+            {
+                // Al quinto fallo Identity fija LockoutEnd (5 minutos) y reinicia el contador.
+                await usuarios.AccessFailedAsync(cuenta);
+                return null;
+            }
+            await usuarios.ResetAccessFailedCountAsync(cuenta);
+        }
+        catch (ConflictoConcurrenciaException)
+        {
+            // Otro login del mismo usuario guardó antes (ConcurrencyStamp): se rechaza este intento sin dar detalles.
+            return null;
+        }
 
         return new UsuarioLogin(usuario.Id, usuario.OperadorId, usuario.Email, usuario.Rol,
             usuario.Cuentas.Count == 1 ? usuario.Cuentas[0] : null);

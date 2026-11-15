@@ -3,6 +3,7 @@ using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Infrastructure.Persistence.Concurrency;
 using UltimaMilla.Infrastructure.Persistence.Outbox;
 using UltimaMilla.Infrastructure.Persistence.Configuracion;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -27,12 +28,15 @@ internal sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
     private static async Task Validate(AppDbContext db, bool useAsync, CancellationToken token = default)
     {
         if (db.EsSeguimientoPublico) throw new AislamientoOperadorException();
+        // Única escritura sin tenant: el login registra intentos fallidos, bloqueo y stamps de una CuentaAcceso.
+        if (db.ContextoTenant is null && IdentidadWriteGuard.EsSoloRegistroDeLogin(db)) return;
         if (db.ChangeTracker.Entries<Envios.AltaImportada>().Any(e =>
                 e.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("El registro de importación es inmutable.");
         OutboxPreparation.Prepare(db);
         await TenantWriteGuard.ValidateAsync(db, db.OperadorIdActual, useAsync, token);
         await CuentaWriteGuard.ValidateAsync(db, db.ContextoTenant!, useAsync, token);
+        await IdentidadWriteGuard.ValidateAsync(db, db.OperadorIdActual, useAsync, token);
         ConfiguracionWriteGuard.Validate(db);
         IntentosBultoWriteGuard.Validate(db);
         AsignacionesBultoWriteGuard.Validate(db);

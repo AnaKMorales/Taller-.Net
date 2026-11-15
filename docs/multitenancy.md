@@ -190,6 +190,11 @@ Los filtros son de EF; una conexión SQL de desarrollo puede ver toda la base. I
 SQL directo y operaciones masivas son mecanismos privilegiados, no entradas para clientes.
 ExecuteUpdate/ExecuteDelete no ejecutan el interceptor de SaveChanges. Las FK impiden relaciones
 entre operadores, pero no son una autorización general de SQL ni una política RLS.
+Las tablas de ASP.NET Identity (`AspNetUsers` y afines) son la excepción deliberada: no tienen
+`TenantId` ni filtro, porque el login busca al usuario antes de conocer su operador. Con tenant,
+`IdentidadWriteGuard` exige que cada fila escrita sea de un `Usuario` del operador actual (y una sesión
+de comercio no puede escribirlas). Sin tenant, lo único que se puede guardar es el registro del login de
+una `CuentaAcceso` (intentos fallidos, bloqueo y stamps); cualquier otra escritura sigue fallando. Ver ADR-008.
 Las reglas de permisos de API, login, transporte RabbitMQ y adaptador Redis deben integrarse
 con estas piezas en sus proyectos. No se presentan como implementados esos servicios externos.
 

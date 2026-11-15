@@ -175,30 +175,30 @@ public sealed partial class PostgresTests
         await using (var db = Context())
         {
             db.Add(escenario.Envio);
-            ContrasenasUsuario.Asignar(db, escenario.Admin, "Secreta123");
-            ContrasenasUsuario.Asignar(db, comercio, "Comercio123");
+            await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, escenario.Admin, "Secreta123!");
+            await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, comercio, "Comercio123!");
             await db.SaveChangesAsync();
         }
         var login = new BuscadorUsuariosLogin(Options());
 
-        var admin = await login.ValidarAsync("  ADMIN@Example.com ", "Secreta123");
+        var admin = await login.ValidarAsync("  ADMIN@Example.com ", "Secreta123!");
         Assert.NotNull(admin);
         Assert.Equal((escenario.Admin.Id, escenario.Operador.Id, RolUsuario.Administrador, (Guid?)null),
             (admin.UsuarioId, admin.OperadorId, admin.Rol, admin.CuentaComercialId));
 
-        var deComercio = await login.ValidarAsync(comercio.Email, "Comercio123");
+        var deComercio = await login.ValidarAsync(comercio.Email, "Comercio123!");
         Assert.Equal(escenario.Envio.CuentaComercial.Id, deComercio!.CuentaComercialId);
 
-        Assert.Null(await login.ValidarAsync("admin@example.com", "secreta123"));
-        Assert.Null(await login.ValidarAsync("nadie@example.com", "Secreta123"));
-        // El repartidor no tiene contraseña asignada: no puede ingresar.
-        Assert.Null(await login.ValidarAsync(escenario.Repartidor.Email, ""));
+        Assert.Null(await login.ValidarAsync("admin@example.com", "secreta123!"));
+        Assert.Null(await login.ValidarAsync("nadie@example.com", "Secreta123!"));
+        // El repartidor no tiene cuenta de acceso: no puede ingresar.
+        Assert.Null(await login.ValidarAsync(escenario.Repartidor.Email, "Secreta123!"));
 
         await using var lectura = Context();
-        var guardado = await lectura.Set<Usuario>().Where(u => u.Id == escenario.Admin.Id)
-            .Select(u => EF.Property<string>(u, ContrasenasUsuario.Columna)).SingleAsync();
+        var guardado = await lectura.Set<CuentaAcceso>().Where(c => c.Id == escenario.Admin.Id).Select(c => c.PasswordHash).SingleAsync();
         Assert.DoesNotContain("Secreta123", guardado);
-        Assert.Throws<ArgumentException>(() => ContrasenasUsuario.Asignar(lectura, escenario.Admin, "corta"));
+        // La política de Identity rechaza contraseñas débiles.
+        await Assert.ThrowsAsync<ArgumentException>(() => FabricaCuentasAcceso.Predeterminada.CrearAsync(lectura, escenario.Admin, "corta"));
     }
 
     [PostgresFact]

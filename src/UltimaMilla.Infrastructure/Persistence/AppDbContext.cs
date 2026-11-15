@@ -7,10 +7,14 @@ using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Infrastructure.Persistence.Concurrency;
 using Npgsql;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence;
 
-public sealed class AppDbContext : DbContext
+// Hereda de IdentityUserContext: las tablas de ASP.NET Identity (AspNetUsers y afines) viven en esta misma base
+// y migración. No llevan filtro de operador (ver IdentidadModel e IdentidadWriteGuard).
+public sealed class AppDbContext : IdentityUserContext<CuentaAcceso, Guid>
 {
     // Se captura una vez: cambiar el servicio de identidad no cambia un contexto ya utilizado.
     private readonly TenantContext? _tenant;
@@ -75,6 +79,7 @@ public sealed class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.Ignore<Entidad>();
         modelBuilder.Ignore<GeoPunto>();
         modelBuilder.Ignore<ArchivoRef>();
