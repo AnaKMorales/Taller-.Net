@@ -12,12 +12,14 @@
         @if (UltimaMilla.Web.Seguridad.Politicas.RolesBackoffice.Any(User.IsInRole))
         {
             <a href="/backoffice/tablero" class="@(ViewData["Seccion"] as string == "tablero" ? "activo" : "")">Tablero</a>
+            <a href="/backoffice/deposito" class="@(ViewData["Seccion"] as string == "deposito" ? "activo" : "")">Depósito</a>
             <a href="/backoffice/incidencias" class="@(ViewData["Seccion"] as string == "incidencias" ? "activo" : "")">Incidencias</a>
             <a href="/backoffice/fallidos" class="@(ViewData["Seccion"] as string == "fallidos" ? "activo" : "")">Avisos fallidos</a>
         }
         @if (User.IsInRole("Administrador"))
         {
             <a href="/backoffice/reportes" class="@(ViewData["Seccion"] as string == "reportes" ? "activo" : "")">Reportes</a>
+            <a href="/backoffice/configuracion/identidad" class="@(ViewData["Seccion"] as string == "identidad" ? "activo" : "")">Identidad visual</a>
             <a href="/backoffice/configuracion/tarifas" class="@(ViewData["Seccion"] as string == "tarifas" ? "activo" : "")">Tarifas</a>
             <a href="/backoffice/configuracion/reglas" class="@(ViewData["Seccion"] as string == "reglas" ? "activo" : "")">Reglas</a>
             <a href="/backoffice/administracion/comercios" class="@(ViewData["Seccion"] as string == "comercios" ? "activo" : "")">Comercios</a>

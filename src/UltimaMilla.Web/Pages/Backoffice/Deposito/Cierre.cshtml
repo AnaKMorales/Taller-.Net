@@ -1,0 +1,30 @@
+@page "/backoffice/deposito/cierre"
+@model UltimaMilla.Web.Pages.Backoffice.Deposito.CierreModel
+@using UltimaMilla.Web.Compartido
+@{ ViewData["Title"] = "Devoluciones y rendición"; ViewData["Seccion"] = "deposito"; Layout = "_Layout"; }
+<p><a href="/backoffice/deposito">← Depósito y rutas</a></p>
+<h1>Devoluciones y rendición</h1>
+<p>Recibí los bultos que regresan al depósito y revisá las rutas para su rendición. Se muestran todos los pendientes, incluidos los de días anteriores.</p>
+<h2>Devoluciones abiertas</h2>
+<p>Para consultar o iniciar una devolución por envío, abrí su detalle desde Incidencias.</p>
+<table>
+    <thead><tr><th>Envío</th><th>Inicio</th><th>Plazo límite</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var d in Model.Devoluciones)
+    {
+        <tr><td><code>@d.CodigoSeguimiento</code></td><td>@Textos.Fecha(d.FechaInicio)</td><td>@Textos.Fecha(d.PlazoLimite)</td><td><a href="/backoffice/deposito/devolucion/@d.EnvioId">Recibir devolución</a></td></tr>
+    }
+    @if (Model.Devoluciones.Count == 0) { <tr><td colspan="4">No hay devoluciones abiertas.</td></tr> }
+    </tbody>
+</table>
+<h2>Rutas por rendir</h2>
+<table>
+    <thead><tr><th>Repartidor</th><th>Vehículo</th><th>Despachada</th><th>Paradas pendientes</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var r in Model.Rutas)
+    {
+        <tr><td>@r.Repartidor</td><td>@r.Matricula</td><td>@Textos.Fecha(r.DespachadaEn)</td><td>@r.ParadasPendientes</td><td><a href="/backoffice/deposito/rendicion/@r.RutaId">Revisar rendición</a></td></tr>
+    }
+    @if (Model.Rutas.Count == 0) { <tr><td colspan="5">No hay rutas por rendir.</td></tr> }
+    </tbody>
+</table>

@@ -15,12 +15,16 @@ public sealed class ModeloTests
             .Where(t => !t.IsAbstract && typeof(Entidad).IsAssignableFrom(t)).ToArray();
         Assert.Equal(36, domainTypes.Length);
         Assert.All(domainTypes, t => Assert.NotNull(db.Model.FindEntityType(t)));
-        Assert.Equal(40, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        // 40 del dominio + 4 de ASP.NET Identity (AspNetUsers, AspNetUserClaims, AspNetUserLogins, AspNetUserTokens).
+        Assert.Equal(44, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
         Assert.DoesNotContain(db.Model.GetEntityTypes(), t => t.ClrType == typeof(GeoPunto) || t.ClrType == typeof(ArchivoRef));
         Assert.All(db.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()), fk =>
         {
             Assert.Equal(DeleteBehavior.Restrict, fk.DeleteBehavior);
-            Assert.All(fk.Properties, p => Assert.True(p.IsShadowProperty() || p.IsIndexerProperty()));
+            // Las FK de Identity son propiedades propias de sus clases (UserId, Id), no shadow.
+            if (fk.DeclaringEntityType.ClrType.Namespace != "Microsoft.AspNetCore.Identity" &&
+                fk.DeclaringEntityType.ClrType != typeof(UltimaMilla.Infrastructure.Persistence.Identidad.CuentaAcceso))
+                Assert.All(fk.Properties, p => Assert.True(p.IsShadowProperty() || p.IsIndexerProperty()));
             Assert.DoesNotContain(fk.Properties, p => p.Name.EndsWith("Key1", StringComparison.Ordinal));
         });
     }

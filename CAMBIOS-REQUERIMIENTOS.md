@@ -1,6 +1,12 @@
 # Seguimiento del cambio de requerimientos
 
-Actualizado: 09/11/2026. Equipo de tres integrantes, Grupo 8.
+Actualizado: 14/11/2026. Equipo de tres integrantes, Grupo 8.
+
+Para priorizar trabajo nuevo, usar el [plan de cierre de requisitos](PLAN-PENDIENTES.md):
+separa brechas obligatorias confirmadas, puntos por verificar y mejoras. Las limitaciones
+de cada contrato no son automáticamente requisitos nuevos. En particular, el requisito 1
+sí exige modificación y baja de comercios/usuarios; el 19 exige aviso de sobrantes, no
+un historial persistido de cada sobrante.
 
 ## Alcance y fuentes
 
@@ -84,13 +90,13 @@ en equipo según las áreas de «Nos organizamos».
 
 | Pendiente | Sección de la letra original | Estado y trabajo por revisar | Responsable propuesto |
 | --- | --- | --- | --- |
-| Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Las pruebas del flujo crítico y de aislamiento ya se ejecutan localmente con PostgreSQL. Falta proporcionar la conexión en CI y comprobar que se ejecuten sin omisiones. | Agustín, coordinando el pipeline con Aldana. |
-| Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | El dominio puede despachar y la PWA descarga rutas despachadas. Falta exponer la operación en backend y backoffice. El ensayo del 12/11 puede partir de una ruta ya despachada con `/dev/datos-demo-pwa`. Si se decide despachar una ruta nueva en vivo, esta operación pasa a ser un prerrequisito. | Agustín en backend y Ana en backoffice. |
-| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Ya hay modelos y algunas consultas. Queda comprobar y completar las operaciones de administración de comercios y sus usuarios y permisos, zonas y franjas, repartidores y vehículos con su capacidad. El punto 4 de Ana en el reparto cubre formularios de tarifas y reglas. | Ana en backoffice y Agustín en las operaciones de backend que falten. |
-| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
-| Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | El alta individual está en el punto 1 de Ana. Ya existen el caso de uso y el calculador. Falta verificar la preparación del envío y conectar el cálculo automático a la tarifa vigente en el flujo real. La importación masiva debe permitir reintentar un lote completo o parcial sin duplicados. También falta el alta por API para comercios. | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
+| Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Implementado con dependencias efímeras, resultados TRX y control de omisiones. El usuario confirmó build-test y E2E aprobados en main tras integrar depósito/rutas. Los nuevos cambios deben volver a pasar CI al subirlos. | Agustín, coordinando el pipeline con Aldana. |
+| Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | Backend de consulta de preparación y confirmación implementado, con carga, permisos y versiones verificadas. La PWA descarga las rutas despachadas. Falta conectar las pantallas del backoffice. Ver [despacho](docs/despacho-operativo.md). | Agustín en backend y Ana en backoffice. |
+| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Backend A1 cubierto dentro del contrato de comercios/cuentas/usuarios: altas, consultas, modificación, bajas y autorización por rol/cuenta. Hay altas/consultas de flota y zonas/franjas. Restan pantallas y validar la gestión de flota en la demo; no son pendientes automáticos un editor genérico de permisos ni CRUD completo de todos los catálogos. Ver [A1](docs/administracion-comercios.md) y [plan](PLAN-PENDIENTES.md). | Agustín en backend y validación; Ana/responsables de Web en pantallas. |
+| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Backend de marca/colores/contacto y URL de logo con migración y concurrencia, API administrativa y lecturas seguras disponibles. Falta formulario y aplicar los datos en portal, seguimiento y comunicaciones. Ver [contrato](docs/identidad-operador.md). | Agustín backend; Ana pantallas; Aldana comunicaciones. |
+| Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | Alta individual del portal con cálculo automático y backend de importación idempotente implementados. El alta por API para comercios ya expone login Bearer, opciones, cotización y confirmación por referencia, reutilizando la idempotencia de importación. Quedan lectura del archivo e integración de importación en el portal. Ver [API](docs/api-comercios.md) e [importación](docs/importacion-envios.md). | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
 | Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
-| Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | El dominio ya contempla escaneos, discrepancias, rutas, devoluciones y rendición. Falta conectar la recepción con discrepancias, la asignación de envíos regulares, el control de faltantes y sobrantes al cargar, el cierre de devolución y la rendición. El punto 4 de Aldana ya contempla el escaneo en la PWA y el punto 4 de Ana contempla la vista de parciales y pendientes. | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
+| Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | Ya hay backend de recepción con discrepancias, asignación regular con consultas de envíos/rutas/flota, carga, despacho, devolución y rendición operativa. Falta integrar esas operaciones en las interfaces y completar el aviso/control de sobrantes al cargar. El punto 4 de Aldana contempla el escaneo en la PWA y el punto 4 de Ana la vista de parciales y pendientes. Ver [recepción](docs/recepcion-deposito.md), [asignación](docs/asignacion-regular.md) y [cierre](docs/cierre-deposito.md). | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
 | Revisar el recálculo de indicadores y el cierre diario | **4 · Alcance, servicio de procesamiento en segundo plano** (pág. 3). | Los reportes actuales calculan sus resultados al consultar. Falta comprobar el procesamiento de indicadores y el cierre diario desde el Worker. El cierre aparece en el diagnóstico de «Nos organizamos» y quedó sin tarea numerada. | Aldana en Worker y Agustín para las reglas de cierre que falten. |
 | Confirmar la opción de autenticación exigida | **6.3 · Seguridad y autenticación** (pág. 5). | La aplicación usa cookies, tokens Bearer y `PasswordHasher`. En la revisión no se encontró ASP.NET Identity como almacén de usuarios ni OpenID Connect configurado. Confirmar con el equipo cómo se acredita o completa la opción de autenticación que pide la letra. | Agustín y Aldana, con Ana para validar el impacto en Web. |
 
@@ -102,8 +108,10 @@ este documento.
 Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirmar
 qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
 Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
-integren cambios en Domain o Application. La última medición fue **85,81 % en Domain**
-y **70,33 % en Application**, con poco margen en Application.
+integren cambios en Domain o Application. La medición local actualizada del **14/11** es
+**86,55 % en Domain** y **80,02 % en Application**. Estos porcentajes no sustituyen la
+medición del CI de cada nueva versión. Las demás filas siguen siendo una lista de revisión;
+no se dan por completas áreas ajenas sin contrastarlas con su implementación e integración.
 
 ## Aclaraciones adicionales del PDF
 
@@ -117,6 +125,178 @@ y **70,33 % en Application**, con poco margen en Application.
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+### 15/11: formulario y aplicación visual de identidad (letra original, requisito 5)
+
+Administrador configura marca, colores, contacto y URL HTTPS de logo con versión y CSRF.
+El portal toma el operador de la sesión; el seguimiento lo resuelve por token opaco.
+Ambos muestran marca/logo y contacto, con colores primario/secundario y texto contrastante.
+El seguimiento permite imágenes HTTPS en su CSP y el logo usa no-referrer. Sin caché
+adicional: cambios visibles al recargar. No cambia razón social legal, etiquetas, PWA,
+Worker ni comunicaciones. Sin migración nueva. Ver [identidad](docs/identidad-operador.md).
+
+### 15/11: formulario de extravío en el detalle (letra original, requisito 11)
+
+Administrador y despachador pueden registrar el extravío desde el detalle de envío,
+con motivo, confirmación explícita, antiforgery y versiones de envío/ruta. Se reutiliza
+el handler existente; estados, historial, bultos y outbox conservan su guardado atómico.
+Sin migraciones. El escenario de cierre nuevo permite ensayarlo antes de devolver su
+envío. Ver [formulario y alcance](docs/registro-extravios.md).
+
+### 15/11: pantallas de devoluciones y rendición (letra original, requisito 22)
+
+Integradas a petición de Agustín: listado del operador, detalle de devolución con inicio
+según reglas, recepción de bultos y confirmación, y detalle/rendición de rutas sin paradas
+activas. Enlaces desde Depósito y detalle de envío. Reutilizan handlers, roles de depósito,
+versiones y antiforgery; conservan los bultos entregados en parciales. Sin migración ni
+cambios de Worker/PWA. No son el cierre diario automático. Pasan 15 integraciones,
+incluidas dos nuevas de formularios, CSRF, concurrencia, aislamiento y bloqueo de rendición.
+Ver [pantallas y pruebas manuales](docs/cierre-deposito.md).
+
+### 14/11: separación de comercios homónimos en reportes (letra original, requisito 30)
+
+Corregida la agrupación de cumplimiento y liquidación del reporte de gestión: utiliza
+el identificador de cuenta comercial en lugar del nombre editable. Dos clientes con
+igual nombre mantienen sus métricas e importes separados, incluso tras renombrar o dar
+de baja lógica una cuenta. Se verificaron aislamiento entre operadores, filtro de fechas
+y conservación de totales con PostgreSQL real. No cambia el contrato público, las
+pantallas ni las fórmulas de importes; no requiere migración. No implementa el módulo
+de cuenta corriente/liquidaciones de las compañeras. Ver [detalle](docs/reportes-gestion.md).
+
+### 14/11: registro operativo de extravíos (letra original, requisito 11)
+
+Caso de uso y API para consultar y registrar extravíos sobre las reglas existentes:
+Administrador/Despachador activo, envío propio, versiones de envío y ruta, detalle y
+hora del servidor. Conserva bultos entregados en parciales y libera la parada activa
+con historial/outbox/estados/versiones en una sola escritura atómica. Pruebas de permisos,
+concurrencia y rollback. Sin migración ni cambios de pantallas/PWA/Worker. Queda el
+formulario del backoffice. Ver [contrato](docs/registro-extravios.md).
+
+### 14/11: A2, backend de identidad visual y contacto del operador
+
+Configuración persistida de marca, colores HEX, contacto y URL HTTPS de logo por operador,
+con versión de concurrencia. API administrativa con permisos/antiforgery; lectura por
+sesión y lectura pública mínima por token de seguimiento. Puerto de lectura para el
+ámbito confiable de mensajes, sin modificar Worker ni contratos de eventos. Migración
+`IdentidadVisualOperador` copia razón social a marca, asigna versiones y mantiene contacto
+previo vacío. La marca se consulta sin caché, separada del estado del envío, sin cambiar
+su contrato existente. Quedan formulario y aplicación visual con Ana y consumo en
+comunicaciones con Aldana: A2 integrado sigue abierto. Ver [contrato](docs/identidad-operador.md).
+
+### 14/11: cierre de revisión de perfiles/permisos del backend A1
+
+Revisada la asignación del perfil Comercio en servidor y sus permisos por rol/cuenta.
+Se agregaron pruebas de los ocho endpoints administrativos contra Despachador, Operario
+de depósito y Repartidor, y pruebas con Bearer real de Comercio sin elevación de privilegios
+por campos extra. Administrador activo del operador conserva la gestión exclusiva.
+No se inventa un editor genérico de permisos ni nuevos perfiles comerciales sin requisito.
+El backend de A1 queda cubierto según el contrato; las pantallas siguen pendientes de Web.
+Esto no cierra V1 (elección de autenticación exigida por la letra), que sigue separado.
+
+### 14/11: A1, modificación y baja de la cuenta comercial
+
+Backend para editar razón social, teléfono y email locales del operador y dar de baja
+la cuenta comercial sin modificar el Comercio global compartido. Migración
+`AdministracionCuentaComercial`: copia datos existentes, mantiene cuentas activas y
+asigna versión de concurrencia. Baja lógica: bloquea autenticación y nuevas altas,
+conservando historial, procesamiento operativo y mensajes pendientes. El trigger de
+PostgreSQL serializa el INSERT de envío con la baja de cuenta. Reportes/detalles del
+backoffice usan la ficha local. Sin cambios de pantallas/PWA/Worker. A1 sigue abierto
+para revisar perfiles/permisos y presentación; las pantallas de cuenta corriente,
+etiquetas e importación continúan con las compañeras. Ver [contrato](docs/administracion-comercios.md).
+
+### 14/11: A1, primera etapa de modificación/baja de usuarios
+
+El backend permite modificar el email y dar de baja lógica usuarios de Comercio de una
+única cuenta propia. Revalida administrador, cuenta y rol, exige antiforgery, compara el
+email/estado leídos dentro de una transacción con bloqueo por usuario y conserva los
+vínculos, credenciales e historial. La baja rechaza nuevos logins y el uso de sesiones
+anteriores en las operaciones que revalidan la identidad. Sin migración. Quedan edición
+y baja del comercio/cuenta, revisión de perfiles/permisos y pantallas; A1 sigue abierto.
+Cuenta corriente, etiquetas y pantalla de importación están en curso por las compañeras
+según confirmó Agustín; no se implementan en paralelo aquí. Ver [plan](PLAN-PENDIENTES.md)
+y [contrato](docs/administracion-comercios.md).
+
+### 14/11: altas y consultas de zonas/franjas (letra original, 5.1)
+
+API administrativa para crear zonas con al menos una franja, consultar zonas y horarios
+y añadir franjas a una zona propia. Administrador activo revalidado, aislamiento y CSRF.
+El alta de zona/franjas es atómica; las adiciones concurrentes no reemplazan la colección.
+Se reutilizan los catálogos del tarifario y las opciones de alta existentes, sin modificar
+ventanas o precios históricos. Una zona nueva requiere una línea de tarifa para cotizar.
+Sin migración ni cambios de pantallas/PWA/Worker. Quedan edición/bajas y pantallas;
+los POST no son idempotentes. Ver [contrato y límites](docs/administracion-zonas.md).
+
+### 14/11: altas y consultas de comercios/cuentas/usuarios (letra original, 5.1)
+
+API administrativa para crear comercio y cuenta propia juntos, listarlos y crear/listar
+usuarios de Comercio vinculados a una cuenta del operador. Hash y vínculo se guardan
+juntos; email normalizado único por operador, incluso ante carreras. Se conservan los
+comercios compartidos existentes sin permitir descubrir/enlazar o editar datos ajenos.
+Roles, antiforgery, identidad y aislamiento verificados. Sin migración ni cambios de
+pantallas/PWA/Worker. Quedan edición/bajas/permisos adicionales y zonas/franjas. Ver
+[contrato y límites](docs/administracion-comercios.md).
+
+### 14/11: altas y consultas de flota (letra original, requisito 6)
+
+API administrativa para registrar/listar repartidores con contraseña hasheada y vehículos
+con capacidades positivas. Normaliza email/matrícula y valida duplicados del operador,
+también ante altas simultáneas. Revalida administrador activo, exige antiforgery y deriva
+el operador de la sesión. Los recursos aparecen en planificación y permiten crear rutas.
+Sin migración ni cambios de pantallas, PWA o Worker. No incluye edición ni bajas; los
+otros bloques administrativos siguen pendientes. Ver [contrato](docs/administracion-flota.md).
+
+Este registro conserva el alcance y los pendientes de cada etapa histórica. Para el
+estado actualizado de los puntos revisados se usa la tabla anterior y la entrada más
+reciente; una tarea pendiente en una entrada antigua puede haberse completado después.
+
+### 14/11: alta por API para comercios (letra original, requisitos 7 y 9)
+
+Login con credenciales de comercio y Bearer existente; consulta de opciones y cotización;
+alta con referencia estable por cuenta/operador. Reutiliza cálculo, reglas y guardado
+idempotente de la importación: 201 al crear, 200 al reconocer el reenvío y 409 si cambia
+el contenido de una referencia existente. Alta, historial, outbox y referencia se guardan
+juntos. El login exige una única cuenta y limita intentos por IP. Sin migración nueva,
+cambios de pantallas, PWA o Worker. Ver [contrato y alcance](docs/api-comercios.md).
+
+### 14/11: devolución y rendición operativa (letra original, requisito 22)
+
+APIs de devoluciones abiertas, consulta por envío, inicio según reglas, recepción de sus
+bultos y cierre con historial/outbox. Respetan la composición parcial y los entregados.
+APIs de rutas por rendir, consulta y rendición, exigiendo despacho y ninguna parada activa.
+Permisos de depósito, antiforgery, versiones y rollback; escaneos repetidos reconocidos
+mientras la devolución siga abierta. La rendición no completa devoluciones automáticamente
+ni agrega cobros/liquidaciones. Sin migración ni cambios de pantallas/PWA/Worker.
+Quedan las integraciones de interfaz. Ver [contrato y límites](docs/cierre-deposito.md).
+
+### 14/11: asignación regular de envíos (letra original, requisitos 13–16)
+
+Consultas de envíos preparados, rutas abiertas con ocupación/capacidad y flota del
+operador. API para asignar un envío completo conservando programación y tarifa, con
+orden manual, validaciones del dominio y versiones de ambos agregados. Se reutiliza
+la creación de rutas existente. Estado, parada, composición, evento y outbox se guardan
+juntos. Se traduce también a conflicto la carrera por el mismo número de parada.
+Las entregas parciales siguen usando su flujo específico. Sin migración ni cambios de
+pantallas/PWA; quedan formularios, cierre de devoluciones y rendición. Ver
+[contrato](docs/asignacion-regular.md).
+
+### 14/11: recepción en depósito (letra original, requisito 10)
+
+Consulta de manifiesto y cantidades; escaneo por código; registro de discrepancias de
+envío o bulto con valores declarado y recibido; confirmación del ingreso cuando todos
+los bultos estén escaneados. Identidad del operador/responsable resuelta desde sesión,
+permisos de depósito, antiforgery, versiones y reconocimiento de reenvíos sin duplicar.
+La confirmación guarda estado, evento y outbox juntos. Se conservan los valores declarados
+y la tarifa. No requiere migración ni modifica pantallas/PWA. Asignación regular y cierre
+de devoluciones/rendición continúan pendientes. Ver [contrato](docs/recepcion-deposito.md).
+
+### 13/11: servicios de integración en CI (letra original, 6.15)
+
+Configurado el runner con PostgreSQL, RabbitMQ, Redis y el compose de observabilidad;
+variables de prueba, espera de disponibilidad y publicación de reportes TRX. El pipeline
+rechaza pruebas omitidas mediante `Assert-TestResults.ps1`. No requiere AWS activo.
+Pendiente confirmar la ejecución completa sin omisiones en GitHub Actions después del
+push. Los timeouts de datos demo anotados previamente no se ocultan ni se dan por resueltos.
 
 ### 13/11: backend de carga de rutas (letra original, requisito 19)
 

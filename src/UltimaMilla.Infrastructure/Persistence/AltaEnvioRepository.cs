@@ -21,6 +21,7 @@ public sealed class AltaEnvioRepository(AppDbContext db) : IAltaEnvioRepository
             ?? throw new AislamientoOperadorException();
         if (command.ComercioId != Guid.Empty && cuenta.ComercioId != command.ComercioId)
             throw new AislamientoOperadorException();
+        if (!cuenta.Activa) throw new InvalidOperationException("La cuenta comercial está dada de baja.");
         var usuario = await db.Set<Usuario>().Include(u => u.Operador).Include(u => u.CuentasComerciales)
             .SingleOrDefaultAsync(u => u.Id == tenant.UsuarioId && u.Activo, cancellationToken)
             ?? throw new AislamientoOperadorException();

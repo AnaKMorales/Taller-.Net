@@ -65,8 +65,11 @@ despacho posterior sí guarda sus eventos/outbox como antes.
 
 Quedan a cargo de las interfaces la lectura de cámara/escáner, la selección de ruta y la
 presentación de faltantes o códigos ambiguos. No se agregó un flujo offline de carga,
-un registro persistido de sobrantes, ni recepción con discrepancias, asignación regular
-o rendición. No se considera completo todo el circuito de depósito.
+un registro persistido de sobrantes.
+La [recepción con discrepancias](recepcion-deposito.md) ya tiene su propio backend.
+La [asignación regular](asignacion-regular.md) también está disponible en backend.
+El [cierre de devoluciones y rendición](cierre-deposito.md) dispone de sus propias APIs.
+No se considera completo todo el circuito de depósito.
 
 Las pruebas verifican cookie/CSRF y Bearer real, permisos del operario, repartidor asignado,
 aislamiento, códigos ambiguos, reenvíos, carrera de cargas, rollback, carga de pendientes y

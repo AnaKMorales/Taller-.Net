@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -14,7 +15,8 @@ internal static class CuentaModel
         foreach (var type in builder.Model.GetEntityTypes().Where(t => t.BaseType is null).ToArray())
         {
             if (type.ClrType == typeof(ProgramacionEntrega) || type.ClrType == typeof(Comercio) ||
-                type.ClrType == typeof(Usuario) || type.ClrType == typeof(Dictionary<string, object>)) continue;
+                type.ClrType == typeof(Usuario) || type.ClrType == typeof(Dictionary<string, object>) ||
+                IdentidadModel.EsIdentidad(type.ClrType)) continue;
             var row = Expression.Parameter(type.ClrType, "row");
             Expression<Func<bool>> unrestricted = () => !context.CuentaRestringida;
             Expression<Func<bool>> notPublic = () => !context.EsSeguimientoPublico;

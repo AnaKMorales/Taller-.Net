@@ -10,9 +10,13 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
 using UltimaMilla.Application.Abstractions;
+using UltimaMilla.Application.Administracion;
+using UltimaMilla.Infrastructure.Persistence.Administracion;
 using UltimaMilla.Application.Despacho;
+using UltimaMilla.Application.Deposito;
 using UltimaMilla.Application.Envios.AltaPortal;
 using UltimaMilla.Application.Envios.CrearEnvio;
+using UltimaMilla.Application.Envios.Extravio;
 using UltimaMilla.Application.Envios.ReprogramacionPublica;
 using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
@@ -26,6 +30,7 @@ using UltimaMilla.Infrastructure.Persistence.Backoffice;
 using UltimaMilla.Infrastructure.Persistence.Envios;
 using UltimaMilla.Infrastructure.Persistence.Configuracion;
 using UltimaMilla.Infrastructure.Persistence.Despacho;
+using UltimaMilla.Infrastructure.Persistence.Deposito;
 using UltimaMilla.Infrastructure.Persistence.Intentos;
 using UltimaMilla.Infrastructure.Persistence.Tablero;
 using UltimaMilla.Web.Components;
@@ -79,6 +84,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 // Razor Pages para el Backoffice y Blazor para el Portal
 builder.Services.AddRazorPages();
 builder.Services.AddAntiforgery(o => o.HeaderName = ApiOperativa.CabeceraAntiforgery);
+builder.Services.AgregarApiComercios();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Sesión con cookie para backoffice y portal; token Bearer para la PWA del repartidor.
@@ -133,6 +139,14 @@ builder.Services.AgregarPublicacionDirecta(builder.Configuration);
 builder.Services.AddScoped<ReenviarAvisoHandler>();
 
 builder.Services.AddScoped<CrearEnvioHandler>();
+builder.Services.AddScoped<IExtravioRepository, ExtravioRepository>();
+builder.Services.AddScoped<RegistrarExtravioHandler>();
+builder.Services.AddScoped<IAdministracionFlota, AdministracionFlota>();
+builder.Services.AddScoped<IAdministracionComercios, AdministracionComercios>();
+builder.Services.AddScoped<IAdministracionZonas, AdministracionZonas>();
+builder.Services.AddScoped<IdentidadOperador>();
+builder.Services.AddScoped<IAdministracionIdentidadOperador>(sp => sp.GetRequiredService<IdentidadOperador>());
+builder.Services.AddScoped<IConsultaIdentidadOperador>(sp => sp.GetRequiredService<IdentidadOperador>());
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 // Alta de envíos desde el portal: opciones del comercio, tarifa con el tarifario vigente y fechas en el servidor.
 builder.Services.AddSingleton<ICalculadorTarifa, CalculadorTarifa>();
@@ -150,8 +164,16 @@ builder.Services.AgregarHojasRuta();
 builder.Services.AddScoped<IDespachoPendientes, DespachoPendientes>();
 builder.Services.AddScoped<IDespachoRutaRepository, DespachoRutaRepository>();
 builder.Services.AddScoped<DespacharRutaHandler>();
+builder.Services.AddScoped<IAsignacionEnvioRutaRepository, AsignacionEnvioRutaRepository>();
+builder.Services.AddScoped<AsignarEnvioRutaHandler>();
 builder.Services.AddScoped<IRegistroCargaRutaRepository, DespachoRutaRepository>();
 builder.Services.AddScoped<RegistrarCargaRutaHandler>();
+builder.Services.AddScoped<IRecepcionDepositoRepository, RecepcionDepositoRepository>();
+builder.Services.AddScoped<RecepcionDepositoHandler>();
+builder.Services.AddScoped<IDevolucionDepositoRepository, CierreDepositoRepository>();
+builder.Services.AddScoped<IRendicionRutaRepository, CierreDepositoRepository>();
+builder.Services.AddScoped<DevolucionDepositoHandler>();
+builder.Services.AddScoped<RendirRutaHandler>();
 builder.Services.AgregarRegistroIntentos();
 builder.Services.AgregarConfiguracionVersionada();
 
@@ -229,6 +251,7 @@ app.MapRazorPages();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapHub<TableroHub>(TableroHub.Ruta);
 app.MapearApiOperativa();
+app.MapearApiComercios();
 app.MapApiRepartidor();
 app.MapHealthChecks("/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
@@ -254,6 +277,9 @@ if (app.Environment.IsDevelopment())
 
     dev.MapPost("/datos-demo-pwa", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
         Results.Ok(await DatosDemo.CrearAsync(options, ct, incluirVisitaParcial: true)));
+
+    dev.MapPost("/datos-demo-cierre", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
+        Results.Ok(await DatosDemo.CrearCierreAsync(options, ct)));
 
     dev.MapGet("/tarifario/{operadorId:guid}", async (Guid operadorId, ITarifarioVigente tarifario, CancellationToken ct) =>
         await tarifario.ObtenerAsync(operadorId, ct) is { } cuadro ? Results.Ok(cuadro) : Results.NotFound());

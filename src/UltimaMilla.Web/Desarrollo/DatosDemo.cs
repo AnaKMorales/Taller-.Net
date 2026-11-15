@@ -10,12 +10,15 @@ using UltimaMilla.Domain.Notificaciones;
 using UltimaMilla.Domain.Operadores;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Infrastructure.Persistence;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 
 namespace UltimaMilla.Web.Desarrollo;
 
 public sealed record DatosDemoCreados(Guid OperadorId, string EmailAdministrador, string EmailComercio,
     string EmailRepartidor, string Contrasena, string CodigoSeguimiento);
+
+public sealed record DatosCierreDemo(DatosDemoCreados Usuarios, Guid EnvioId, Guid RutaId, string[] Bultos);
 
 // Datos de prueba, solo para desarrollo. Cada llamada crea un operador nuevo.
 // (/dev/datos-demo usa EscenarioDemo, con dos operadores de configuración distinta; este se usa en /dev/datos-demo-pwa.)
@@ -26,9 +29,9 @@ public static class DatosDemo
     private const string ContrasenaDemo = "Demo1234!";
 
     public static async Task<DatosDemoCreados> CrearAsync(DbContextOptions<AppDbContext> options, CancellationToken ct,
-        bool incluirVisitaParcial = false)
+        bool incluirVisitaParcial = false, bool prepararCierre = false)
     {
-        var ahora = incluirVisitaParcial ? DateTime.UtcNow.AddMinutes(-1) : DateTime.UtcNow;
+        var ahora = incluirVisitaParcial || prepararCierre ? DateTime.UtcNow.AddMinutes(-1) : DateTime.UtcNow;
         var sufijo = Guid.NewGuid().ToString("N")[..8];
 
         var operador = new Operador($"Operador demo {sufijo}");
@@ -42,7 +45,8 @@ public static class DatosDemo
         var reglas = new ReglasOperativas(operador, 1, ahora.AddDays(-1), 2, 0, [TipoPrueba.Foto],
             new PoliticaDevolucion(1, 5, true), permiteEntregaParcial: incluirVisitaParcial);
         _ = new PlazoServicio(reglas, ModalidadServicio.Estandar, 24, new(16, 0));
-        var ausente = new MotivoNoEntrega(reglas, "Ausente", "Nadie atendió", Responsable.Destinatario, true, true);
+        var ausente = new MotivoNoEntrega(reglas, prepararCierre ? "Rechazado" : "Ausente",
+            prepararCierre ? "El destinatario rechazó la entrega" : "Nadie atendió", Responsable.Destinatario, true, !prepararCierre);
 
         var cuadro = new CuadroTarifario(operador, 1, ahora.AddDays(-1));
         var linea = new LineaTarifa(cuadro, zona, ModalidadServicio.Estandar, 0, 100, 10, 150);
@@ -79,7 +83,7 @@ public static class DatosDemo
         db.AddRange(admitido, fallido, entregado, admin, usuarioComercio, repartidor);
         if (visitaParcial is not null) db.Add(visitaParcial);
         foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
-            ContrasenasUsuario.Asignar(db, usuario, ContrasenaDemo);
+            await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, usuario, ContrasenaDemo);
         await db.SaveChangesAsync(ct);
 
         var ruta = new Ruta(repartidor, vehiculo, 10);
@@ -90,6 +94,10 @@ public static class DatosDemo
         db.Add(ruta);
         await db.SaveChangesAsync(ct);
 
+        if (prepararCierre)
+            foreach (var envio in new[] { fallido, entregado })
+                foreach (var paquete in envio.Bultos)
+                    EscaneoBulto.RegistrarCarga(ruta, paquete, admin, ahora.AddSeconds(3));
         ruta.Despachar(admin, ahora.AddSeconds(3));
         fallido.RegistrarIntento(ResultadoIntento.Fallido, ausente,
             [new PruebaEntrega(TipoPrueba.Foto, ahora.AddSeconds(4), Montevideo, new ArchivoRef("evidencias/demo.jpg"))],
@@ -109,7 +117,16 @@ public static class DatosDemo
         await db.SaveChangesAsync(ct);
         await transaccion.CommitAsync(ct);
         return new DatosDemoCreados(operador.Id, admin.Email, usuarioComercio.Email, repartidor.Email, ContrasenaDemo,
-            (visitaParcial ?? admitido).CodigoSeguimiento);
+            (prepararCierre ? fallido : visitaParcial ?? admitido).CodigoSeguimiento);
+    }
+
+    public static async Task<DatosCierreDemo> CrearCierreAsync(DbContextOptions<AppDbContext> options, CancellationToken ct)
+    {
+        var usuarios = await CrearAsync(options, ct, prepararCierre: true);
+        await using var db = new AppDbContext(options, TenantActual.ParaOperador(usuarios.OperadorId));
+        var envio = await db.Envios.Include(e => e.Bultos).SingleAsync(e => e.CodigoSeguimiento == usuarios.CodigoSeguimiento, ct);
+        var rutaId = await db.Set<Ruta>().Select(r => r.Id).SingleAsync(ct);
+        return new(usuarios, envio.Id, rutaId, envio.Bultos.Select(b => b.Codigo).ToArray());
     }
 
     public static async Task SimularAltaAsync(DbContextOptions<AppDbContext> options, Guid operadorId, CancellationToken ct)

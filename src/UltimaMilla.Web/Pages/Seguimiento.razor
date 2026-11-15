@@ -10,8 +10,12 @@
 @inject ISeguimientoPublico Consulta
 @inject ReprogramarPorDestinatarioHandler Reprogramar
 @inject NavigationManager Navegacion
+@using UltimaMilla.Application.Administracion
+@using UltimaMilla.Web.Components
+@using UltimaMilla.Web.Compartido
+@inject IConsultaIdentidadOperador Identidades
 
-<PageTitle>@(envio is null ? "Seguimiento de envío" : $"Tu envío con {envio.Operador}")</PageTitle>
+<PageTitle>@(envio is null ? "Seguimiento de envío" : $"Tu envío con {identidad?.Marca ?? envio.Operador}")</PageTitle>
 <HeadContent>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
@@ -51,7 +55,13 @@
     }
     else
     {
-        <p class="operador">Envío gestionado por <strong>@envio.Operador</strong></p>
+        @if (identidad is { } marca)
+        {
+            <section style="@TemaOperador.Fondo(marca.ColorPrimario);padding:1rem;border-radius:12px;margin-bottom:16px">
+                <MarcaOperador Datos="marca" />
+            </section>
+        }
+        else { <p class="operador">Envío gestionado por <strong>@envio.Operador</strong></p> }
 
         <section class="tarjeta">
             <p class="estado @Tono(envio.Estado)">@Titulo(envio.Estado)</p>
@@ -119,6 +129,7 @@
             </ol>
         </section>
     }
+    @if (envio is not null && identidad is { } contacto) { <ContactoOperador Datos="contacto" /> }
     <p class="pie">Este enlace es personal. No lo compartas con otras personas.</p>
 </main>
 
@@ -131,6 +142,7 @@
     [SupplyParameterFromQuery(Name = "reprogramado")] public bool Reprogramado { get; set; }
 
     private SeguimientoPublicoDto? envio;
+    private IdentidadOperadorDto? identidad;
     private OpcionesReprogramacion? reprogramacion;
     private string? errorReprogramacion;
 
@@ -144,6 +156,7 @@
             Navegacion.NotFound(); // 404 con la página NoEncontrado
             return;
         }
+        identidad = await Identidades.PorSeguimientoAsync(Token, Cancelacion);
         // Solo si lo pide: cargar las opciones es pesado
         if (QuiereReprogramar && PuedeHaberReprogramacion)
             reprogramacion = await Reprogramar.OpcionesAsync(Token, Cancelacion);

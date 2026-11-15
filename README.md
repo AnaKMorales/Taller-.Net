@@ -4,16 +4,67 @@ Este repositorio está organizado siguiendo la estructura indicada en la documen
 
 El alcance, los pendientes y el orden de integración de la entrega parcial para el equipo
 de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIENTOS.md).
+El [plan de cierre de requisitos](PLAN-PENDIENTES.md) separa obligaciones confirmadas,
+verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
+
+Las pantallas de [devoluciones y rendición](docs/cierre-deposito.md) están en
+`/backoffice/deposito/cierre`, accesibles desde Depósito. Permiten recibir los bultos
+esperados, completar devoluciones y rendir rutas sin paradas activas, con versiones y
+antiforgery. Pueden usarlas administrador, despachador y operario de depósito.
+
+Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por
+cuenta comercial, aunque dos clientes tengan el mismo nombre. La corrección conserva
+el formato de respuesta y no requiere migración.
+
+El [registro operativo de extravíos](docs/registro-extravios.md) dispone de consulta y API
+de confirmación con permisos, versiones y guardado de historial/outbox. El detalle de envío
+incluye formulario para Administrador/Despachador, con detalle y confirmación explícita.
+No requiere migración.
+
+La [identidad visual del operador](docs/identidad-operador.md) tiene backend para configurar
+marca, colores, contacto público y URL de logo, con lecturas para las aplicaciones y el
+seguimiento por token. Requiere la migración `IdentidadVisualOperador`. Queda integrar
+el consumo en comunicaciones con su responsable. El formulario administrativo está en
+`/backoffice/configuracion/identidad`; portal y seguimiento ya aplican los datos guardados.
+
+La [administración de flota](docs/administracion-flota.md) permite al administrador crear
+y consultar repartidores con credenciales y vehículos con sus capacidades. Faltan las
+pantallas y las operaciones de edición/baja.
+
+La [administración de comercios](docs/administracion-comercios.md) permite crear y consultar
+comercios/cuentas y sus usuarios con credenciales, conservando el aislamiento. Quedan las
+pantallas. El backend de A1 incluye permisos por rol y cuenta verificados, permite cambiar el email y dar de baja lógica
+usuarios de Comercio de una única cuenta propia, así como editar la ficha local y dar
+de baja la cuenta comercial sin afectar otros operadores. Esta última etapa requiere
+aplicar la migración `AdministracionCuentaComercial`.
+
+La [administración de zonas y franjas](docs/administracion-zonas.md) permite crear y consultar
+zonas con sus horarios y añadir nuevas franjas. Se integra con el tarifario y las opciones
+de alta existentes; quedan las pantallas y la edición/baja.
 
 La consulta de preparación y la API de despacho están documentadas en
 [Despacho operativo](docs/despacho-operativo.md). La [API de carga por código](docs/carga-rutas.md)
 también está disponible; las interfaces de carga y despacho siguen pendientes.
 
+La [recepción en depósito](docs/recepcion-deposito.md) cuenta con API de consulta,
+escaneo, registro de discrepancias y confirmación. Su interfaz sigue pendiente.
+
+La [asignación regular](docs/asignacion-regular.md) permite consultar envíos preparados,
+rutas abiertas y flota, y asignar con versiones, capacidad y ventana horaria verificadas.
+La conexión a los formularios del backoffice sigue pendiente.
+
+El [cierre en depósito](docs/cierre-deposito.md) tiene API para iniciar, escanear y
+completar devoluciones, y para consultar/rendir rutas. Falta conectar las pantallas;
+la rendición implementada es operativa y no incluye cobros o liquidaciones.
+
 El backend de importación masiva idempotente y su contrato para integrar al portal se
 describen en [Importación de envíos](docs/importacion-envios.md). La lectura de archivos
 y la pantalla de importación siguen pendientes.
+
+El [alta por API para comercios](docs/api-comercios.md) permite autenticación Bearer,
+consulta de opciones, cotización y creación idempotente por referencia de pedido.
 
 La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
 Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
@@ -41,6 +92,18 @@ Para medir la cobertura de líneas de Domain y Application desde PowerShell:
 
 Cada capa debe superar el 70 %. GitHub Actions muestra ambos resultados en el resumen
 del job y publica los XML de Cobertura en el artefacto `cobertura-domain-application`.
+
+El job `build-test` levanta PostgreSQL, RabbitMQ y Redis temporales en el runner, además
+del compose de observabilidad para la prueba de trazabilidad. No depende del despliegue
+en AWS. Configura las conexiones de integración y publica los reportes TRX en
+`resultados-pruebas`. `scripts/Assert-TestResults.ps1` hace fallar el job si encuentra
+pruebas omitidas o incompletas, o si no hay resultados. Las credenciales de CI son
+exclusivamente para esos contenedores efímeros. La primera corrida completa de esta
+configuración debe validarse en Actions después de subir el cambio.
+
+La prueba con colector real se ejecuta en un proceso independiente dentro de `build-test`,
+con reporte `TestResults/colector/colector.trx` y control de omisiones propio. Continúa
+siendo obligatoria. El CI habilita los logs internos de Loki y del colector para diagnóstico.
 
 ## Logs estructurados de Web y Worker
 

@@ -3,6 +3,38 @@ namespace UltimaMilla.Domain.Tests;
 public sealed class RelacionesTests
 {
   [Fact]
+  public void CuentaEditaDatosLocalesSinCambiarComercioCompartidoYBajaConservaHistorial()
+  {
+    var comercio = new Comercio("Común", "123", "c@example.com");
+    var a = new CuentaComercial(new Operador("A"), comercio);
+    var b = new CuentaComercial(new Operador("B"), comercio);
+    var version = a.Version;
+    a.ModificarDatos("Local", "456", "l@example.com");
+    Assert.NotEqual(version, a.Version);
+    Assert.Equal("Común", b.RazonSocial); Assert.Equal("Común", comercio.RazonSocial);
+    version = a.Version;
+    Assert.Throws<ArgumentException>(() => a.ModificarDatos("No guardar", " ", "x@example.com"));
+    Assert.Equal("Local", a.RazonSocial); Assert.Equal(version, a.Version);
+    a.DarBaja(); Assert.False(a.Activa); Assert.NotEqual(version, a.Version);
+    version = a.Version; a.DarBaja(); Assert.Equal(version, a.Version);
+    Assert.Throws<InvalidOperationException>(() => a.ModificarDatos("X", "123", "x@example.com"));
+    Assert.True(b.Activa);
+  }
+
+  [Fact]
+  public void UsuarioActualizaEmailSinCambiarRolYNoPuedeEditarTrasLaBaja()
+  {
+    var usuario = new Usuario(new Operador("Operador"), "inicial@example.com", RolUsuario.Comercio);
+    usuario.ActualizarEmail(" nuevo@example.com ");
+    Assert.Equal("nuevo@example.com", usuario.Email);
+    Assert.Equal(RolUsuario.Comercio, usuario.Rol);
+    Assert.Throws<ArgumentException>(() => usuario.ActualizarEmail(" "));
+    usuario.Desactivar();
+    Assert.Throws<InvalidOperationException>(() => usuario.ActualizarEmail("otro@example.com"));
+    Assert.Equal("nuevo@example.com", usuario.Email);
+  }
+
+  [Fact]
   public void ComercioPuedeTrabajarConDosOperadoresConCuentasDistintas()
   {
     var comercio = new Comercio("Tienda", "099123456", "tienda@example.com");

@@ -145,7 +145,7 @@ public sealed partial class PostgresTests
         {
             var otro = new Repartidor(await db.Set<Operador>().SingleAsync(), otroEmail);
             db.Add(otro);
-            ContrasenasUsuario.Asignar(db, otro, ContrasenaApiIntentos);
+            await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, otro, ContrasenaApiIntentos);
             await db.SaveChangesAsync();
         }
 
@@ -185,7 +185,7 @@ public sealed partial class PostgresTests
     {
         await using var db = Context(operadorId);
         var repartidor = await db.Set<Repartidor>().SingleAsync(r => r.Id == repartidorId);
-        ContrasenasUsuario.Asignar(db, repartidor, ContrasenaApiIntentos);
+        await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, repartidor, ContrasenaApiIntentos);
         await db.SaveChangesAsync();
     }
 

@@ -10,3 +10,4 @@ global using UltimaMilla.Domain.Despacho;
 global using UltimaMilla.Domain.Deposito;
 global using UltimaMilla.Domain.Notificaciones;
 global using UltimaMilla.Infrastructure.Persistence;
+global using UltimaMilla.Infrastructure.Persistence.Identidad;

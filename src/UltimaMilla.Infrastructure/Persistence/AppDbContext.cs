@@ -7,10 +7,14 @@ using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Infrastructure.Persistence.Concurrency;
 using Npgsql;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence;
 
-public sealed class AppDbContext : DbContext
+// Hereda de IdentityUserContext: las tablas de ASP.NET Identity (AspNetUsers y afines) viven en esta misma base
+// y migración. No llevan filtro de operador (ver IdentidadModel e IdentidadWriteGuard).
+public sealed class AppDbContext : IdentityUserContext<CuentaAcceso, Guid>
 {
     // Se captura una vez: cambiar el servicio de identidad no cambia un contexto ya utilizado.
     private readonly TenantContext? _tenant;
@@ -44,6 +48,8 @@ public sealed class AppDbContext : DbContext
         try { return base.SaveChanges(acceptAllChangesOnSuccess); }
         catch (DbUpdateException error) when (IsConcurrencyConflict(error))
         { throw new ConflictoConcurrenciaException(error); }
+        catch (DbUpdateException error) when (IsInactiveAccount(error))
+        { throw new InvalidOperationException("La cuenta comercial no admite nuevos envíos.", error); }
     }
 
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
@@ -51,13 +57,20 @@ public sealed class AppDbContext : DbContext
         try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
         catch (DbUpdateException error) when (IsConcurrencyConflict(error))
         { throw new ConflictoConcurrenciaException(error); }
+        catch (DbUpdateException error) when (IsInactiveAccount(error))
+        { throw new InvalidOperationException("La cuenta comercial no admite nuevos envíos.", error); }
     }
+
+    private static bool IsInactiveAccount(DbUpdateException error) => error.InnerException is PostgresException
+        { SqlState: PostgresErrorCodes.CheckViolation, ConstraintName: "CK_Envios_CuentaActiva" };
 
     // Una operación concurrente puede chocar con su índice único antes del UPDATE de la raíz.
     private static bool IsConcurrencyConflict(DbUpdateException error) =>
         error is DbUpdateConcurrencyException || error.InnerException is PostgresException
         { SqlState: PostgresErrorCodes.UniqueViolation } postgres && postgres.ConstraintName is
-            ConcurrencyModel.ActiveAssignmentIndex or "IX_IntentosEntrega_EnvioId_Numero" or
+            ConcurrencyModel.ActiveAssignmentIndex or ConcurrencyModel.StopOrderIndex or
+            "IX_Devoluciones_EnvioId" or "IX_Devoluciones_EnvioId_TenantId" or
+            "IX_Rendiciones_RutaId" or "IX_Rendiciones_RutaId_TenantId" or "IX_IntentosEntrega_EnvioId_Numero" or
             "IX_IntentosEntrega_EnvioId_IdOperacion" or "IX_EventosDeEnvio_EnvioId_IdOperacion" or
             "IX_RecargosVisita_ParadaId" or "IX_RecargosVisita_ParadaId_EnvioId_TenantId";
 
@@ -66,6 +79,7 @@ public sealed class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.Ignore<Entidad>();
         modelBuilder.Ignore<GeoPunto>();
         modelBuilder.Ignore<ArchivoRef>();

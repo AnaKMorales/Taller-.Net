@@ -20,6 +20,13 @@
     .bulto-EnDevolucion, .bulto-Devuelto, .bulto-Extraviado { color: #b42318; font-weight: 600; }
     .pendientes { background: #fffbeb; border: 1px solid #f0c36d; padding: 1rem; margin: 1rem 0; }
     .pendientes form { margin-top: .75rem; }
+    .campo-extravio { display: grid; gap: .5rem; margin-right: 0 !important; }
+    .campo-extravio textarea {
+        box-sizing: border-box; width: 100%; min-height: 8rem; padding: .75rem;
+        font: inherit; line-height: 1.5; color: inherit; background: #fff;
+        border: 1px solid #9fb3c8; border-radius: .25rem; resize: vertical;
+    }
+    .campo-extravio textarea:focus-visible { outline: 2px solid #245a81; outline-offset: 2px; }
 </style>
 
 <p><a href="/backoffice/tablero">← Tablero</a> · <a href="/backoffice/incidencias">Incidencias</a></p>
@@ -45,6 +52,7 @@
 </section>
 
 <h2>Bultos</h2>
+<p><a href="/backoffice/deposito/devolucion/@e.Id">Consultar o gestionar devolución en depósito</a></p>
 <table>
     <thead><tr><th>Código</th><th>Peso (kg)</th><th>Volumen (m³)</th><th>Estado</th></tr></thead>
     <tbody>
@@ -134,6 +142,24 @@
             </form>
         }
     </section>
+}
+
+@if (Model.OfreceExtravio && Model.Extravio is { } extravio)
+{
+    <details class="pendientes">
+        <summary>Marcar un envío como extraviado</summary>
+        <p>Esta operación registra el extravío de los bultos pendientes y finaliza la parada activa, si existe.
+            Los bultos ya entregados o devueltos se conservan. No se puede deshacer desde esta pantalla.</p>
+        <form method="post" asp-page-handler="Extraviar" class="formulario">
+            <input type="hidden" name="VersionExtravioEnvio" value="@extravio.VersionEnvio" />
+            <input type="hidden" name="VersionExtravioRuta" value="@extravio.VersionRuta" />
+            <label class="campo-extravio" for="detalle-extravio">Detalle del extravío
+                <textarea id="detalle-extravio" name="DetalleExtravio" required maxlength="2000" rows="5">@Model.DetalleExtravio</textarea>
+            </label>
+            <label><input type="checkbox" name="ConfirmarExtravio" value="true" required /> Confirmo que verifiqué el extravío de los bultos pendientes.</label>
+            <div><button type="submit">Confirmar extravío</button></div>
+        </form>
+    </details>
 }
 
 <h2>Intentos de entrega</h2>

@@ -11,6 +11,8 @@ services:
       - "127.0.0.1:13200:3200"
     environment:
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      ENABLE_LOGS_OTELCOL: ${OBSERVABILIDAD_LOGS_INTERNOS:-false}
+      ENABLE_LOGS_LOKI: ${OBSERVABILIDAD_LOGS_INTERNOS:-false}
     volumes:
       - ./provisioning:/etc/grafana/provisioning:ro
       - ./dashboards:/var/lib/ultimamilla-dashboards:ro

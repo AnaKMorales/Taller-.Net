@@ -171,5 +171,19 @@ verifica métricas recibidas y ejecuta las consultas de los paneles en Prometheu
 El manejador de negocio del consumidor se sustituye en esa prueba para confirmar el
 mensaje y capturar su contexto; no demuestra por sí sola la entrega de un webhook real.
 
+En GitHub Actions se combina el compose base con `deploy/observabilidad/compose.ci.yaml`.
+Loki guarda sus datos y su WAL (registro previo a la escritura) en un tmpfs limitado a
+512 MiB. Se descartan al eliminar el contenedor de pruebas. Así la ingestión no depende
+del espacio ocupado por imágenes y herramientas en el disco del runner. El WAL sigue
+habilitado y conserva el umbral de protección del 90 %; no se desactiva la protección
+ni se omite la comprobación de logs. Este ajuste solo se aplica al CI.
+
+El workflow imprime el uso del disco del runner al iniciar y el del tmpfs al iniciar y
+al terminar. En esta versión de Loki, el rechazo por espacio del WAL puede aparecer
+como `Ingester is shutting down`, incluso si las consultas siguen respondiendo. Buscar
+también `disk usage exceeded threshold, throttling writes` en los logs internos antes
+de atribuirlo a un cierre del proceso. Véase la
+[incidencia de Loki sobre ese mensaje](https://github.com/grafana/loki/issues/23769).
+
 Referencias: [sink OTLP de Serilog](https://github.com/serilog/serilog-sinks-opentelemetry)
 y [configuración de campos derivados de Loki](https://grafana.com/docs/grafana/latest/datasources/loki/configure/).

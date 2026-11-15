@@ -33,7 +33,7 @@ public sealed class DetalleEnvio(AppDbContext db) : IDetalleEnvio
             envio.CodigoSeguimiento,
             envio.Estado,
             envio.ModalidadServicio,
-            envio.CuentaComercial.Comercio.RazonSocial,
+            envio.CuentaComercial.RazonSocial,
             d.Nombre,
             d.Telefono,
             $"{d.Direccion.Calle} {d.Direccion.Numero}, {d.Direccion.Localidad} ({d.Direccion.CodigoPostal})",

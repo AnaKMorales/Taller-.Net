@@ -18,8 +18,9 @@ public sealed class ReportesGestion(AppDbContext db) : IReportesGestion
 
         var filas = await envios
             .Select(e => new Fila(
+                e.CuentaComercial.Id,
                 e.Zona.Nombre,
-                e.CuentaComercial.Comercio.RazonSocial,
+                e.CuentaComercial.RazonSocial,
                 // El repartidor del último intento; si todavía no hubo intentos, el de la ruta asignada.
                 e.Intentos.OrderByDescending(i => i.Numero).Select(i => i.Parada.Ruta.Repartidor.Email).FirstOrDefault()
                     ?? (e.Parada != null ? e.Parada.Ruta.Repartidor.Email : null),
@@ -48,16 +49,21 @@ public sealed class ReportesGestion(AppDbContext db) : IReportesGestion
             .OrderBy(v => v.Dia)
             .ToList();
 
-        var liquidacion = filas
-            .GroupBy(f => f.Comercio)
-            .Select(g => new LiquidacionComercio(g.Key, g.Count(), g.Sum(f => f.Tarifa)))
-            .OrderByDescending(l => l.Importe)
+        // El nombre es una etiqueta editable y puede repetirse entre clientes distintos.
+        var comercios = filas.GroupBy(f => f.CuentaComercialId).ToArray();
+        var liquidacion = comercios
+            .OrderByDescending(g => g.Sum(f => f.Tarifa)).ThenBy(g => g.First().Comercio).ThenBy(g => g.Key)
+            .Select(g => new LiquidacionComercio(g.First().Comercio, g.Count(), g.Sum(f => f.Tarifa)))
             .ToList();
+
+        var porComercio = comercios.OrderByDescending(g => g.Count()).ThenBy(g => g.First().Comercio).ThenBy(g => g.Key)
+            .Select(g => new Cumplimiento(g.First().Comercio, g.Count(), g.Count(f => f.Entregado),
+                g.Count(f => f.ATiempo), g.Sum(f => f.IntentosFallidos))).ToList();
 
         return new ReporteGestion(resumen, volumen,
             CumplimientoPor(filas, f => f.Zona),
             CumplimientoPor(filas, f => f.Repartidor ?? SinRepartidor),
-            CumplimientoPor(filas, f => f.Comercio),
+            porComercio,
             motivos, liquidacion);
     }
 
@@ -72,6 +78,6 @@ public sealed class ReportesGestion(AppDbContext db) : IReportesGestion
     private static DateTime AUtc(DateOnly dia, TimeSpan desfaseHorario) =>
         DateTime.SpecifyKind(dia.ToDateTime(TimeOnly.MinValue) - desfaseHorario, DateTimeKind.Utc);
 
-    private sealed record Fila(string Zona, string Comercio, string? Repartidor, DateTime FechaAdmision, decimal Tarifa,
+    private sealed record Fila(Guid CuentaComercialId, string Zona, string Comercio, string? Repartidor, DateTime FechaAdmision, decimal Tarifa,
         bool Entregado, bool ATiempo, bool PrimerIntento, int IntentosFallidos);
 }

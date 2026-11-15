@@ -172,6 +172,9 @@ public sealed partial class PostgresTests
         await CompletarFlujo(a);
         await CompletarFlujo(b);
         await using var db = Context(a.Operador.Id);
+        // Los dos operadores repiten emails; AgregarIdentidad (al volver a subir) exige que sean únicos en todo el
+        // sistema y abortaría. Este test prueba otra migración: se hacen únicos antes.
+        await db.Database.ExecuteSqlRawAsync("UPDATE \"Usuarios\" SET \"Email\" = replace(\"Email\", '@', '+' || left(\"Id\"::text, 8) || '@')");
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync("20261014230137_InitialCreate");
         await migrator.MigrateAsync();

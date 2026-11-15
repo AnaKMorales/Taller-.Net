@@ -617,3 +617,610 @@ la repetición aprobada del caso Bearer corregido. Pasaron 206 casos de Domain/A
 y 13 de arquitectura. Cobertura final Domain 85,97 % y Application 77,26 %.
 La solución compila con advertencias como errores. Sin cambios de base de desarrollo,
 commits o despliegue; se eliminaron los contenedores temporales de prueba.
+
+### 13/11/2026: dependencias de pruebas en GitHub Actions
+
+El usuario cambió la prioridad para ejecutar las pruebas omitidas antes del resto del
+circuito de depósito. Se añadieron servicios efímeros PostgreSQL, RabbitMQ y Redis al
+runner, variables de integración y el compose existente de observabilidad con espera de
+disponibilidad. Se reutilizaron los puertos y la configuración de la prueba del colector.
+No se requieren credenciales ni infraestructura AWS para este job.
+
+Se agregó control de omisiones leyendo resultados TRX y publicación de dichos archivos.
+Se comprobó localmente el rechazo de un TRX con NotExecuted y la aceptación de los 13
+resultados reales de arquitectura. No se ejecutó el workflow completo localmente ni se
+afirma que haya pasado en Actions: requiere subir los cambios y revisar su primera corrida.
+Los dos timeouts de datos demo siguen pendientes de investigar; no se alteraron pruebas
+de negocio ni se desactivaron para hacer pasar CI. Sin commit, push ni despliegue.
+
+### 13/11/2026: investigación de la prueba de logs en Loki
+
+El usuario proporcionó los logs del CI: 579 casos aprobados y uno fallido al consultar
+el log correlacionado de la PWA en Loki. Se revisaron exportación, consulta y ciclo de
+vida del host. La prueba original pasó aislada contra PostgreSQL, RabbitMQ y LGTM reales;
+se comprobó además el registro en Loki con el trace_id exacto. No se pudo reproducir
+localmente el fallo de esa ejecución completa de GitHub.
+
+Se detectó que ForceFlush cubría métricas y trazas, pero no el sink asíncrono de Serilog.
+Se cerró explícitamente el host tras generar/exportar la telemetría y antes de consultar
+Loki para vaciar ese sink. Se preservó la aserción original y su tiempo de espera, y se
+añadió la traza al mensaje de error. El pipeline ahora conserva en su salida los últimos
+logs del colector antes de detenerlo. Es una corrección de sincronización; su relación
+causal con el fallo intermitente del CI requiere confirmarse en la siguiente corrida.
+
+La prueba ajustada y la prueba de logging aprobaron juntas con los servicios reales.
+Compilación estricta correcta. Se eliminaron los contenedores temporales y se conservó
+el LGTM local que ya estaba iniciado. No se modificó código de producción ni se hizo push.
+
+### 13/11/2026: persistencia del fallo del colector en CI
+
+El usuario aportó otra corrida con la misma falla después de vaciar Serilog. Eso descarta
+dar por suficiente el ajuste previo: la causa exacta del fallo en la suite remota sigue
+sin confirmarse. El log del contenedor mostraba `logging=false` para Loki y el colector.
+Se inspeccionaron los scripts de la imagen local para verificar los nombres de las variables
+de diagnóstico; se habilitan solo en CI mediante OBSERVABILIDAD_LOGS_INTERNOS.
+
+Se añadió una captura local de eventos Serilog para distinguir emisión de exportación,
+SelfLog para informar errores internos del sink y diagnóstico en la aserción de Loki.
+Se separó la prueba del colector en otro proceso dentro del mismo job, sin reintento,
+con su TRX y validación obligatoria de resultados no vacíos/no omitidos. La selección
+principal excluye únicamente esa prueba y E2E, ambas ejecutadas en sus pasos dedicados.
+La hipótesis de interferencia entre hosts/proveedores requiere confirmación en GitHub.
+
+La compilación estricta pasó y la prueba de colector con diagnóstico pasó localmente con
+PostgreSQL, RabbitMQ, Redis y LGTM reales. Se eliminaron los tres servicios temporales y
+se dejó el LGTM previo. No se desactivaron aserciones ni se ampliaron esperas. Sin push.
+
+### 14/11/2026: rechazo de escrituras del WAL de Loki en CI
+
+Los nuevos logs aportados por el usuario muestran reintentos del colector hacia Loki
+con HTTP 503 e `Ingester is shutting down` mientras las consultas continúan respondiendo.
+El fallo persiste aun ejecutando el caso en un proceso aislado. Se consultaron fuentes
+primarias de Loki: la incidencia https://github.com/grafana/loki/issues/23769 y el PR
+https://github.com/grafana/loki/pull/24750 describen ese mensaje engañoso cuando el WAL
+supera su umbral de uso de disco. No se dispone del porcentaje de disco de aquella
+ejecución remota, por lo que esa causa concreta sigue pendiente de confirmación en CI.
+
+Se reprodujo el mecanismo sin llenar el disco: en un Loki temporal con la misma imagen
+se redujo el umbral del WAL al 0,1 %. Apareció la advertencia de throttling y una escritura
+válida devolvió HTTP 500 con el mismo mensaje `Ingester is shutting down`. Con un tmpfs
+de 512 MiB y el WAL trasladado a él, manteniendo el mismo umbral reducido, la escritura
+respondió 204. La diferencia 500/503 corresponde a la entrada directa usada en esa
+reproducción frente a la exportación OTLP del log remoto; el rechazo del ingester coincide.
+
+Se agregó un override de compose exclusivo de CI para datos y WAL de Loki en ese tmpfs.
+La configuración normal conserva WAL habilitado y su umbral del 90 %. El workflow usa
+el override en arranque, diagnóstico y cierre, e imprime uso de disco del runner y Loki.
+Se documentó el alcance en docs/observabilidad.md. No cambia el compose de desarrollo,
+la configuración AWS ni código de negocio o aserciones.
+
+Validación: compose combinado válido, git diff sin errores de espacios y un caso del
+colector completo aprobado (cero omitidos) contra PostgreSQL, RabbitMQ, Redis y un LGTM
+temporal levantado con ambos archivos compose. Se comprobó que /data/loki es tmpfs.
+La ejecución de GitHub con estos cambios todavía está pendiente. Los recursos temporales
+de la revisión se eliminaron y se conservó el LGTM local anterior. Sin commit ni push.
+
+### 14/11/2026: configuración de compilación en las migraciones del job E2E
+
+El usuario confirmó build-test aprobado en GitHub; E2E falló antes de ejecutar pruebas
+porque EF buscaba Infrastructure.deps.json en bin/Debug. El comando usaba `-c Release`:
+en dotnet ef esa opción selecciona el DbContext, mientras que la configuración de
+compilación requiere `--configuration Release`. Se comprobó en la ayuda de la herramienta
+local 10.0.12 y en https://learn.microsoft.com/en-us/ef/core/cli/dotnet.
+
+Se corrigió únicamente ese argumento del paso Migraciones, conservando --no-build y la
+compilación Release del job. El comando corregido encontró las migraciones sin conexión
+y aplicó las 14 a un PostgreSQL temporal desde cero, terminando en Done; se confirmó el
+conteo en __EFMigrationsHistory y se eliminó el contenedor temporal. No se ejecutó la
+suite E2E completa ni se modificaron sus pruebas; falta validar su corrida en GitHub.
+Sin cambios en la base de desarrollo, commit ni push.
+
+### 14/11/2026: backend de recepción en depósito con discrepancias
+
+Tras confirmar ambos jobs de CI aprobados, el usuario autorizó retomar el primer pendiente:
+recepción en depósito, requisito 10 de la letra original (5.2). Se contrastó el texto de
+Laboratorio__NET_2026.pdf: escaneo, verificación de lo declarado y registro de discrepancias.
+Se conservó la regla del dominio que exige recibir todos los bultos antes del ingreso.
+
+Se agregó RecepcionDepositoHandler en Application, contrato de unidad de operación,
+repositorio EF en Infrastructure y cuatro endpoints en Web: consulta de manifiesto,
+escaneo de código, discrepancia y confirmación. El contexto usa identidad autenticada,
+permisos de administrador/despachador/operario, lectura coherente y versión del envío;
+los POST exigen antiforgery. Se revalida usuario activo/rol contra la base. Escaneo y
+discrepancia idénticos se reconocen mientras la recepción permanezca abierta, sin otra
+escritura; no se añadió una clave idempotente global.
+
+El operario contrasta medidas/peso declarados devueltos en la consulta e informa valores
+declarado/recibido en la discrepancia; no se automatizan balanza o tolerancias, ni se
+sobrescriben medidas o tarifa. Un código sobrante no crea un bulto. Anotar un faltante
+no sustituye el escaneo y no permite confirmar un manifiesto incompleto. La confirmación
+reutiliza Domain, cambia los estados y guarda evento/outbox en una única transacción.
+No hay cambios de esquema ni migración. No se implementaron pantallas, cámara, offline,
+asignación regular o cierre/rendición de rutas, que quedan fuera de este avance.
+
+Durante la preparación de pruebas se corrigió el uso de un atributo Theory inexistente
+y se usaron sentencias SQL fijas para las restricciones temporales, respetando el analizador
+de seguridad. Compilación Release con advertencias como errores aprobada. Pasaron siete
+pruebas unitarias nuevas y ocho integraciones nuevas con PostgreSQL temporal: API/CSRF,
+aislamiento, identidad, conservación de declaración, reenvíos, concurrencia y rollback
+de escaneos, discrepancias y confirmación/outbox. La regresión pasó 402 casos unitarios/
+arquitectura y 12 integraciones anteriores (carga, despacho y flujo crítico), sin omisiones
+en los casos seleccionados. No se ejecutó la suite completa de integración ni E2E.
+
+Cobertura Domain 85,97 % (1213/1411 líneas) y Application 80,06 % (534/667).
+Se documentó el contrato en docs/recepcion-deposito.md y se enlazó desde README,
+los límites de carga/despacho y el seguimiento de pendientes. Se eliminó el PostgreSQL
+temporal; no se alteró la base de desarrollo. Sin commit, push ni despliegue.
+
+### 14/11/2026: asignación regular de envíos a rutas
+
+El usuario autorizó el segundo pendiente del backend, asignación regular de la letra
+original (5.3, requisitos 13–16), conservando el avance anterior de recepción sin commit.
+Se agregó AsignarEnvioRutaHandler y su puerto de unidad de operación en Application;
+el repositorio en Infrastructure carga envío/ruta con lectura coherente y versiones.
+Web expone consultas de envíos preparados, rutas abiertas con ocupación/capacidad,
+recursos del operador y POST de asignación. Se reutiliza el POST existente de creación
+de rutas, conservando su contrato para no romper a los consumidores de pendientes.
+
+La identidad se obtiene de la sesión, se revalida contra la base y solo administrador/
+despachador pueden planificar. POST exige antiforgery. Domain valida estado, ventana,
+capacidad por composición, máximo de paradas y orden manual único; se conservan tarifa
+y programación. Reprogramados preparados se reasignan sin otra reprogramación y las
+entregas parciales siguen usando su circuito. Una transacción de SaveChanges guarda
+parada, composición, estados, evento y outbox; los conflictos no dejan cambios parciales.
+
+La prueba de carrera con dos envíos y el mismo número de parada reveló que la base ya
+rechazaba el duplicado, pero el índice IX_Paradas_RutaId_Cod no se traducía al contrato
+de concurrencia. Se añadió ese índice a la traducción existente en AppDbContext, sin
+cambiar restricciones ni esquema. El caso ahora genera ConflictoConcurrenciaException
+y la API lo presenta como 409. También se corrigió una expectativa de prueba que suponía
+flota ajena vacía: el escenario persiste flota de ambos operadores; se comprobó que cada
+uno reciba sus propios identificadores, sin mezclarlos. No se debilitó el aislamiento.
+
+Compilación Release estricta aprobada. Pasaron 15 pruebas unitarias nuevas y las diez
+integraciones nuevas contra PostgreSQL temporal tras las correcciones, incluida la
+repetición aprobada de permisos. Verifican flujo recepción/asignación/carga/despacho/hoja,
+roles, CSRF, versiones, capacidades, ventanas, conservación de tarifa/programación,
+reprogramados, rechazo de parciales, rollback de outbox y carreras por envío, ruta y orden.
+La regresión final pasó 417 casos unitarios/arquitectura y 24 integraciones anteriores
+(recepción, carga, despacho, parciales, flujo crítico y restricciones), sin omisiones en
+la selección. No se ejecutó toda la integración ni E2E en esta etapa.
+
+Cobertura Domain 85,97 % (1213/1411) y Application 79,57 % (557/700). No requiere migración;
+no se aplicó nada a la base de desarrollo. Se documentó el contrato en
+docs/asignacion-regular.md y se actualizaron README, enlaces y seguimiento de pendientes.
+Sin cambios de pantallas, PWA o Worker. El cierre de devoluciones/rendición sigue pendiente.
+Se eliminó el PostgreSQL temporal de esta etapa. Sin commit, push ni despliegue.
+
+### 14/11/2026: devolución y rendición operativa en depósito
+
+El usuario autorizó el tercer pendiente, cierre de devoluciones y rendición del requisito
+22 de la letra original. Se conservaron sin commit los avances anteriores de recepción y
+asignación. Se añadieron dos casos de uso de Application y sus puertos, un repositorio
+de Infrastructure con unidades dedicadas y ocho endpoints en Web: consulta/listado,
+inicio, escaneo y cierre de devolución, y listado/consulta/rendición de rutas.
+
+Los roles administrador, despachador y operario de depósito se resuelven desde sesión
+y se revalidan activos contra la base; POST exige antiforgery. El inicio reutiliza las
+políticas del envío. Escaneo y cierre respetan la composición de la devolución, incluyendo
+parciales sin alterar entregados. Un reenvío de escaneo ya confirmado se reconoce mientras
+la devolución siga abierta. El cierre guarda estado, fecha, evento y outbox juntos.
+La rendición reutiliza Ruta.Rendir: ruta despachada y sin paradas activas. No completa
+devoluciones automáticamente ni agrega cobros, liquidaciones o cierre diario del Worker.
+La ruta y su rendición se guardan juntas; rendir no genera un evento de envío artificial.
+
+Las pruebas de dos inicios de devolución y dos rendiciones simultáneos mostraron que los
+índices existentes impedían duplicados antes del UPDATE de versión, pero faltaba traducir
+esa excepción al contrato de concurrencia. Se añadieron los nombres conocidos de los
+índices de Devoluciones/Envio y Rendiciones/Ruta (simples y con TenantId) a la traducción
+de AppDbContext, sin cambiar esquema. Las dos pruebas detectaron primero un fallo y
+pasaron después del ajuste, con un solo registro/evento y conflicto para el perdedor.
+Durante la preparación se corrigió un nombre de enum oculto por una propiedad de la
+fixture y una aserción conforme al analizador xUnit; sin cambios de reglas del dominio.
+
+Compilación Release con advertencias como errores aprobada. Pasaron diez pruebas unitarias
+nuevas y trece integraciones nuevas contra PostgreSQL temporal, tras repetir aprobadas
+las dos carreras corregidas. Verifican API, roles/CSRF/aislamiento, usuario revocado,
+políticas de reintento, devolución parcial/outbox V2, faltantes, reenvíos, cierres y carreras,
+rollback de inicio/escaneo/outbox/rendición y la independencia entre rendir y completar
+una devolución. La regresión final pasó 427 casos unitarios/arquitectura y 35 integraciones
+anteriores sin omisiones en la selección. No se ejecutó toda la integración ni E2E.
+
+Cobertura Domain 85,97 % (1213/1411) y Application 81,30 % (648/797). Sin migración ni
+cambios en la base de desarrollo. Se agregó docs/cierre-deposito.md y se actualizaron
+README, límites de las otras APIs y el seguimiento de pendientes. Las pantallas y acciones
+de PWA continúan a cargo de sus responsables; no se modificaron Web UI, PWA o Worker.
+Se eliminó el contenedor PostgreSQL temporal. Sin commit, push ni despliegue.
+
+### 14/11/2026: alta por API para comercios y actualización de pendientes
+
+El usuario autorizó implementar el alta por API de la letra original y actualizar el
+documento de pendientes. Se agregó ApiComercios en Web: login por contraseña validada
+con el servicio existente y token Bearer, opciones, cotización y alta por referencia.
+El esquema Bearer se comparte con la PWA y el rol/cuenta lo restringe al comercio; no se
+modificó la autenticación de PWA o cookies. El login exige exactamente una cuenta, devuelve
+401 ante ambigüedad y limita diez peticiones por minuto/IP/instancia. No se agregaron
+API keys ni endpoint de refresh: tras vencer el access token se inicia sesión otra vez.
+
+Se reutilizaron AltaEnvioPortalHandler para opciones/cotización y una fila del importador
+para confirmar. Operador/cuenta/reglas/tarifa se resuelven en el servidor. API e importación
+comparten referencias por cuenta: 201 al crear, 200 al reenviar idéntico y 409 ante otro
+contenido. Se conserva el bloqueo/índice, la huella y la transacción conjunta del alta,
+historial, outbox y referencia. No hay migración, tabla, caso de dominio o cambio de UI nuevo.
+
+Se añadieron siete pruebas contra PostgreSQL con credenciales, Bearer y cookies reales:
+cálculo y rechazo de suplantación por campos extra, reenvío histórico y entre canales,
+cuentas/operadores aislados, credenciales/roles/revocación, cookies excluidas aunque válidas
+para Web, simultaneidad, rollback, errores, cuenta ambigua y límite de login.
+La primera ejecución tuvo cinco aprobadas y una fallida al avanzar el reloj veinte días
+con un token de ocho horas; se corrigió la prueba iniciando sesión nuevamente, sin cambiar
+la expiración. Esa prueba y la nueva prueba de otro operador pasaron; después pasó la
+ampliación de autenticación con cookie. Las siete quedan verificadas en las selecciones.
+
+Docker estaba detenido; se inició con docker desktop start y se usó un PostgreSQL temporal,
+eliminado al terminar, sin tocar la base de desarrollo. Compilación Release estricta
+aprobada, regresión de 427 casos unitarios/arquitectura y nueve integraciones anteriores
+de alta/importación/autenticación aprobadas. No se ejecutó toda la integración ni E2E.
+Cobertura medida Domain 85,97 % (1213/1411) y Application 81,30 % (648/797).
+
+Se agregó docs/api-comercios.md, enlaces en README e importación, y se actualizaron en
+CAMBIOS-REQUERIMIENTOS.md CI (confirmado en main por el usuario antes de esta etapa),
+despacho, modalidades de alta, cobertura y el registro de avances. Los nuevos cambios
+todavía requieren su propia ejecución en GitHub. Las áreas ajenas no auditadas siguen
+marcadas para revisión; no se afirma haber completado todo el opcional de API pública.
+Sin commit, push ni despliegue.
+
+### 14/11/2026: altas y consultas administrativas de flota
+
+El usuario autorizó empezar por altas y consultas de repartidores/vehículos. Se agregó
+el puerto IAdministracionFlota y DTOs en Application, su implementación EF en Infrastructure
+y cuatro endpoints GET/POST administrativos en Web. El administrador activo se revalida
+en la base y el operador sale de la sesión; los POST usan antiforgery. No se aceptan roles
+u operadores del cuerpo. No se modifican flota anterior ni rutas ya planificadas.
+
+La creación de repartidor normaliza y valida email, exige contraseña de 8–256 caracteres
+y usa ContrasenasUsuario para guardar el hash junto con el usuario. El email no puede
+pertenecer a otro usuario del operador, aunque tenga otro rol o esté inactivo. Vehículos
+normalizan matrícula y usan las validaciones del dominio para capacidades positivas.
+Los índices existentes protegen ambos duplicados; sus rechazos concretos se traducen
+localmente a InvalidOperationException/409, también en una carrera. No hay migración.
+
+Se añadieron seis integraciones con PostgreSQL temporal, incluidas barreras antes del
+guardado para forzar las dos altas simultáneas. La selección de flota aprobó siete casos
+(seis nuevos y uno anterior): API/CSRF/roles, normalización, credenciales reales de PWA,
+planificación/creación de ruta con los nuevos recursos, ámbitos/revocación, duplicados,
+capacidades y rollback de usuario/credenciales. Regresión: 427 casos unitarios/arquitectura
+y 19 integraciones anteriores de asignación regular, API de comercios, PWA y restricciones,
+todos aprobados. Compilación Release con advertencias como errores correcta.
+No se ejecutó toda la suite de integración ni E2E.
+
+Cobertura Domain 85,97 % (1213/1411) y Application 80,90 % (648/801). Se documentaron
+contratos y límites en docs/administracion-flota.md y se actualizaron README, asignación
+regular y el seguimiento de pendientes/cobertura. Se conserva la unicidad de emails por
+operador; el login existente sigue rechazando emails ambiguos entre operadores, lo que
+se explica en el contrato. Quedan pantallas, edición/bajas/cambio de contraseña y los
+otros bloques de administración. No se implementó nada en PWA ni Worker.
+Se eliminó el PostgreSQL temporal sin tocar la base de desarrollo. Sin commit ni push.
+
+### 14/11/2026: altas y consultas de comercios, cuentas y usuarios
+
+El usuario autorizó continuar con el siguiente bloque administrativo de backend.
+Application define IAdministracionComercios y sus contratos; Infrastructure implementa
+altas/consultas con EF y Web expone cuatro endpoints administrativos. Cada operación
+revalida al administrador activo y usa su operador autenticado; los POST exigen CSRF.
+El alta de comercio guarda un Comercio nuevo y su CuentaComercial juntos. Se conserva
+el modelo compartido existente, sin editar datos globales ni vincular IDs ajenos.
+
+El alta de usuario recibe una cuenta propia, fija rol Comercio y vincula solo esa cuenta.
+Valida/normaliza email y guarda contraseña con el hash existente. Usuario, credencial y
+vínculo se confirman juntos; el índice existente resuelve duplicados concurrentes como
+409. No se agregaron migraciones, pantallas, cambios de PWA ni Worker. El alta de comercio
+no es idempotente y la creación del usuario es un segundo paso; estos límites, los de
+login y las operaciones aún pendientes se explican en docs/administracion-comercios.md.
+
+Compilación Release con advertencias como errores aprobada. Pasaron seis integraciones
+nuevas con PostgreSQL temporal: recorrido de alta hasta login y creación de envío,
+validaciones/CSRF/roles, aislamiento y datos compartidos, revocación, duplicado concurrente
+entre cuentas y rollback de comercio/cuenta y usuario/credenciales. También pasaron
+427 casos unitarios/arquitectura y 16 integraciones anteriores de flota, API de comercios
+y protección de comercios compartidos. Sin pruebas omitidas en las selecciones ejecutadas.
+No se ejecutó toda la integración ni E2E. Cobertura Domain 85,97 % (1213/1411) y
+Application 80,50 % (648/805). Se actualizaron README, contratos y pendientes.
+El PostgreSQL temporal se elimina al terminar, sin tocar la base de desarrollo.
+Sin commit, push ni despliegue.
+
+### 14/11/2026: altas y consultas de zonas y franjas
+
+El usuario autorizó continuar con la administración de zonas y franjas horarias.
+Se agregó IAdministracionZonas y sus DTOs en Application, la implementación EF en
+Infrastructure y cuatro endpoints GET/POST administrativos en Web. Domain incorpora
+AgregarFranja, que permite añadir una franja nueva sin compartirla con otra zona ni
+reemplazar la colección. Se revalida administrador activo, rol y operador; los POST
+exigen antiforgery. Zona y franjas iniciales se guardan juntas, con horarios del mismo
+día válidos y textos recortados. No se implementan edición ni bajas o unicidades que
+el modelo no exigía. Los POST no son idempotentes. No hay migración ni cambios de UI,
+PWA o Worker. Las zonas se reutilizan en la configuración tarifaria y las opciones de
+alta; una zona nueva necesita su línea aplicable en el tarifario vigente para cotizar.
+
+Se agregó una prueba de dominio y seis integraciones con PostgreSQL temporal. Incluyen
+API/permisos/CSRF, validaciones, ámbitos/revocación, adiciones concurrentes sin perder
+franjas, rollback y el recorrido hasta tarifario, cotización y alta de envío conservando
+el envío anterior. Compilación Release con advertencias como errores aprobada y
+428 casos unitarios/arquitectura aprobados. Cobertura Domain 86,03 % (1219/1417) y
+Application 80,10 % (648/809). No se ejecutó toda la integración ni E2E.
+
+La regresión detectó un timeout en la prueba existente de dos operadores demo, que
+se repitió aislada y al reducir logs. Las marcas temporales localizaron la demora
+durante guardados y se retiraron sin dejar cambios en EscenarioDemo.cs. El registro
+de caché del host Development podía usar Redis antes de aplicarse la configuración
+de la factory. Se corrigió solo ServidorApi de pruebas para sustituir IDistributedCache
+por memoria antes de personalizar servicios, conforme al aislamiento que ya se pretendía
+con ConnectionStrings:Redis vacío. No cambia el registro de Redis en la aplicación ni
+las pruebas específicas con Redis real. Las tres pruebas seleccionadas de DatosDemo
+pasaron después en 13 segundos, sin aumentar timeout ni omitir pruebas.
+
+La selección final posterior a la corrección aprobó 44 integraciones, sin omisiones:
+zonas nuevas, flota, comercios/cuentas, API de comercios, configuración versionada,
+alta del portal, datos demo y reenvío/sincronización PWA. El contenedor PostgreSQL
+temporal se eliminó al terminar; la base de desarrollo no se utilizó.
+
+### 14/11/2026: A1, modificación y baja de usuarios de comercio
+
+Se inició A1 por una etapa acotada: actualizar email y desactivar usuarios de Comercio
+de una sola cuenta propia. Nuevos contratos y métodos en IAdministracionComercios,
+implementación en AdministracionComercios, PUT de modificación y POST de baja en la API
+administrativa, y método de Domain ActualizarEmail (rechaza usuarios inactivos).
+Administrador activo, rol y cuenta se revalidan; las escrituras exigen antiforgery.
+No hay cambios de roles, cuentas, contraseñas, reactivaciones ni eliminación física.
+Usuarios multicuentas se rechazan para evitar cambiar acceso compartido desde una cuenta.
+
+Transacción y SELECT FOR UPDATE acotado por TenantId serializan operaciones por usuario;
+la comparación con email/activo esperados rechaza escrituras obsoletas con 409. Se compara
+estado, sin versión monotónica y sin detección ABA; esto queda explícito en el contrato.
+El índice existente resuelve las carreras por email entre usuarios distintos y el fallo
+se traduce a conflicto. No hay migración. Credencial, identidad e historial se conservan;
+el login y las peticiones de la API de comercios rechazan al usuario dado de baja.
+
+La primera ejecución tuvo dos fallos de pruebas: faltaba cargar Operador al preparar
+un usuario multicuentas y se esperaba 401 donde la API existente devuelve 403 para
+identidad revocada. Se corrigieron esas pruebas; luego se corrigió un aviso xUnit2031
+en el nuevo caso concurrente. Compilación Release estricta final aprobada, 429 pruebas
+unitarias/arquitectura y 19 integraciones aprobadas sin omisiones (seis nuevas y trece
+de regresión de administración/API de comercios). Se verificaron contraseña conservada,
+revocación de Bearer anterior, límites por cuenta/rol, validaciones/CSRF, rollback y
+carreras edición/baja y entre emails. Cobertura Domain 86,13 % (1223/1420), Application
+79,90 % (648/811). No se ejecutó toda la integración ni E2E.
+
+Se documentó el contrato y se actualizó el seguimiento. A1 sigue abierto para edición/baja
+del comercio/cuenta y revisión de perfiles/permisos. El usuario aclaró que cuenta corriente,
+etiquetas y pantalla de importación están en curso por sus compañeras: se registró en el
+plan y no se implementaron esas áreas. Se conserva el resto de cambios documentales
+previos del usuario. PostgreSQL temporal eliminado al terminar, sin usar la base de
+desarrollo. Sin commit, push ni cambios de pantallas/PWA/Worker.
+
+### 14/11/2026: A1, datos locales y baja de la cuenta comercial
+
+Se continuó A1 con edición de razón social/teléfono/email de la ficha del operador y
+baja lógica de CuentaComercial. No se relaja la prohibición de editar Comercio global:
+se mantienen sus vínculos compartidos y se agregan datos locales, Activa y Version.
+La migración AdministracionCuentaComercial copia los datos existentes y asigna versiones,
+sin perder envíos ni usuarios; EF protege cambios simultáneos con Version. La baja no
+desactiva globalmente usuarios, no oculta historial ni cancela envíos en curso. Login y
+resolución de claims limitan el acceso a cuentas activas; CuentaWriteGuard rechaza
+escrituras autenticadas de cuentas dadas de baja, conservando los ámbitos de mensajes.
+Dominio/repositorio y un trigger al insertar Envios bloquean nuevas altas. El trigger
+usa FOR SHARE sobre la cuenta para serializar con su baja; su rechazo específico se
+traduce en InvalidOperationException. No afecta cambios de envíos anteriores.
+
+Se agregaron dos endpoints con permisos/CSRF, contratos con versión esperada, cinco
+integraciones y una prueba de dominio. Se adaptaron las lecturas de nombre comercial
+en reportes/detalle/avisos de backoffice para usar la ficha local. Son nombres actuales,
+no se inventa una instantánea histórica del nombre. No se modificaron pantallas o
+interfaces de las compañeras, ni PWA o Worker. Se regeneró docs/database-initial.sql.
+
+La primera compilación corrigió una referencia de prueba a Envio.Comercio por su cuenta.
+La primera integración detectó falta de Include(Comercio) al devolver el DTO de cuenta
+tras guardar; se corrigió la carga de esa relación. La ejecución final aprobó 33
+integraciones de cuentas/usuarios/API de comercios y migraciones, sin omisiones. Incluye
+comercio compartido, baja/revocación, carrera edición/baja, rollback, recuperación de
+datos previos y procesamiento histórico tras la baja. Compilación Release estricta y
+430 pruebas unitarias/arquitectura aprobadas. El primer intento de cobertura no contenía
+líneas medibles mientras se recompilaba; se repitió tras terminar la compilación y
+aprobó Domain 86,25 % (1242/1440) y Application 79,61 % (648/814). No se ejecutó toda
+la integración ni E2E ni una demo remota.
+
+Se actualizó el contrato, README, plan y seguimiento de pendientes. Quedan revisión de
+perfiles/permisos y pantallas para A1; cuenta corriente, etiquetas e importación siguen
+a cargo de las compañeras. El contenedor PostgreSQL temporal se eliminó al terminar,
+sin aplicar migraciones a la base de desarrollo del usuario. Sin commit ni push.
+
+### 14/11/2026: cierre del backend A1 y revisión de perfiles/permisos
+
+El usuario pidió continuar y recibir un summary al cerrar A1. Se revisó el alcance:
+el perfil de los usuarios del comercio ya se asigna en servidor como Comercio; roles,
+cuenta y estado se validan en la base y las rutas administrativas requieren Administrador.
+La letra no prescribe perfiles comerciales adicionales ni un editor genérico de permisos.
+Se documentó la matriz existente, sin agregar privilegios, roles o pantallas nuevas.
+
+Se añadieron dos integraciones: todos los ocho endpoints de administración de cuentas
+y usuarios denegados a Despachador/OperarioDeposito/Repartidor, y alta/modificación de
+usuario con campos extra de elevación ignorados, persistencia del rol/cuenta correctos
+y prueba con Bearer real de acceso comercial permitido y administración/despacho denegados.
+La primera ejecución falló porque la matriz intentaba representar Comercio sin su claim
+de cuenta en la identidad ficticia. Se retiró de esa matriz: Comercio se verifica con
+el Bearer real del segundo caso. No se cambió la autenticación para satisfacer la prueba.
+
+Compilación Release con advertencias como errores aprobada. Selección final: 26 pruebas
+de integración aprobadas sin omisiones (dos nuevas y regresión A1/API). Domain/Application
+no cambiaron en esta etapa: se conservan las mediciones anteriores de 430 casos
+unitarios/arquitectura aprobados y cobertura Domain 86,25 %, Application 79,61 %.
+No se ejecutó toda la integración ni E2E ni una demo de las pantallas.
+
+Se cerró el backend A1 dentro del contrato documentado en README, plan y seguimiento.
+Las pantallas quedan pendientes de Web; V1 (alternativa de autenticación exigida) sigue
+como punto separado, y las extensiones multicuentas/roles granulares conservan sus límites
+sin afirmarlas implementadas. PostgreSQL temporal eliminado al terminar. Sin commit/push.
+
+### 14/11/2026: A2, backend de identidad visual del operador
+
+El usuario autorizó pasar a A2. Se implementó el backend de marca, colores HEX, contacto
+público opcional y URL HTTPS de logo. Domain agrega ConfigurarIdentidad en Operador,
+validación atómica/normalización y VersionIdentidad; conserva la razón social legal.
+Application define DTOs de datos públicos y administración, puertos separados de lectura
+y escritura. Infrastructure revalida el contexto de usuario y cuenta activa o el ámbito
+confiable de mensaje; solo Administrador puede escribir. La consulta pública proyecta
+seis campos de marca por token opaco sin IDs ni datos del destinatario. No hay catálogo
+público por ID de operador. Web registra el servicio y expone GET/PUT administrativos,
+GET autenticado y GET por token con limitación de tasa y no-store; escrituras con CSRF.
+
+No se modificaron formularios ni estilos de las compañeras, PWA, Worker, plantillas o
+contratos de eventos. La marca se consulta por separado sin caché; el contrato existente
+del seguimiento y su razón social no cambiaron. No se descarga/sube el logo ni se
+inventa contacto de operadores previos. La migración IdentidadVisualOperador copia
+razón social como marca inicial, colores base y versiones; se regeneró database-initial.sql.
+Se corrigió el test previo de backfill de CuentaComercial para elegir explícitamente
+la migración anterior a A1, en lugar de asumir que es siempre la penúltima al agregar A2.
+
+Se añadieron nueve casos unitarios de dominio y cinco integraciones. Compilación Release
+estricta aprobada; 439 pruebas unitarias/arquitectura y las cinco integraciones nuevas
+aprobadas. Regresión adicional: 24 integraciones aprobadas de migraciones, API de comercios,
+autorización A1, aislamiento, configuración y seguimiento. Sin omisiones en las selecciones.
+Cobertura Domain 86,55 % (1274/1472), Application 79,22 % (648/818). No se ejecutó toda
+la integración, E2E ni una demostración de identidad aplicada en interfaces/comunicaciones.
+
+Se documentó el contrato en docs/identidad-operador.md y se actualizaron README, plan y
+seguimiento. A2 sigue abierto en integración: Ana debe conectar formulario/portal/seguimiento
+y Aldana consumir el puerto en el ámbito de mensaje de Worker para las comunicaciones.
+No se afirma que esas aplicaciones ya muestren la identidad ni que se acordó su diseño
+visual. El contenedor PostgreSQL temporal se eliminó al terminar; no se modificó la
+base de desarrollo del usuario. Sin commit ni push.
+
+### 14/11/2026: registro operativo de extravíos
+
+El usuario autorizó implementar el registro y pidió el summary al terminar. Se agregó
+RegistrarExtravioHandler y contratos en Application, ExtravioRepository en Infrastructure,
+DI y GET/POST /api/incidencias/envios/{envioId}/extravio en Web. Se reutiliza
+Envio.MarcarExtraviado, sin modificar la máquina de estados ni el modelo persistido.
+Administrador/Despachador activo del operador, antiforgery, detalle hasta 2000 caracteres,
+hora UTC del servidor, versiones esperadas de envío y ruta. Lectura consistente del
+grafo con bultos/parada/ruta/eventos. La concurrencia existente protege ambos agregados
+y SaveChanges guarda estados, parada finalizada, versiones, historial y outbox juntos.
+En parciales se conservan los entregados y se extravían los pendientes; no se selecciona
+un subconjunto arbitrario ni se agrega idempotencia por UUID. Quedan explícitos relectura
+tras conflicto, conservación de parada y ausencia de cierre automático de devolución/ruta.
+
+Se añadieron doce casos unitarios de Application y seis integraciones PostgreSQL.
+Las primeras ejecuciones corrigieron preparación de pruebas: guardar envío antes de
+asignarle parada para evitar la FK circular, leer enums con JsonApi y configurar el
+PlazoServicio requerido por el constructor de Domain en el fake unitario. No se relajó
+la lógica productiva para satisfacer esas pruebas. Compilación Release estricta aprobada.
+Regresión final: 451 casos unitarios/arquitectura y 14 integraciones (seis nuevas y ocho
+anteriores de concurrencia, outbox y hoja de ruta), sin fallos ni omisiones. Cobertura
+Domain 86,55 % (1274/1472) y Application 80,02 % (681/851). No se ejecutó toda la integración
+ni E2E ni una demo con formulario visual.
+
+Se agregó docs/registro-extravios.md, enlace en README y avance en plan/seguimiento.
+Sin migración ni cambios de PWA, Worker o pantallas; queda integrar el formulario en Web.
+El tema de reportes por clientes homónimos permanece pendiente de coordinación con
+las compañeras de liquidación y autenticación continúa con su responsable. Se conservó
+el cambio documental previo del usuario. Se eliminó el PostgreSQL temporal sin tocar
+su base de desarrollo. Sin commit ni push.
+
+### 14/11/2026: separación de cuentas homónimas en reportes
+
+El usuario autorizó continuar con el siguiente punto y pidió el summary al finalizar.
+Se limitó el cambio a ReportesGestion: proyecta CuentaComercialId y agrupa cumplimiento
+y liquidación por esa identidad, usando la razón social local como etiqueta. Conserva
+DTOs, pantallas, filtros de ámbito/fechas y fórmula de importes. No se modificó el módulo
+de cuenta corriente/liquidaciones de las compañeras ni la autenticación. Sin migración.
+
+Dos regresiones PostgreSQL reprodujeron primero el defecto (dos cuentas aparecían como
+un solo grupo: esperado 2, obtenido 1). Después del cambio pasan ambas y la prueba previa
+del reporte, tres integraciones en total: importes/métricas separados, renombrado, baja
+lógica, período vacío, conservación de totales y aislamiento entre operadores.
+Release compiló sin errores ni advertencias con -warnaserror. Pasaron además 451 pruebas
+unitarias/arquitectura, sin fallos ni omisiones en las selecciones. Cobertura de la capa
+Domain 86,55 % (1274/1472) y Application 80,02 % (681/851), ambas superiores al 70 %.
+No se ejecutó toda la integración ni E2E.
+
+Se agregó docs/reportes-gestion.md y se actualizaron README, plan y seguimiento. Se
+documenta que pueden existir dos filas con el mismo nombre y que el identificador sigue
+siendo interno: una navegación futura a la cuenta requiere acordar el contrato con su
+responsable. Se eliminó el contenedor temporal revision-reportes-postgres sin modificar
+la base de desarrollo. Sin commit ni push.
+
+Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
+README, referencias de administración y pendientes/cobertura. Sin commit ni push.
+### 15/11/2026: pantallas de cierre operativo
+
+El usuario reasignó explícitamente a Agustín tres bloques de front y autorizó empezar
+por devoluciones/rendición, dejando PWA para el final. Se añadieron páginas Razor Cierre,
+Devolucion y Rendicion, enlaces desde Depósito/detalle de envío, reutilizando handlers
+existentes sin migraciones ni cambios de negocio, Worker o PWA. Roles Administrador,
+Despachador y OperarioDeposito, antiforgery automático, versión leída en hidden input,
+errores de dominio/concurrencia mediante la base de páginas existente y PRG tras éxito.
+Las devoluciones reciben solo su composición y el cierre se ofrece al no quedar faltantes;
+la rendición requiere despacho y cero paradas activas, sin completar devoluciones por ella.
+
+Web Release compiló con -warnaserror sin errores ni advertencias. Pasaron 15 integraciones
+PostgreSQL (dos nuevas HTTP de pantallas y regresión seleccionada del cierre existente),
+sin fallos ni omisiones, usando bases temporales creadas y eliminadas por la fixture.
+Incluyen envío de formularios, CSRF, versión obsoleta, lectura ajena y rechazo de rendición
+con paradas activas. No se ejecutó navegador ni toda la solución/E2E; el error CS8604 del
+E2E detectado previamente permanece fuera del bloque. Domain/Application no cambiaron.
+Se actualizaron README, plan, seguimiento y contrato de cierre. Sin commit ni push.
+
+### 15/11/2026: datos demo para practicar devoluciones y rendición
+
+Tras comprobar en navegador el bloqueo de rendición y el rechazo de devolución por
+reintento permitido, el usuario pidió datos para el recorrido exitoso. Se agregó POST
+/dev/datos-demo-cierre únicamente en Development, reutilizando DatosDemo con un modo
+explícito que crea un operador independiente, motivo no reintentable, carga previa de
+bultos, ruta despachada con paradas finalizadas y operaciones de cierre aún pendientes.
+Devuelve credenciales demo, códigos y referencias para abrir las pantallas. Los modos
+anteriores de datos demo/PWA mantienen su comportamiento. No se alteran reglas previas.
+Web compiló Release estricta y una integración nueva recorrió inicio, escaneos, devolución
+completa y rendición, verificando que otro operador permaneciera intacto. La primera
+compilación de la prueba corrigió el nombre del enum Completado; el código de negocio
+no se cambió. Prueba final aprobada sin omisiones. Documentado en cierre-deposito.md.
+El escenario se generará en la base local cuando el usuario ejecute el comando tras
+reiniciar Web. Sin migración, commit ni push.
+
+### 15/11/2026: formulario de registro de extravío
+
+Autorizado el segundo bloque de front. EnvioModel reutiliza RegistrarExtravioHandler,
+consulta versiones propias para el formulario y mantiene separados los campos de la
+gestión de pendientes. Administrador/Despachador, confirmación verificada en servidor,
+detalle obligatorio y límite de 2000 caracteres, CSRF de Razor Pages, PRG tras éxito.
+No se ofrece en bultos admitidos/finales ni al operario; el backend conserva la validación
+autoritaria, aislamiento y atomicidad. Se recargan versiones tras error y la casilla se
+muestra desmarcada para volver a confirmar. Conserva los cambios previos de cierre/demo.
+
+Web Release estricta sin errores/advertencias. Diez integraciones PostgreSQL aprobadas,
+sin omisiones: dos nuevas de formulario (CSRF, confirmación, versión de ruta obsoleta,
+detalle inválido, éxito/liberación de parada, estado admitido y rol operario), seis de
+extravío existentes y dos de pantallas de cierre. No se ejecutó navegador ni toda la
+solución/E2E. Domain/Application no cambian. Se documentó el uso de otro escenario de
+datos-demo-cierre para probar sin modificar el envío que el usuario acaba de devolver.
+Sin migración, commit ni push; pendiente el recorrido manual con el usuario.
+
+### 15/11/2026: identidad visual en administración, portal y seguimiento
+
+Autorizado el tercer bloque de front, conservando los usuarios de prueba existentes.
+Se agregó formulario Razor administrativo, componentes MarcaOperador/ContactoOperador
+y selección de texto negro/blanco por luminancia. Reutiliza los puertos de A2 y su versión
+de concurrencia, validación y autorización; formularios con CSRF y PRG. El portal lee por
+sesión y el seguimiento por token; no se altera razón social legal ni contratos públicos.
+Los logos HTTPS se cargan en el navegador con no-referrer. La CSP del seguimiento admite
+https: solo en img-src, conservando las demás restricciones. Contacto opcional y marca
+visible aun si la imagen falla; sin subida de archivos ni caché nueva. No se modifica
+Worker, comunicaciones, PWA o etiquetas. Sin migración nueva.
+
+Web Release con -warnaserror compiló sin errores/advertencias. Once integraciones finales
+aprobadas sin omisiones: dos nuevas de formulario y renderizado HTTP, con CSRF, permisos,
+validación, conflicto, estilos, logo/contacto en portal y seguimiento y aislamiento, además
+de regresión A2/seguimiento. La primera ejecución tuvo un fallo en login del fixture por
+emails repetidos de dos operadores: se corrigió el email del comercio ajeno, sin modificar
+la autenticación productiva. No se ejecutó navegador ni toda la solución/E2E. La carga
+real del logo externo y el aspecto se comprobarán con el usuario. No cambian Domain ni
+Application. Se actualizaron contrato, README, plan y seguimiento. Sin commit ni push.

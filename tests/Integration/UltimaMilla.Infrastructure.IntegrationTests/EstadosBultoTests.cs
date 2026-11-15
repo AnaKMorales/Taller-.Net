@@ -20,6 +20,9 @@ public sealed partial class PostgresTests
         }
         await using (var migration = Context())
         {
+            // Los escenarios repiten emails en varios operadores; AgregarIdentidad (al volver a subir) exige que sean
+            // únicos en todo el sistema y abortaría. Este test prueba otra migración: se hacen únicos antes.
+            await migration.Database.ExecuteSqlRawAsync("UPDATE \"Usuarios\" SET \"Email\" = replace(\"Email\", '@', '+' || left(\"Id\"::text, 8) || '@')");
             var migrator = migration.GetService<IMigrator>();
             await migrator.MigrateAsync("20261101185636_ReglasEntregaParcial");
             await migrator.MigrateAsync();
