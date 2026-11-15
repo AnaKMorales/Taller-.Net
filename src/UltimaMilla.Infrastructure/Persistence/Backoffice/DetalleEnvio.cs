@@ -11,6 +11,7 @@ public sealed class DetalleEnvio(AppDbContext db) : IDetalleEnvio
         var envio = await db.Envios.AsNoTracking().AsSplitQuery()
             .Include(e => e.CuentaComercial).ThenInclude(c => c.Comercio)
             .Include(e => e.Destinatario).ThenInclude(d => d.Direccion)
+            .Include(e => e.Destinatario).ThenInclude(d => d.Notificaciones)
             .Include(e => e.Zona)
             .Include(e => e.Reglas)
             .Include(e => e.CuadroTarifario)
@@ -62,6 +63,8 @@ public sealed class DetalleEnvio(AppDbContext db) : IDetalleEnvio
                     v.Responsable?.Email ?? "Destinatario (seguimiento público)", v.Detalle))
                 .ToList(),
             // La regla vive en el dominio (Envio.ImpedimentoNuevaVisita); la pantalla solo la muestra.
-            envio.ImpedimentoNuevaVisita());
+            envio.ImpedimentoNuevaVisita(),
+            d.Notificaciones.OrderByDescending(n => n.EnviadaEn)
+                .Select(n => new NotificacionDetalleDto(n.Canal, n.Mensaje, n.EnviadaEn)).ToList());
     }
 }

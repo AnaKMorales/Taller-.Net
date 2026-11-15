@@ -188,6 +188,26 @@
     </tbody>
 </table>
 
+<h2>Avisos al destinatario</h2>
+<p class="nota">Los envía el worker en cada cambio de estado relevante, con la marca del operador y el enlace de seguimiento.</p>
+<table>
+    <thead><tr><th>Enviado</th><th>Canal</th><th>Mensaje</th></tr></thead>
+    <tbody>
+        @foreach (var n in e.Notificaciones ?? [])
+        {
+            <tr>
+                <td>@Textos.Fecha(n.EnviadaEn)</td>
+                <td>@n.Canal</td>
+                <td style="white-space: pre-line">@n.Mensaje</td>
+            </tr>
+        }
+        @if ((e.Notificaciones ?? []).Count == 0)
+        {
+            <tr><td colspan="3" class="vacio">Todavía no se enviaron avisos.</td></tr>
+        }
+    </tbody>
+</table>
+
 <h2>Historial</h2>
 <table>
     <thead><tr><th>Fecha</th><th>Evento</th><th>Estado</th><th>Origen</th><th>Responsable</th><th>Detalle</th></tr></thead>

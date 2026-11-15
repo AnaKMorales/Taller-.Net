@@ -30,7 +30,8 @@ public sealed record DetalleEnvioDto(
     IReadOnlyList<BultoDetalleDto> Bultos,
     IReadOnlyList<IntentoDetalleDto> Intentos,
     IReadOnlyList<EventoDetalleDto> Eventos,
-    string? SinNuevaVisita = null)
+    string? SinNuevaVisita = null,
+    IReadOnlyList<NotificacionDetalleDto>? Notificaciones = null)
 {
     // null si una nueva visita es posible; si no, el motivo. Sale de Envio.ImpedimentoNuevaVisita (dominio).
     public bool NuevaVisitaPosible => SinNuevaVisita is null;
@@ -44,6 +45,9 @@ public sealed record DetalleEnvioDto(
     public bool AdmiteGestionDePendientes =>
         Estado == EstadoEnvio.EntregadoParcialmente && RepartidorAsignado is null && Devolucion is null && Pendientes.Any();
 }
+
+// Avisos enviados al destinatario (docs/notificaciones-destinatario.md).
+public sealed record NotificacionDetalleDto(UltimaMilla.Domain.Notificaciones.CanalNotificacion Canal, string Mensaje, DateTime? EnviadaEn);
 
 public sealed record BultoDetalleDto(string Codigo, decimal PesoKg, decimal VolumenM3, EstadoBulto Estado);
 

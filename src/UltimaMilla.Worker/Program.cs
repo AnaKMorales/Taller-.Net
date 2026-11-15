@@ -1,3 +1,4 @@
+using UltimaMilla.Infrastructure.Notificaciones;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Infrastructure.Avisos;
 using UltimaMilla.Infrastructure.Mensajeria;
@@ -29,6 +30,9 @@ builder.Services.AddHostedService<PublicacionOutboxWorker>();
 builder.Services.AgregarConsumoMensajes();
 // Webhooks firmados a las suscripciones del comercio. Un fallo dispara el reintento por las colas de espera.
 builder.Services.AgregarEntregaWebhooks(builder.Configuration.GetSection(OpcionesWebhook.Seccion).Get<OpcionesWebhook>());
+// Aviso al destinatario en cada cambio de estado relevante; corre antes de los webhooks (docs/notificaciones-destinatario.md).
+builder.Services.AgregarNotificacionesDestinatario(builder.Configuration.GetSection(OpcionesNotificaciones.Seccion)
+    .Get<OpcionesNotificaciones>());
 builder.Services.AddSingleton<IManejadorMensajes, ProcesadorAvisos>();
 builder.Services.AddHostedService<ConsumidorAvisosWorker>();
 
