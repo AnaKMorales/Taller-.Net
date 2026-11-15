@@ -6,6 +6,10 @@ using UltimaMilla.Infrastructure.Persistence.Outbox;
 using UltimaMilla.Worker;
 using UltimaMilla.Worker.Observabilidad;
 using UltimaMilla.Infrastructure.Observabilidad;
+using UltimaMilla.Application.Backoffice;
+using UltimaMilla.Infrastructure.Persistence;
+using UltimaMilla.Infrastructure.Persistence.Operacion;
+using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.AgregarTelemetriaWorker();
@@ -35,6 +39,11 @@ builder.Services.AgregarNotificacionesDestinatario(builder.Configuration.GetSect
     .Get<OpcionesNotificaciones>());
 builder.Services.AddSingleton<IManejadorMensajes, ProcesadorAvisos>();
 builder.Services.AddHostedService<ConsumidorAvisosWorker>();
+
+builder.Services.AddSingleton<IProcesamientoOperativo>(sp => new ProcesamientoOperativo(
+    sp.GetRequiredService<DbContextOptions<AppDbContext>>(), sp.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton(builder.Configuration.GetSection("CierreOperativo").Get<OpcionesCierreOperativo>() ?? new());
+builder.Services.AddHostedService<CierreOperativoWorker>();
 
 var host = builder.Build();
 host.Run();

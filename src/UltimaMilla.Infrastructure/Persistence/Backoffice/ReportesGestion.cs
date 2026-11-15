@@ -3,7 +3,7 @@ using UltimaMilla.Application.Backoffice;
 namespace UltimaMilla.Infrastructure.Persistence.Backoffice;
 
 // Una consulta trae una fila por envío y la agrupación se hace en memoria. Alcanza para el volumen de un
-// operador en un período; si crece, el worker puede precalcular los indicadores (alcance, sección 4).
+// operador en un período. El Worker reutiliza este cálculo para sus resúmenes diarios.
 public sealed class ReportesGestion(AppDbContext db) : IReportesGestion
 {
     public const string SinRepartidor = "Sin asignar";

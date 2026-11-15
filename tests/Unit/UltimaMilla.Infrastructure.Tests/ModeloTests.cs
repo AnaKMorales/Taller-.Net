@@ -15,8 +15,12 @@ public sealed class ModeloTests
             .Where(t => !t.IsAbstract && typeof(Entidad).IsAssignableFrom(t)).ToArray();
         Assert.Equal(36, domainTypes.Length);
         Assert.All(domainTypes, t => Assert.NotNull(db.Model.FindEntityType(t)));
-        // 40 del dominio + 4 de ASP.NET Identity (AspNetUsers, AspNetUserClaims, AspNetUserLogins, AspNetUserTokens).
-        Assert.Equal(44, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        // 40 del modelo previo + 4 de Identity + el resumen técnico diario.
+        Assert.Equal(45, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        var resumen = db.Model.FindEntityType(typeof(UltimaMilla.Infrastructure.Persistence.Operacion.ResumenOperativoDiario))!;
+        Assert.Equal("ResumenesOperativosDiarios", resumen.GetTableName());
+        Assert.Contains(resumen.GetIndexes(), i => i.IsUnique &&
+            i.Properties.Select(p => p.Name).SequenceEqual(new[] { "TenantId", "Dia" }));
         Assert.DoesNotContain(db.Model.GetEntityTypes(), t => t.ClrType == typeof(GeoPunto) || t.ClrType == typeof(ArchivoRef));
         Assert.All(db.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()), fk =>
         {
