@@ -70,62 +70,6 @@ Motivo: un intento de entrega es un hecho con consecuencias (estado, intentos, a
 aplicar automáticamente algo que contradice una decisión del despachador es peor que pedir una
 revisión. Los rechazos esperables son pocos porque la app ya valida las reglas locales.
 
-### Conflictos por bulto (entrega parcial)
-
-Una visita con varios bultos viaja como **una sola operación**: un `IdOperacion`, la parada, la
-versión esperada del envío y el resultado de *todos* los bultos de esa parada
-(`IntentoPorBultoDto`). El detalle de diseño está en el [ADR-007](007-entrega-parcial.md).
-
-**Qué controla la PWA antes de guardar** (`Sincronizacion/ValidadorAccion.cs`, `ValidarPorBulto`):
-
-- La parada y su versión coinciden con la hoja guardada, y todos sus bultos siguen `EnTransito`
-  (`ParadaDto.AdmiteRegistro`). Si no, pide actualizar la hoja.
-- Hay un resultado, Entregado o No entregado, para cada bulto de la parada, ni uno más ni uno menos.
-- Si las reglas no permiten entrega parcial, todos los bultos llevan el mismo resultado.
-- Cada bulto entregado tiene las pruebas que exige el operador. Cada no entregado tiene un motivo
-  del catálogo, y la evidencia si el motivo la pide.
-- Las evidencias tienen posición y entre todas no pasan de 4 MB.
-
-**Qué puede rechazar igual el servidor:** lo que dependa del estado actual. Por ejemplo, el
-despachador sacó un bulto de la visita o lo mandó a otra parada, otra operación ya cerró esos
-bultos, se agotaron los intentos o el motivo quedó inactivo. El handler
-(`Application/Envios/RegistrarIntento/RegistrarIntentoHandler.cs`) y `Envio.RegistrarIntentoPorBulto`
-(`Domain/Envios/Envio.IntentosBulto.cs`) validan todo antes de modificar algo.
-
-**Qué pasa si el servidor rechaza un bulto:** se rechaza **la visita completa**. Nunca se guardan
-"los bultos que sí estaban bien". La respuesta HTTP depende de la causa:
-
-| Causa | Respuesta | Qué muestra la PWA en "Sincronización" |
-| --- | --- | --- |
-| Cambió la versión del envío, o un bulto cambió de estado o salió de la parada (`ConflictoIntentoException`) | 409 con `conflicto`: el detalle por bulto (`BultoId`, `Codigo`, estado actual y motivo: `EstadoCambio`, `ParadaCerrada`, `FueraDeParada` o `SinCambioDeEstado`) | "La versión ya no está vigente… Actualizá la hoja antes de volver a registrar." |
-| Una regla de negocio no se cumple (`InvalidOperationException`, por ejemplo faltan pruebas o el motivo no es válido) | 409 "Operación no permitida" con el mensaje de la regla en `detail` | El mensaje de la regla |
-| Datos mal formados (`ArgumentException`) | 400 con el mensaje en `detail` | El mensaje |
-
-En los tres casos `ApiRepartidorHttp` devuelve `Rechazada`, y el `Sincronizador` marca la acción
-como Rechazada y no la reintenta. El rechazo no frena las demás visitas de la cola.
-
-**Qué ve el repartidor:**
-
-1. La parada muestra el distintivo rojo "Rechazada" (`Componentes/EstadoParada.razor`).
-2. En "Sincronización" (`Pages/Pendientes.razor`) ve el motivo y el botón "Entendido, descartar".
-3. Como hubo un rechazo, `SincronizacionAutomatica` descarga la hoja de nuevo. Así la parada
-   muestra la versión y la composición actuales.
-4. Si todos los bultos de la parada siguen en tránsito, puede registrar la visita de nuevo. Sale
-   con otro `IdOperacion` y con la versión nueva. Si no (la parada se cerró o el bulto se
-   reasignó), la parada queda "disponible para consulta" y lo resuelve el despachador.
-
-**Limitación actual:** la PWA lee solo `title` y `detail` del problema. El detalle por bulto que
-manda el servidor en `conflicto` todavía no se muestra, así que el repartidor no ve *cuál* bulto
-causó el rechazo. Está anotado como pendiente en el ADR-007.
-
-**Por qué gana el servidor también por bulto:** cerrar la visita cambia a la vez el estado de los
-bultos, el del envío, la parada, la ruta y el evento del outbox que dispara los avisos. Si se
-aplicaran solo los bultos "válidos", podría quedar un cierre con evidencias incompletas y avisar al
-comercio un resultado distinto del que registró el repartidor. Además, el servidor sabe cosas que
-el dispositivo no puede saber sin conexión: reasignaciones del despachador, intentos de otro
-dispositivo, versiones nuevas. Rechazar todo y pedir que se registre de nuevo con la hoja
-actualizada es más lento, pero nunca deja un estado a medias.
-
 ### Login y token
 
 La PWA corre en otro origen y no puede usar la cookie `SameSite=Strict` del backoffice; además el
@@ -196,5 +140,3 @@ una app nativa o un contenedor (por ejemplo, .NET MAUI) con permiso de ubicació
   desbloqueado puede leerlas. Las fotos y las firmas se guardan con la visita para poder
   capturarlas sin conexión.
 - Si el usuario borra los datos del sitio en el navegador, se pierden las acciones no sincronizadas.
-- Las limitaciones de la plataforma (GPS en segundo plano, cifrado, cámara, almacenamiento, iOS y
-  push) están en el [ADR-008](008-limitaciones-pwa-repartidor.md).

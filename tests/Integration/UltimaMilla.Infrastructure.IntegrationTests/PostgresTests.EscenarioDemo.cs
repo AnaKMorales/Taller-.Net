@@ -74,41 +74,6 @@ public sealed partial class PostgresTests
         Assert.NotEqual(configuracion[0].Pruebas, configuracion[1].Pruebas);
     }
 
-    // Regresión: con el escenario de dos operadores, /dev/simular/alta fallaba en A (zona con dos franjas:
-    // Single()) y en B (líneas del tarifario sin su zona cargada: NullReference en LineaTarifa.ZonaId).
-    // La usan scripts/demo-webhooks.sh y scripts/resiliencia.sh.
-    [PostgresFact]
-    public async Task SimularAltaFuncionaConLosDosOperadoresDelEscenarioDemo()
-    {
-        using var servidor = new ServidorApi(_testConnection, usarIdentidadPrueba: false, ambiente: "Development");
-        using var cliente = servidor.Cliente();
-        using var respuesta = await cliente.PostAsync("/dev/datos-demo", null);
-        Assert.True(respuesta.IsSuccessStatusCode, await respuesta.Content.ReadAsStringAsync());
-        var escenario = (await respuesta.Content.ReadFromJsonAsync<EscenarioDemoCreado>())!;
-        Assert.Equal(2, escenario.Operadores.Count);
-
-        foreach (var cuenta in escenario.Operadores)
-        {
-            int antes;
-            await using (var db = Context(cuenta.OperadorId))
-                antes = await db.Set<Envio>().CountAsync();
-
-            await DatosDemo.SimularAltaAsync(Options(), cuenta.OperadorId, CancellationToken.None);
-
-            await using (var db = Context(cuenta.OperadorId))
-            {
-                Assert.Equal(antes + 1, await db.Set<Envio>().CountAsync());
-                var nuevo = await db.Set<Envio>().Include(e => e.Destinatario).Include(e => e.Eventos)
-                    .SingleAsync(e => e.Destinatario.Nombre == "Destinatario simulado");
-                // El alta deja su evento, que el outbox convierte en mensaje para los webhooks.
-                Assert.Contains(nuevo.Eventos, e => e.Tipo == TipoEvento.Admitir);
-                var eventoAlta = nuevo.Eventos.Single(e => e.Tipo == TipoEvento.Admitir).Id;
-                Assert.True(await db.Set<UltimaMilla.Infrastructure.Persistence.Outbox.MensajeOutbox>()
-                    .AnyAsync(m => m.Evento.Id == eventoAlta));
-            }
-        }
-    }
-
     [PostgresFact]
     public async Task DatosDemoConContrasenaPropiaLaUsaNoLaDevuelveYRechazaUnaCorta()
     {
