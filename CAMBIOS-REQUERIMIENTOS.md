@@ -126,6 +126,16 @@ no se dan por completas áreas ajenas sin contrastarlas con su implementación e
 
 ## Registro de avances
 
+### 14/11: separación de comercios homónimos en reportes (letra original, requisito 30)
+
+Corregida la agrupación de cumplimiento y liquidación del reporte de gestión: utiliza
+el identificador de cuenta comercial en lugar del nombre editable. Dos clientes con
+igual nombre mantienen sus métricas e importes separados, incluso tras renombrar o dar
+de baja lógica una cuenta. Se verificaron aislamiento entre operadores, filtro de fechas
+y conservación de totales con PostgreSQL real. No cambia el contrato público, las
+pantallas ni las fórmulas de importes; no requiere migración. No implementa el módulo
+de cuenta corriente/liquidaciones de las compañeras. Ver [detalle](docs/reportes-gestion.md).
+
 ### 14/11: registro operativo de extravíos (letra original, requisito 11)
 
 Caso de uso y API para consultar y registrar extravíos sobre las reglas existentes:

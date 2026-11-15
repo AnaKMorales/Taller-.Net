@@ -1126,5 +1126,28 @@ las compañeras de liquidación y autenticación continúa con su responsable. S
 el cambio documental previo del usuario. Se eliminó el PostgreSQL temporal sin tocar
 su base de desarrollo. Sin commit ni push.
 
+### 14/11/2026: separación de cuentas homónimas en reportes
+
+El usuario autorizó continuar con el siguiente punto y pidió el summary al finalizar.
+Se limitó el cambio a ReportesGestion: proyecta CuentaComercialId y agrupa cumplimiento
+y liquidación por esa identidad, usando la razón social local como etiqueta. Conserva
+DTOs, pantallas, filtros de ámbito/fechas y fórmula de importes. No se modificó el módulo
+de cuenta corriente/liquidaciones de las compañeras ni la autenticación. Sin migración.
+
+Dos regresiones PostgreSQL reprodujeron primero el defecto (dos cuentas aparecían como
+un solo grupo: esperado 2, obtenido 1). Después del cambio pasan ambas y la prueba previa
+del reporte, tres integraciones en total: importes/métricas separados, renombrado, baja
+lógica, período vacío, conservación de totales y aislamiento entre operadores.
+Release compiló sin errores ni advertencias con -warnaserror. Pasaron además 451 pruebas
+unitarias/arquitectura, sin fallos ni omisiones en las selecciones. Cobertura de la capa
+Domain 86,55 % (1274/1472) y Application 80,02 % (681/851), ambas superiores al 70 %.
+No se ejecutó toda la integración ni E2E.
+
+Se agregó docs/reportes-gestion.md y se actualizaron README, plan y seguimiento. Se
+documenta que pueden existir dos filas con el mismo nombre y que el identificador sigue
+siendo interno: una navegación futura a la cuenta requiere acordar el contrato con su
+responsable. Se eliminó el contenedor temporal revision-reportes-postgres sin modificar
+la base de desarrollo. Sin commit ni push.
+
 Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
 README, referencias de administración y pendientes/cobertura. Sin commit ni push.
