@@ -1,0 +1,87 @@
+@page "/portal/liquidaciones"
+@* Liquidación mensual del comercio (solo lectura): por mes de admisión, cantidad de envíos, importe (tarifa del alta
+   + recargos registrados) y motivos de no entrega. Mismo corte de día que el reporte del operador (hora de Uruguay). *@
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Pages.Backoffice
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject IConsultasCuentaPortal Consultas
+@inject TimeProvider Reloj
+
+<PageTitle>Liquidaciones - Portal UltimaMilla</PageTitle>
+
+<h1>Liquidaciones</h1>
+<p class="nota">Resumen por mes de admisión (hora de Uruguay). Cada envío se liquida con la tarifa vigente cuando lo
+    diste de alta, más los recargos por nuevas visitas: un cambio de tarifas posterior no altera los meses pasados.</p>
+
+<form method="get" class="filtros">
+    <label>Año <input type="number" name="anio" min="2000" max="9998" value="@anio" /></label>
+    <button type="submit">Ver</button>
+</form>
+
+@if (error is not null)
+{
+    <p class="error">@error</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>Mes</th><th>Envíos</th><th>Tarifas</th><th>Recargos</th><th>Total</th><th>Motivos de no entrega</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var l in liquidaciones)
+            {
+                <tr>
+                    <td>@Mes(l)</td>
+                    <td>@l.Envios</td>
+                    <td>@Textos.Importe(l.Tarifas)</td>
+                    <td>@Textos.Importe(l.Recargos)</td>
+                    <td>@Textos.Importe(l.Total)</td>
+                    <td>@(l.MotivosNoEntrega.Count == 0 ? "—" : string.Join(", ", l.MotivosNoEntrega.Select(m => $"{m.Motivo} ({m.Cantidad})")))</td>
+                </tr>
+            }
+            @if (liquidaciones.Count == 0)
+            {
+                <tr><td colspan="6" class="vacio">Sin envíos en el año.</td></tr>
+            }
+            else
+            {
+                <tr>
+                    <th>Total del año</th>
+                    <th>@liquidaciones.Sum(l => l.Envios)</th>
+                    <th>@Textos.Importe(liquidaciones.Sum(l => l.Tarifas))</th>
+                    <th>@Textos.Importe(liquidaciones.Sum(l => l.Recargos))</th>
+                    <th>@Textos.Importe(liquidaciones.Sum(l => l.Total))</th>
+                    <th></th>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private static readonly CultureInfo Espanol = CultureInfo.GetCultureInfo("es-UY");
+
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromQuery(Name = "anio")] public int? Anio { get; set; }
+
+    private int anio;
+    private IReadOnlyList<LiquidacionMesDto> liquidaciones = [];
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        anio = Anio ?? HoraLocal.Hoy(Reloj).Year;
+        try { liquidaciones = await Consultas.LiquidacionesAsync(anio, ReportesModel.HoraUruguay, HttpContext?.RequestAborted ?? default); }
+        catch (ArgumentOutOfRangeException) { error = "Elegí un año entre 2000 y 9998."; }
+    }
+
+    private static string Mes(LiquidacionMesDto l) =>
+        Espanol.TextInfo.ToTitleCase(Espanol.DateTimeFormat.GetMonthName(l.Mes)) + " " + l.Anio;
+}

@@ -1,0 +1,84 @@
+@page "/portal/cuenta"
+@* Cuenta corriente del comercio (solo lectura): cada envío admitido en el período con lo que se le cobra, que es la
+   tarifa calculada en el alta más los recargos de visita ya registrados. Son importes guardados: si el operador cambia
+   el tarifario después, no cambian. No hay pagos registrados en el sistema: es un detalle de cargos. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Pages.Backoffice
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject IConsultasCuentaPortal Consultas
+@inject TimeProvider Reloj
+
+<PageTitle>Cuenta corriente - Portal UltimaMilla</PageTitle>
+
+<h1>Cuenta corriente</h1>
+<p class="nota">Envíos admitidos en el período (hora de Uruguay) con su importe: tarifa del alta más recargos por
+    nuevas visitas. Los importes quedan fijos al registrarse; un cambio posterior de tarifas no los modifica.</p>
+
+<form method="get" class="filtros">
+    <label>Desde <input type="date" name="desde" value="@desde.ToString("yyyy-MM-dd")" /></label>
+    <label>Hasta <input type="date" name="hasta" value="@hasta.ToString("yyyy-MM-dd")" /></label>
+    <button type="submit">Ver</button>
+</form>
+
+@if (error is not null)
+{
+    <p class="error">@error</p>
+}
+else if (cuenta is { } c)
+{
+    <div class="contadores">
+        <div><span>@c.Movimientos.Count</span>Envíos</div>
+        <div><span>@Textos.Importe(c.TotalTarifas)</span>Tarifas</div>
+        <div><span>@Textos.Importe(c.TotalRecargos)</span>Recargos</div>
+        <div><span>@Textos.Importe(c.Total)</span>Total del período</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>Fecha de admisión</th><th>Envío</th><th>Estado</th><th>Tarifa</th><th>Recargos</th><th>Importe</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var m in c.Movimientos)
+            {
+                <tr>
+                    <td>@HoraLocal.Fecha(m.FechaAdmision)</td>
+                    <td><code>@m.CodigoSeguimiento</code></td>
+                    <td>@Textos.Estado(m.Estado)</td>
+                    <td>@Textos.Importe(m.Tarifa)</td>
+                    <td>@Textos.Importe(m.Recargos)</td>
+                    <td>@Textos.Importe(m.Importe)</td>
+                </tr>
+            }
+            @if (c.Movimientos.Count == 0)
+            {
+                <tr><td colspan="6" class="vacio">Sin envíos en el período.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    [SupplyParameterFromQuery(Name = "desde")] public DateOnly? Desde { get; set; }
+    [SupplyParameterFromQuery(Name = "hasta")] public DateOnly? Hasta { get; set; }
+
+    private DateOnly desde;
+    private DateOnly hasta;
+    private CuentaCorrienteDto? cuenta;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Por defecto, el mes en curso hasta hoy.
+        var hoy = HoraLocal.Hoy(Reloj);
+        desde = Desde ?? new DateOnly(hoy.Year, hoy.Month, 1);
+        hasta = Hasta ?? hoy;
+        try { cuenta = await Consultas.CuentaCorrienteAsync(desde, hasta, ReportesModel.HoraUruguay, HttpContext?.RequestAborted ?? default); }
+        catch (ArgumentException e) { error = e.Message; }
+    }
+}
