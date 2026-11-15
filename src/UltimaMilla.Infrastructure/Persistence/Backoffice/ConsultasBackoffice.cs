@@ -103,7 +103,7 @@ public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = n
             {
                 a.Id,
                 EnvioId = a.Evento.Envio.Id,
-                Comercio = a.Suscripcion.CuentaComercial.Comercio.RazonSocial,
+                Comercio = a.Suscripcion.CuentaComercial.RazonSocial,
                 a.Suscripcion.UrlDestino,
                 a.Evento.Tipo,
                 a.Intentos,

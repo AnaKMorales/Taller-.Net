@@ -16,6 +16,7 @@ using UltimaMilla.Application.Despacho;
 using UltimaMilla.Application.Deposito;
 using UltimaMilla.Application.Envios.AltaPortal;
 using UltimaMilla.Application.Envios.CrearEnvio;
+using UltimaMilla.Application.Envios.Extravio;
 using UltimaMilla.Application.Envios.ReprogramacionPublica;
 using UltimaMilla.Application.Portal;
 using UltimaMilla.Application.Tablero;
@@ -138,9 +139,14 @@ builder.Services.AgregarPublicacionDirecta(builder.Configuration);
 builder.Services.AddScoped<ReenviarAvisoHandler>();
 
 builder.Services.AddScoped<CrearEnvioHandler>();
+builder.Services.AddScoped<IExtravioRepository, ExtravioRepository>();
+builder.Services.AddScoped<RegistrarExtravioHandler>();
 builder.Services.AddScoped<IAdministracionFlota, AdministracionFlota>();
 builder.Services.AddScoped<IAdministracionComercios, AdministracionComercios>();
 builder.Services.AddScoped<IAdministracionZonas, AdministracionZonas>();
+builder.Services.AddScoped<IdentidadOperador>();
+builder.Services.AddScoped<IAdministracionIdentidadOperador>(sp => sp.GetRequiredService<IdentidadOperador>());
+builder.Services.AddScoped<IConsultaIdentidadOperador>(sp => sp.GetRequiredService<IdentidadOperador>());
 builder.Services.AddScoped<IAltaEnvioRepository, AltaEnvioRepository>();
 // Alta de envíos desde el portal: opciones del comercio, tarifa con el tarifario vigente y fechas en el servidor.
 builder.Services.AddSingleton<ICalculadorTarifa, CalculadorTarifa>();

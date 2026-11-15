@@ -4,6 +4,7 @@ using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Administracion;
 using UltimaMilla.Application.Configuracion;
 using UltimaMilla.Application.Deposito;
+using UltimaMilla.Application.Envios.Extravio;
 using UltimaMilla.Application.Despacho;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Web.Seguridad;
@@ -41,6 +42,15 @@ public static class ApiOperativa
             var tokens = antiforgery.GetAndStoreTokens(context);
             return Results.Ok(new { token = tokens.RequestToken, cabecera = CabeceraAntiforgery });
         }).RequireAuthorization().WithMetadata(new ApiOperativaMetadata());
+
+        var incidencias = app.MapGroup("/api/incidencias/envios")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador), nameof(RolUsuario.Despachador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        incidencias.MapGet("/{envioId:guid}/extravio", async (Guid envioId, RegistrarExtravioHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ConsultarAsync(envioId, ct)));
+        incidencias.MapPost("/{envioId:guid}/extravio", async (Guid envioId, RegistrarExtravioCommand solicitud, RegistrarExtravioHandler gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.Handle(envioId, solicitud, ct)));
 
         var rutas = app.MapGroup("/api/repartidor/rutas")
             .RequireCors(ApiRepartidor.Cors)
@@ -173,9 +183,19 @@ public static class ApiOperativa
             Results.Json(await gestion.CrearAsync(solicitud, ct), statusCode: StatusCodes.Status201Created));
         comercios.MapGet("/{cuentaId:guid}/usuarios", async (Guid cuentaId, IAdministracionComercios gestion, CancellationToken ct) =>
             Results.Ok(await gestion.UsuariosAsync(cuentaId, ct)));
+        comercios.MapPut("/{cuentaId:guid}", async (Guid cuentaId, ModificarCuentaComercial solicitud,
+            IAdministracionComercios gestion, CancellationToken ct) => Results.Ok(await gestion.ModificarCuentaAsync(cuentaId, solicitud, ct)));
+        comercios.MapPost("/{cuentaId:guid}/baja", async (Guid cuentaId, BajaCuentaComercial solicitud,
+            IAdministracionComercios gestion, CancellationToken ct) => Results.Ok(await gestion.DarBajaCuentaAsync(cuentaId, solicitud, ct)));
         comercios.MapPost("/{cuentaId:guid}/usuarios", async (Guid cuentaId, CrearUsuarioComercio solicitud,
             IAdministracionComercios gestion, CancellationToken ct) =>
             Results.Json(await gestion.CrearUsuarioAsync(cuentaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        comercios.MapPut("/{cuentaId:guid}/usuarios/{usuarioId:guid}", async (Guid cuentaId, Guid usuarioId,
+            ModificarUsuarioComercio solicitud, IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ModificarUsuarioAsync(cuentaId, usuarioId, solicitud, ct)));
+        comercios.MapPost("/{cuentaId:guid}/usuarios/{usuarioId:guid}/baja", async (Guid cuentaId, Guid usuarioId,
+            EstadoUsuarioEsperado solicitud, IAdministracionComercios gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.DarBajaUsuarioAsync(cuentaId, usuarioId, solicitud, ct)));
         var zonas = app.MapGroup("/api/administracion/zonas")
             .WithMetadata(new ApiOperativaMetadata())
             .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
@@ -188,6 +208,20 @@ public static class ApiOperativa
         zonas.MapPost("/{zonaId:guid}/franjas", async (Guid zonaId, CrearFranjaHoraria solicitud,
             IAdministracionZonas gestion, CancellationToken ct) =>
             Results.Json(await gestion.CrearFranjaAsync(zonaId, solicitud, ct), statusCode: StatusCodes.Status201Created));
+        var identidad = app.MapGroup("/api/administracion/identidad")
+            .WithMetadata(new ApiOperativaMetadata())
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador)))
+            .AddEndpointFilter<ErroresApiFilter>().AddEndpointFilter<AntiforgeryApiFilter>();
+        identidad.MapGet("/", async (IAdministracionIdentidadOperador gestion, CancellationToken ct) => Results.Ok(await gestion.ConsultarAsync(ct)));
+        identidad.MapPut("/", async (ModificarIdentidadOperador solicitud, IAdministracionIdentidadOperador gestion, CancellationToken ct) =>
+            Results.Ok(await gestion.ModificarAsync(solicitud, ct)));
+        app.MapGet("/api/operador/identidad", async (IConsultaIdentidadOperador consulta, CancellationToken ct) => Results.Ok(await consulta.ActualAsync(ct)))
+            .WithMetadata(new ApiOperativaMetadata()).RequireAuthorization().AddEndpointFilter<ErroresApiFilter>();
+        app.MapGet("/api/seguimiento/{token}/identidad", async (string token, HttpContext contexto, IConsultaIdentidadOperador consulta, CancellationToken ct) =>
+        {
+            contexto.Response.Headers.CacheControl = "no-store";
+            return await consulta.PorSeguimientoAsync(token, ct) is { } datos ? Results.Ok(datos) : Results.NotFound();
+        }).AllowAnonymous().RequireRateLimiting(SeguimientoSeguro.PoliticaTasa);
         return app;
     }
 

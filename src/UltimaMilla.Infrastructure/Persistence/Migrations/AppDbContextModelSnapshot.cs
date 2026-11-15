@@ -49,15 +49,36 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("Activa")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<Guid>("ComercioKey")
                         .HasColumnType("uuid")
                         .HasColumnName("ComercioId");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid>("OperadorKey")
                         .HasColumnType("uuid")
                         .HasColumnName("OperadorId");
 
+                    b.Property<string>("RazonSocial")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Telefono")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("uuid");
 
@@ -1464,9 +1485,38 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ColorPrimario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("#1E40AF");
+
+                    b.Property<string>("ColorSecundario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("#0F172A");
+
+                    b.Property<string>("EmailContacto")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Marca")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("RazonSocial")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("TelefonoContacto")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VersionIdentidad")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 

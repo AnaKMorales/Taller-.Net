@@ -4,8 +4,23 @@ Este repositorio está organizado siguiendo la estructura indicada en la documen
 
 El alcance, los pendientes y el orden de integración de la entrega parcial para el equipo
 de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIENTOS.md).
+El [plan de cierre de requisitos](PLAN-PENDIENTES.md) separa obligaciones confirmadas,
+verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
+
+Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por
+cuenta comercial, aunque dos clientes tengan el mismo nombre. La corrección conserva
+el formato de respuesta y no requiere migración.
+
+El [registro operativo de extravíos](docs/registro-extravios.md) dispone de consulta y API
+de confirmación con permisos, versiones y guardado de historial/outbox. Falta conectar
+el formulario del backoffice. No requiere migración.
+
+La [identidad visual del operador](docs/identidad-operador.md) tiene backend para configurar
+marca, colores, contacto público y URL de logo, con lecturas para las aplicaciones y el
+seguimiento por token. Requiere la migración `IdentidadVisualOperador`. Queda integrar
+los formularios, la aplicación visual y las comunicaciones con las responsables de esas áreas.
 
 La [administración de flota](docs/administracion-flota.md) permite al administrador crear
 y consultar repartidores con credenciales y vehículos con sus capacidades. Faltan las
@@ -13,7 +28,10 @@ pantallas y las operaciones de edición/baja.
 
 La [administración de comercios](docs/administracion-comercios.md) permite crear y consultar
 comercios/cuentas y sus usuarios con credenciales, conservando el aislamiento. Quedan las
-pantallas y las operaciones de modificación/baja.
+pantallas. El backend de A1 incluye permisos por rol y cuenta verificados, permite cambiar el email y dar de baja lógica
+usuarios de Comercio de una única cuenta propia, así como editar la ficha local y dar
+de baja la cuenta comercial sin afectar otros operadores. Esta última etapa requiere
+aplicar la migración `AdministracionCuentaComercial`.
 
 La [administración de zonas y franjas](docs/administracion-zonas.md) permite crear y consultar
 zonas con sus horarios y añadir nuevas franjas. Se integra con el tarifario y las opciones

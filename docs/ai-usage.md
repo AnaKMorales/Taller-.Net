@@ -964,5 +964,190 @@ zonas nuevas, flota, comercios/cuentas, API de comercios, configuración version
 alta del portal, datos demo y reenvío/sincronización PWA. El contenedor PostgreSQL
 temporal se eliminó al terminar; la base de desarrollo no se utilizó.
 
+### 14/11/2026: A1, modificación y baja de usuarios de comercio
+
+Se inició A1 por una etapa acotada: actualizar email y desactivar usuarios de Comercio
+de una sola cuenta propia. Nuevos contratos y métodos en IAdministracionComercios,
+implementación en AdministracionComercios, PUT de modificación y POST de baja en la API
+administrativa, y método de Domain ActualizarEmail (rechaza usuarios inactivos).
+Administrador activo, rol y cuenta se revalidan; las escrituras exigen antiforgery.
+No hay cambios de roles, cuentas, contraseñas, reactivaciones ni eliminación física.
+Usuarios multicuentas se rechazan para evitar cambiar acceso compartido desde una cuenta.
+
+Transacción y SELECT FOR UPDATE acotado por TenantId serializan operaciones por usuario;
+la comparación con email/activo esperados rechaza escrituras obsoletas con 409. Se compara
+estado, sin versión monotónica y sin detección ABA; esto queda explícito en el contrato.
+El índice existente resuelve las carreras por email entre usuarios distintos y el fallo
+se traduce a conflicto. No hay migración. Credencial, identidad e historial se conservan;
+el login y las peticiones de la API de comercios rechazan al usuario dado de baja.
+
+La primera ejecución tuvo dos fallos de pruebas: faltaba cargar Operador al preparar
+un usuario multicuentas y se esperaba 401 donde la API existente devuelve 403 para
+identidad revocada. Se corrigieron esas pruebas; luego se corrigió un aviso xUnit2031
+en el nuevo caso concurrente. Compilación Release estricta final aprobada, 429 pruebas
+unitarias/arquitectura y 19 integraciones aprobadas sin omisiones (seis nuevas y trece
+de regresión de administración/API de comercios). Se verificaron contraseña conservada,
+revocación de Bearer anterior, límites por cuenta/rol, validaciones/CSRF, rollback y
+carreras edición/baja y entre emails. Cobertura Domain 86,13 % (1223/1420), Application
+79,90 % (648/811). No se ejecutó toda la integración ni E2E.
+
+Se documentó el contrato y se actualizó el seguimiento. A1 sigue abierto para edición/baja
+del comercio/cuenta y revisión de perfiles/permisos. El usuario aclaró que cuenta corriente,
+etiquetas y pantalla de importación están en curso por sus compañeras: se registró en el
+plan y no se implementaron esas áreas. Se conserva el resto de cambios documentales
+previos del usuario. PostgreSQL temporal eliminado al terminar, sin usar la base de
+desarrollo. Sin commit, push ni cambios de pantallas/PWA/Worker.
+
+### 14/11/2026: A1, datos locales y baja de la cuenta comercial
+
+Se continuó A1 con edición de razón social/teléfono/email de la ficha del operador y
+baja lógica de CuentaComercial. No se relaja la prohibición de editar Comercio global:
+se mantienen sus vínculos compartidos y se agregan datos locales, Activa y Version.
+La migración AdministracionCuentaComercial copia los datos existentes y asigna versiones,
+sin perder envíos ni usuarios; EF protege cambios simultáneos con Version. La baja no
+desactiva globalmente usuarios, no oculta historial ni cancela envíos en curso. Login y
+resolución de claims limitan el acceso a cuentas activas; CuentaWriteGuard rechaza
+escrituras autenticadas de cuentas dadas de baja, conservando los ámbitos de mensajes.
+Dominio/repositorio y un trigger al insertar Envios bloquean nuevas altas. El trigger
+usa FOR SHARE sobre la cuenta para serializar con su baja; su rechazo específico se
+traduce en InvalidOperationException. No afecta cambios de envíos anteriores.
+
+Se agregaron dos endpoints con permisos/CSRF, contratos con versión esperada, cinco
+integraciones y una prueba de dominio. Se adaptaron las lecturas de nombre comercial
+en reportes/detalle/avisos de backoffice para usar la ficha local. Son nombres actuales,
+no se inventa una instantánea histórica del nombre. No se modificaron pantallas o
+interfaces de las compañeras, ni PWA o Worker. Se regeneró docs/database-initial.sql.
+
+La primera compilación corrigió una referencia de prueba a Envio.Comercio por su cuenta.
+La primera integración detectó falta de Include(Comercio) al devolver el DTO de cuenta
+tras guardar; se corrigió la carga de esa relación. La ejecución final aprobó 33
+integraciones de cuentas/usuarios/API de comercios y migraciones, sin omisiones. Incluye
+comercio compartido, baja/revocación, carrera edición/baja, rollback, recuperación de
+datos previos y procesamiento histórico tras la baja. Compilación Release estricta y
+430 pruebas unitarias/arquitectura aprobadas. El primer intento de cobertura no contenía
+líneas medibles mientras se recompilaba; se repitió tras terminar la compilación y
+aprobó Domain 86,25 % (1242/1440) y Application 79,61 % (648/814). No se ejecutó toda
+la integración ni E2E ni una demo remota.
+
+Se actualizó el contrato, README, plan y seguimiento de pendientes. Quedan revisión de
+perfiles/permisos y pantallas para A1; cuenta corriente, etiquetas e importación siguen
+a cargo de las compañeras. El contenedor PostgreSQL temporal se eliminó al terminar,
+sin aplicar migraciones a la base de desarrollo del usuario. Sin commit ni push.
+
+### 14/11/2026: cierre del backend A1 y revisión de perfiles/permisos
+
+El usuario pidió continuar y recibir un summary al cerrar A1. Se revisó el alcance:
+el perfil de los usuarios del comercio ya se asigna en servidor como Comercio; roles,
+cuenta y estado se validan en la base y las rutas administrativas requieren Administrador.
+La letra no prescribe perfiles comerciales adicionales ni un editor genérico de permisos.
+Se documentó la matriz existente, sin agregar privilegios, roles o pantallas nuevas.
+
+Se añadieron dos integraciones: todos los ocho endpoints de administración de cuentas
+y usuarios denegados a Despachador/OperarioDeposito/Repartidor, y alta/modificación de
+usuario con campos extra de elevación ignorados, persistencia del rol/cuenta correctos
+y prueba con Bearer real de acceso comercial permitido y administración/despacho denegados.
+La primera ejecución falló porque la matriz intentaba representar Comercio sin su claim
+de cuenta en la identidad ficticia. Se retiró de esa matriz: Comercio se verifica con
+el Bearer real del segundo caso. No se cambió la autenticación para satisfacer la prueba.
+
+Compilación Release con advertencias como errores aprobada. Selección final: 26 pruebas
+de integración aprobadas sin omisiones (dos nuevas y regresión A1/API). Domain/Application
+no cambiaron en esta etapa: se conservan las mediciones anteriores de 430 casos
+unitarios/arquitectura aprobados y cobertura Domain 86,25 %, Application 79,61 %.
+No se ejecutó toda la integración ni E2E ni una demo de las pantallas.
+
+Se cerró el backend A1 dentro del contrato documentado en README, plan y seguimiento.
+Las pantallas quedan pendientes de Web; V1 (alternativa de autenticación exigida) sigue
+como punto separado, y las extensiones multicuentas/roles granulares conservan sus límites
+sin afirmarlas implementadas. PostgreSQL temporal eliminado al terminar. Sin commit/push.
+
+### 14/11/2026: A2, backend de identidad visual del operador
+
+El usuario autorizó pasar a A2. Se implementó el backend de marca, colores HEX, contacto
+público opcional y URL HTTPS de logo. Domain agrega ConfigurarIdentidad en Operador,
+validación atómica/normalización y VersionIdentidad; conserva la razón social legal.
+Application define DTOs de datos públicos y administración, puertos separados de lectura
+y escritura. Infrastructure revalida el contexto de usuario y cuenta activa o el ámbito
+confiable de mensaje; solo Administrador puede escribir. La consulta pública proyecta
+seis campos de marca por token opaco sin IDs ni datos del destinatario. No hay catálogo
+público por ID de operador. Web registra el servicio y expone GET/PUT administrativos,
+GET autenticado y GET por token con limitación de tasa y no-store; escrituras con CSRF.
+
+No se modificaron formularios ni estilos de las compañeras, PWA, Worker, plantillas o
+contratos de eventos. La marca se consulta por separado sin caché; el contrato existente
+del seguimiento y su razón social no cambiaron. No se descarga/sube el logo ni se
+inventa contacto de operadores previos. La migración IdentidadVisualOperador copia
+razón social como marca inicial, colores base y versiones; se regeneró database-initial.sql.
+Se corrigió el test previo de backfill de CuentaComercial para elegir explícitamente
+la migración anterior a A1, en lugar de asumir que es siempre la penúltima al agregar A2.
+
+Se añadieron nueve casos unitarios de dominio y cinco integraciones. Compilación Release
+estricta aprobada; 439 pruebas unitarias/arquitectura y las cinco integraciones nuevas
+aprobadas. Regresión adicional: 24 integraciones aprobadas de migraciones, API de comercios,
+autorización A1, aislamiento, configuración y seguimiento. Sin omisiones en las selecciones.
+Cobertura Domain 86,55 % (1274/1472), Application 79,22 % (648/818). No se ejecutó toda
+la integración, E2E ni una demostración de identidad aplicada en interfaces/comunicaciones.
+
+Se documentó el contrato en docs/identidad-operador.md y se actualizaron README, plan y
+seguimiento. A2 sigue abierto en integración: Ana debe conectar formulario/portal/seguimiento
+y Aldana consumir el puerto en el ámbito de mensaje de Worker para las comunicaciones.
+No se afirma que esas aplicaciones ya muestren la identidad ni que se acordó su diseño
+visual. El contenedor PostgreSQL temporal se eliminó al terminar; no se modificó la
+base de desarrollo del usuario. Sin commit ni push.
+
+### 14/11/2026: registro operativo de extravíos
+
+El usuario autorizó implementar el registro y pidió el summary al terminar. Se agregó
+RegistrarExtravioHandler y contratos en Application, ExtravioRepository en Infrastructure,
+DI y GET/POST /api/incidencias/envios/{envioId}/extravio en Web. Se reutiliza
+Envio.MarcarExtraviado, sin modificar la máquina de estados ni el modelo persistido.
+Administrador/Despachador activo del operador, antiforgery, detalle hasta 2000 caracteres,
+hora UTC del servidor, versiones esperadas de envío y ruta. Lectura consistente del
+grafo con bultos/parada/ruta/eventos. La concurrencia existente protege ambos agregados
+y SaveChanges guarda estados, parada finalizada, versiones, historial y outbox juntos.
+En parciales se conservan los entregados y se extravían los pendientes; no se selecciona
+un subconjunto arbitrario ni se agrega idempotencia por UUID. Quedan explícitos relectura
+tras conflicto, conservación de parada y ausencia de cierre automático de devolución/ruta.
+
+Se añadieron doce casos unitarios de Application y seis integraciones PostgreSQL.
+Las primeras ejecuciones corrigieron preparación de pruebas: guardar envío antes de
+asignarle parada para evitar la FK circular, leer enums con JsonApi y configurar el
+PlazoServicio requerido por el constructor de Domain en el fake unitario. No se relajó
+la lógica productiva para satisfacer esas pruebas. Compilación Release estricta aprobada.
+Regresión final: 451 casos unitarios/arquitectura y 14 integraciones (seis nuevas y ocho
+anteriores de concurrencia, outbox y hoja de ruta), sin fallos ni omisiones. Cobertura
+Domain 86,55 % (1274/1472) y Application 80,02 % (681/851). No se ejecutó toda la integración
+ni E2E ni una demo con formulario visual.
+
+Se agregó docs/registro-extravios.md, enlace en README y avance en plan/seguimiento.
+Sin migración ni cambios de PWA, Worker o pantallas; queda integrar el formulario en Web.
+El tema de reportes por clientes homónimos permanece pendiente de coordinación con
+las compañeras de liquidación y autenticación continúa con su responsable. Se conservó
+el cambio documental previo del usuario. Se eliminó el PostgreSQL temporal sin tocar
+su base de desarrollo. Sin commit ni push.
+
+### 14/11/2026: separación de cuentas homónimas en reportes
+
+El usuario autorizó continuar con el siguiente punto y pidió el summary al finalizar.
+Se limitó el cambio a ReportesGestion: proyecta CuentaComercialId y agrupa cumplimiento
+y liquidación por esa identidad, usando la razón social local como etiqueta. Conserva
+DTOs, pantallas, filtros de ámbito/fechas y fórmula de importes. No se modificó el módulo
+de cuenta corriente/liquidaciones de las compañeras ni la autenticación. Sin migración.
+
+Dos regresiones PostgreSQL reprodujeron primero el defecto (dos cuentas aparecían como
+un solo grupo: esperado 2, obtenido 1). Después del cambio pasan ambas y la prueba previa
+del reporte, tres integraciones en total: importes/métricas separados, renombrado, baja
+lógica, período vacío, conservación de totales y aislamiento entre operadores.
+Release compiló sin errores ni advertencias con -warnaserror. Pasaron además 451 pruebas
+unitarias/arquitectura, sin fallos ni omisiones en las selecciones. Cobertura de la capa
+Domain 86,55 % (1274/1472) y Application 80,02 % (681/851), ambas superiores al 70 %.
+No se ejecutó toda la integración ni E2E.
+
+Se agregó docs/reportes-gestion.md y se actualizaron README, plan y seguimiento. Se
+documenta que pueden existir dos filas con el mismo nombre y que el identificador sigue
+siendo interno: una navegación futura a la cuenta requiere acordar el contrato con su
+responsable. Se eliminó el contenedor temporal revision-reportes-postgres sin modificar
+la base de desarrollo. Sin commit ni push.
+
 Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
 README, referencias de administración y pendientes/cobertura. Sin commit ni push.

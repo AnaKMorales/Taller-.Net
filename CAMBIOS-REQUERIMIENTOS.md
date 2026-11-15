@@ -1,6 +1,12 @@
 # Seguimiento del cambio de requerimientos
 
-Actualizado: 09/11/2026. Equipo de tres integrantes, Grupo 8.
+Actualizado: 14/11/2026. Equipo de tres integrantes, Grupo 8.
+
+Para priorizar trabajo nuevo, usar el [plan de cierre de requisitos](PLAN-PENDIENTES.md):
+separa brechas obligatorias confirmadas, puntos por verificar y mejoras. Las limitaciones
+de cada contrato no son automáticamente requisitos nuevos. En particular, el requisito 1
+sí exige modificación y baja de comercios/usuarios; el 19 exige aviso de sobrantes, no
+un historial persistido de cada sobrante.
 
 ## Alcance y fuentes
 
@@ -86,8 +92,8 @@ en equipo según las áreas de «Nos organizamos».
 | --- | --- | --- | --- |
 | Ejecutar en CI las pruebas de integración con PostgreSQL | **6.15 · Calidad** (pág. 7). | Implementado con dependencias efímeras, resultados TRX y control de omisiones. El usuario confirmó build-test y E2E aprobados en main tras integrar depósito/rutas. Los nuevos cambios deben volver a pasar CI al subirlos. | Agustín, coordinando el pipeline con Aldana. |
 | Exponer el despacho operativo de rutas | **5.3 · Planificación y despacho, requisito 17** (pág. 4). | Backend de consulta de preparación y confirmación implementado, con carga, permisos y versiones verificadas. La PWA descarga las rutas despachadas. Falta conectar las pantallas del backoffice. Ver [despacho](docs/despacho-operativo.md). | Agustín en backend y Ana en backoffice. |
-| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Hay backend de altas/consultas de flota, comercios/cuentas/usuarios y zonas/franjas, incluyendo adición de franjas a zonas propias. Quedan pantallas, edición/bajas y permisos adicionales. Los datos compartidos y los usados en envíos/rutas conservan sus restricciones. El punto 4 de Ana cubre formularios de tarifas/reglas. Ver [flota](docs/administracion-flota.md), [comercios](docs/administracion-comercios.md) y [zonas](docs/administracion-zonas.md). | Ana en backoffice y Agustín en las operaciones de backend que falten. |
-| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Revisar cómo configurar y guardar marca, colores y contacto por operador y cómo aplicarlos en portal, seguimiento público y comunicaciones. | Ana en configuración y pantallas, Agustín en persistencia y Aldana en comunicaciones. |
+| Completar la administración del operador | **5.1 · Administración y configuración del operador, requisitos 1, 2 y 6** (págs. 3–4). | Backend A1 cubierto dentro del contrato de comercios/cuentas/usuarios: altas, consultas, modificación, bajas y autorización por rol/cuenta. Hay altas/consultas de flota y zonas/franjas. Restan pantallas y validar la gestión de flota en la demo; no son pendientes automáticos un editor genérico de permisos ni CRUD completo de todos los catálogos. Ver [A1](docs/administracion-comercios.md) y [plan](PLAN-PENDIENTES.md). | Agustín en backend y validación; Ana/responsables de Web en pantallas. |
+| Configurar la identidad visual por operador | **5.1 · Requisito 5** (pág. 3) y **6.5 · Multitenancy** (pág. 6). | Backend de marca/colores/contacto y URL de logo con migración y concurrencia, API administrativa y lecturas seguras disponibles. Falta formulario y aplicar los datos en portal, seguimiento y comunicaciones. Ver [contrato](docs/identidad-operador.md). | Agustín backend; Ana pantallas; Aldana comunicaciones. |
 | Completar las modalidades de alta y el cálculo de tarifa | **5.2 · Ciclo de vida del envío, requisitos 7 y 9** (pág. 4). | Alta individual del portal con cálculo automático y backend de importación idempotente implementados. El alta por API para comercios ya expone login Bearer, opciones, cotización y confirmación por referencia, reutilizando la idempotencia de importación. Quedan lectura del archivo e integración de importación en el portal. Ver [API](docs/api-comercios.md) e [importación](docs/importacion-envios.md). | Agustín en backend, cálculo e idempotencia. Ana en portal e importación desde la interfaz. |
 | Completar operaciones del portal del comercio | **4 · Alcance, portal del comercio** (pág. 3). | Revisar impresión de etiquetas, gestión de devoluciones y consulta de cuenta corriente y liquidaciones desde el portal. El reporte de liquidación ya existe en backoffice. | Ana en portal y Agustín en las operaciones de backend que falten. |
 | Conectar el circuito de depósito y rutas | **5.2–5.4 · Requisitos 10, 13, 19 y 22** (pág. 4). | Ya hay backend de recepción con discrepancias, asignación regular con consultas de envíos/rutas/flota, carga, despacho, devolución y rendición operativa. Falta integrar esas operaciones en las interfaces y completar el aviso/control de sobrantes al cargar. El punto 4 de Aldana contempla el escaneo en la PWA y el punto 4 de Ana la vista de parciales y pendientes. Ver [recepción](docs/recepcion-deposito.md), [asignación](docs/asignacion-regular.md) y [cierre](docs/cierre-deposito.md). | Agustín en backend, Ana en backoffice y Aldana en las acciones de la PWA. |
@@ -103,7 +109,7 @@ Al cerrar el monitoreo, revisar cada fila contra la versión integrada y confirm
 qué queda por hacer, quién lo toma y cómo se comprueba antes de la entrega del 15/11.
 Repetir el chequeo de cobertura de **7.2 · Datos y rendimiento** (pág. 9) cuando se
 integren cambios en Domain o Application. La medición local actualizada del **14/11** es
-**86,03 % en Domain** y **80,10 % en Application**. Estos porcentajes no sustituyen la
+**86,55 % en Domain** y **80,02 % en Application**. Estos porcentajes no sustituyen la
 medición del CI de cada nueva versión. Las demás filas siguen siendo una lista de revisión;
 no se dan por completas áreas ajenas sin contrastarlas con su implementación e integración.
 
@@ -119,6 +125,70 @@ no se dan por completas áreas ajenas sin contrastarlas con su implementación e
   en todas las partes involucradas. No se agregan como prioridad frente a lo obligatorio.
 
 ## Registro de avances
+
+### 14/11: separación de comercios homónimos en reportes (letra original, requisito 30)
+
+Corregida la agrupación de cumplimiento y liquidación del reporte de gestión: utiliza
+el identificador de cuenta comercial en lugar del nombre editable. Dos clientes con
+igual nombre mantienen sus métricas e importes separados, incluso tras renombrar o dar
+de baja lógica una cuenta. Se verificaron aislamiento entre operadores, filtro de fechas
+y conservación de totales con PostgreSQL real. No cambia el contrato público, las
+pantallas ni las fórmulas de importes; no requiere migración. No implementa el módulo
+de cuenta corriente/liquidaciones de las compañeras. Ver [detalle](docs/reportes-gestion.md).
+
+### 14/11: registro operativo de extravíos (letra original, requisito 11)
+
+Caso de uso y API para consultar y registrar extravíos sobre las reglas existentes:
+Administrador/Despachador activo, envío propio, versiones de envío y ruta, detalle y
+hora del servidor. Conserva bultos entregados en parciales y libera la parada activa
+con historial/outbox/estados/versiones en una sola escritura atómica. Pruebas de permisos,
+concurrencia y rollback. Sin migración ni cambios de pantallas/PWA/Worker. Queda el
+formulario del backoffice. Ver [contrato](docs/registro-extravios.md).
+
+### 14/11: A2, backend de identidad visual y contacto del operador
+
+Configuración persistida de marca, colores HEX, contacto y URL HTTPS de logo por operador,
+con versión de concurrencia. API administrativa con permisos/antiforgery; lectura por
+sesión y lectura pública mínima por token de seguimiento. Puerto de lectura para el
+ámbito confiable de mensajes, sin modificar Worker ni contratos de eventos. Migración
+`IdentidadVisualOperador` copia razón social a marca, asigna versiones y mantiene contacto
+previo vacío. La marca se consulta sin caché, separada del estado del envío, sin cambiar
+su contrato existente. Quedan formulario y aplicación visual con Ana y consumo en
+comunicaciones con Aldana: A2 integrado sigue abierto. Ver [contrato](docs/identidad-operador.md).
+
+### 14/11: cierre de revisión de perfiles/permisos del backend A1
+
+Revisada la asignación del perfil Comercio en servidor y sus permisos por rol/cuenta.
+Se agregaron pruebas de los ocho endpoints administrativos contra Despachador, Operario
+de depósito y Repartidor, y pruebas con Bearer real de Comercio sin elevación de privilegios
+por campos extra. Administrador activo del operador conserva la gestión exclusiva.
+No se inventa un editor genérico de permisos ni nuevos perfiles comerciales sin requisito.
+El backend de A1 queda cubierto según el contrato; las pantallas siguen pendientes de Web.
+Esto no cierra V1 (elección de autenticación exigida por la letra), que sigue separado.
+
+### 14/11: A1, modificación y baja de la cuenta comercial
+
+Backend para editar razón social, teléfono y email locales del operador y dar de baja
+la cuenta comercial sin modificar el Comercio global compartido. Migración
+`AdministracionCuentaComercial`: copia datos existentes, mantiene cuentas activas y
+asigna versión de concurrencia. Baja lógica: bloquea autenticación y nuevas altas,
+conservando historial, procesamiento operativo y mensajes pendientes. El trigger de
+PostgreSQL serializa el INSERT de envío con la baja de cuenta. Reportes/detalles del
+backoffice usan la ficha local. Sin cambios de pantallas/PWA/Worker. A1 sigue abierto
+para revisar perfiles/permisos y presentación; las pantallas de cuenta corriente,
+etiquetas e importación continúan con las compañeras. Ver [contrato](docs/administracion-comercios.md).
+
+### 14/11: A1, primera etapa de modificación/baja de usuarios
+
+El backend permite modificar el email y dar de baja lógica usuarios de Comercio de una
+única cuenta propia. Revalida administrador, cuenta y rol, exige antiforgery, compara el
+email/estado leídos dentro de una transacción con bloqueo por usuario y conserva los
+vínculos, credenciales e historial. La baja rechaza nuevos logins y el uso de sesiones
+anteriores en las operaciones que revalidan la identidad. Sin migración. Quedan edición
+y baja del comercio/cuenta, revisión de perfiles/permisos y pantallas; A1 sigue abierto.
+Cuenta corriente, etiquetas y pantalla de importación están en curso por las compañeras
+según confirmó Agustín; no se implementan en paralelo aquí. Ver [plan](PLAN-PENDIENTES.md)
+y [contrato](docs/administracion-comercios.md).
 
 ### 14/11: altas y consultas de zonas/franjas (letra original, 5.1)
 
