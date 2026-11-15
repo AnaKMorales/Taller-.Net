@@ -19,6 +19,7 @@
         @if (User.IsInRole("Administrador"))
         {
             <a href="/backoffice/reportes" class="@(ViewData["Seccion"] as string == "reportes" ? "activo" : "")">Reportes</a>
+            <a href="/backoffice/configuracion/identidad" class="@(ViewData["Seccion"] as string == "identidad" ? "activo" : "")">Identidad visual</a>
             <a href="/backoffice/configuracion/tarifas" class="@(ViewData["Seccion"] as string == "tarifas" ? "activo" : "")">Tarifas</a>
             <a href="/backoffice/configuracion/reglas" class="@(ViewData["Seccion"] as string == "reglas" ? "activo" : "")">Reglas</a>
         }

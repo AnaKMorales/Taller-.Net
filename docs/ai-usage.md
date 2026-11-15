@@ -1151,3 +1151,76 @@ la base de desarrollo. Sin commit ni push.
 
 Se documentaron contratos y límites en docs/administracion-zonas.md y se actualizaron
 README, referencias de administración y pendientes/cobertura. Sin commit ni push.
+### 15/11/2026: pantallas de cierre operativo
+
+El usuario reasignó explícitamente a Agustín tres bloques de front y autorizó empezar
+por devoluciones/rendición, dejando PWA para el final. Se añadieron páginas Razor Cierre,
+Devolucion y Rendicion, enlaces desde Depósito/detalle de envío, reutilizando handlers
+existentes sin migraciones ni cambios de negocio, Worker o PWA. Roles Administrador,
+Despachador y OperarioDeposito, antiforgery automático, versión leída en hidden input,
+errores de dominio/concurrencia mediante la base de páginas existente y PRG tras éxito.
+Las devoluciones reciben solo su composición y el cierre se ofrece al no quedar faltantes;
+la rendición requiere despacho y cero paradas activas, sin completar devoluciones por ella.
+
+Web Release compiló con -warnaserror sin errores ni advertencias. Pasaron 15 integraciones
+PostgreSQL (dos nuevas HTTP de pantallas y regresión seleccionada del cierre existente),
+sin fallos ni omisiones, usando bases temporales creadas y eliminadas por la fixture.
+Incluyen envío de formularios, CSRF, versión obsoleta, lectura ajena y rechazo de rendición
+con paradas activas. No se ejecutó navegador ni toda la solución/E2E; el error CS8604 del
+E2E detectado previamente permanece fuera del bloque. Domain/Application no cambiaron.
+Se actualizaron README, plan, seguimiento y contrato de cierre. Sin commit ni push.
+
+### 15/11/2026: datos demo para practicar devoluciones y rendición
+
+Tras comprobar en navegador el bloqueo de rendición y el rechazo de devolución por
+reintento permitido, el usuario pidió datos para el recorrido exitoso. Se agregó POST
+/dev/datos-demo-cierre únicamente en Development, reutilizando DatosDemo con un modo
+explícito que crea un operador independiente, motivo no reintentable, carga previa de
+bultos, ruta despachada con paradas finalizadas y operaciones de cierre aún pendientes.
+Devuelve credenciales demo, códigos y referencias para abrir las pantallas. Los modos
+anteriores de datos demo/PWA mantienen su comportamiento. No se alteran reglas previas.
+Web compiló Release estricta y una integración nueva recorrió inicio, escaneos, devolución
+completa y rendición, verificando que otro operador permaneciera intacto. La primera
+compilación de la prueba corrigió el nombre del enum Completado; el código de negocio
+no se cambió. Prueba final aprobada sin omisiones. Documentado en cierre-deposito.md.
+El escenario se generará en la base local cuando el usuario ejecute el comando tras
+reiniciar Web. Sin migración, commit ni push.
+
+### 15/11/2026: formulario de registro de extravío
+
+Autorizado el segundo bloque de front. EnvioModel reutiliza RegistrarExtravioHandler,
+consulta versiones propias para el formulario y mantiene separados los campos de la
+gestión de pendientes. Administrador/Despachador, confirmación verificada en servidor,
+detalle obligatorio y límite de 2000 caracteres, CSRF de Razor Pages, PRG tras éxito.
+No se ofrece en bultos admitidos/finales ni al operario; el backend conserva la validación
+autoritaria, aislamiento y atomicidad. Se recargan versiones tras error y la casilla se
+muestra desmarcada para volver a confirmar. Conserva los cambios previos de cierre/demo.
+
+Web Release estricta sin errores/advertencias. Diez integraciones PostgreSQL aprobadas,
+sin omisiones: dos nuevas de formulario (CSRF, confirmación, versión de ruta obsoleta,
+detalle inválido, éxito/liberación de parada, estado admitido y rol operario), seis de
+extravío existentes y dos de pantallas de cierre. No se ejecutó navegador ni toda la
+solución/E2E. Domain/Application no cambian. Se documentó el uso de otro escenario de
+datos-demo-cierre para probar sin modificar el envío que el usuario acaba de devolver.
+Sin migración, commit ni push; pendiente el recorrido manual con el usuario.
+
+### 15/11/2026: identidad visual en administración, portal y seguimiento
+
+Autorizado el tercer bloque de front, conservando los usuarios de prueba existentes.
+Se agregó formulario Razor administrativo, componentes MarcaOperador/ContactoOperador
+y selección de texto negro/blanco por luminancia. Reutiliza los puertos de A2 y su versión
+de concurrencia, validación y autorización; formularios con CSRF y PRG. El portal lee por
+sesión y el seguimiento por token; no se altera razón social legal ni contratos públicos.
+Los logos HTTPS se cargan en el navegador con no-referrer. La CSP del seguimiento admite
+https: solo en img-src, conservando las demás restricciones. Contacto opcional y marca
+visible aun si la imagen falla; sin subida de archivos ni caché nueva. No se modifica
+Worker, comunicaciones, PWA o etiquetas. Sin migración nueva.
+
+Web Release con -warnaserror compiló sin errores/advertencias. Once integraciones finales
+aprobadas sin omisiones: dos nuevas de formulario y renderizado HTTP, con CSRF, permisos,
+validación, conflicto, estilos, logo/contacto en portal y seguimiento y aislamiento, además
+de regresión A2/seguimiento. La primera ejecución tuvo un fallo en login del fixture por
+emails repetidos de dos operadores: se corrigió el email del comercio ajeno, sin modificar
+la autenticación productiva. No se ejecutó navegador ni toda la solución/E2E. La carga
+real del logo externo y el aspecto se comprobarán con el usuario. No cambian Domain ni
+Application. Se actualizaron contrato, README, plan y seguimiento. Sin commit ni push.

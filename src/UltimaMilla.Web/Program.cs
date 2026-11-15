@@ -278,6 +278,9 @@ if (app.Environment.IsDevelopment())
     dev.MapPost("/datos-demo-pwa", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
         Results.Ok(await DatosDemo.CrearAsync(options, ct, incluirVisitaParcial: true)));
 
+    dev.MapPost("/datos-demo-cierre", async (DbContextOptions<AppDbContext> options, CancellationToken ct) =>
+        Results.Ok(await DatosDemo.CrearCierreAsync(options, ct)));
+
     dev.MapGet("/tarifario/{operadorId:guid}", async (Guid operadorId, ITarifarioVigente tarifario, CancellationToken ct) =>
         await tarifario.ObtenerAsync(operadorId, ct) is { } cuadro ? Results.Ok(cuadro) : Results.NotFound());
 

@@ -1,8 +1,19 @@
 # Plan de cierre de requisitos
 
+Avance 15/11: por acuerdo del equipo, Agustín toma las pantallas de cierre operativo,
+extravíos e identidad visual; PWA queda para el final. Integradas las de devoluciones
+y rendición en `/backoffice/deposito/cierre`, con enlace desde Depósito y desde el detalle
+del envío a su devolución. No equivale al cierre automático diario del Worker (V3).
+
 Revisión del 14/11/2026. Grupo 8, tres integrantes. Solo planificación: no se implementaron
 funciones en esta revisión. Este documento distingue obligaciones, verificaciones y mejoras.
 No significa que cada limitación documentada deba convertirse en una funcionalidad nueva.
+
+Avance 15/11, A2 visual: formulario administrativo integrado en
+`/backoffice/configuracion/identidad`, con marca/logo/colores/contacto aplicados en el
+portal y seguimiento. Sin cambios de Worker: sigue pendiente comprobar la identidad en
+comunicaciones con Aldana. Los pendientes históricos de pantallas de A2 quedan cubiertos
+por este avance; falta el ensayo manual de sus salidas y la integración de comunicaciones.
 
 Coordinación posterior del 14/11: Agustín confirmó que sus compañeras trabajan en cuenta
 corriente, etiquetas y pantalla de importación, y posteriormente indicó que también
@@ -20,7 +31,8 @@ pruebas nuevas):
   posteriormente a esta revisión: caso de uso y API GET/POST para Administrador/Despachador,
   versiones de envío/ruta, detalle y reloj del servidor. Historial/outbox y liberación de
   parada atómicos, con pruebas de concurrencia/rollback y entrega parcial. Sin migración.
-  Solo queda conectar el botón/formulario en Web. Ver [contrato](docs/registro-extravios.md).
+  Formulario integrado el 15/11 en el detalle de envío para Administrador/Despachador:
+  detalle, confirmación explícita, antiforgery y versiones de envío/ruta. Ver [contrato](docs/registro-extravios.md).
 - **Separación de comercios en reportes (letra 5.5, requisito 30, pág. 4):**
   corregido en el backend existente. `ReportesGestion` agrupa cumplimiento y liquidación
   por CuentaComercialId; el nombre queda como etiqueta. Dos cuentas homónimas conservan

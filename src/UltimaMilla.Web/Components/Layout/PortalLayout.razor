@@ -1,14 +1,20 @@
 @* Layout del portal del comercio (Blazor, renderizado estático en el servidor).
    Mismo encabezado y estilos que el backoffice, para que el usuario no note el cambio de tecnología. *@
 @inherits LayoutComponentBase
+@using UltimaMilla.Application.Administracion
+@using UltimaMilla.Web.Compartido
+@inject IConsultaIdentidadOperador Identidades
 
 <HeadContent>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/css/sitio.css" />
+    <style>.portal-operador header a { color: inherit; }</style>
 </HeadContent>
 
-<header>
-    <strong>UltimaMilla</strong>
+<div class="portal-operador">
+<header style="@(identidad is null ? null : TemaOperador.Fondo(identidad.ColorPrimario))">
+    @if (identidad is { } marca) { <MarcaOperador Datos="marca" /> }
+    else { <strong>UltimaMilla</strong> }
     <NavLink href="/portal" Match="NavLinkMatch.All" ActiveClass="activo">Mis envíos</NavLink>
     <NavLink href="/portal/envios/nuevo" ActiveClass="activo">Nuevo envío</NavLink>
     <NavLink href="/portal/envios/importar" ActiveClass="activo">Importar</NavLink>
@@ -27,8 +33,16 @@
 </header>
 <main>
     @Body
+    @if (identidad is { } contacto) { <ContactoOperador Datos="contacto" /> }
 </main>
+</div>
 
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
+    private IdentidadOperadorDto? identidad;
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext?.User.Identity?.IsAuthenticated == true)
+            identidad = await Identidades.ActualAsync(HttpContext.RequestAborted);
+    }
 }

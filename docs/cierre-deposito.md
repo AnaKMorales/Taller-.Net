@@ -127,3 +127,46 @@ ruta de origen: pertenece al proceso de devolución y lo registra el personal de
 Las pruebas verifican el recorrido completo, parciales, políticas, faltantes, reenvíos,
 roles/CSRF/aislamiento, revocación, outbox compatible, cierres simultáneos y rollback de
 las cuatro escrituras. También se comprueba que rendir no cierre una devolución pendiente.
+
+## Integración de pantallas (15/11/2026)
+
+Desde **Depósito → Devoluciones y rendición** (`/backoffice/deposito/cierre`) se listan
+las devoluciones abiertas y las rutas despachadas aún no rendidas del operador, sin
+limitarse a la fecha actual. El detalle de cada envío enlaza a su devolución.
+
+- `/backoffice/deposito/devolucion/{envioId}` permite consultar, iniciar según reglas,
+  escanear sus bultos y confirmar el cierre una vez recibidos todos los esperados.
+  Conserva la composición parcial y el reconocimiento de escaneos repetidos del backend.
+- `/backoffice/deposito/rendicion/{rutaId}` muestra las paradas y permite confirmar la
+  rendición si está despachada y sin paradas activas. Las devoluciones se cierran por separado.
+- Administrador, despachador y operario de depósito pueden acceder. Los formularios Razor
+  validan antiforgery y envían la versión que se mostró al usuario; los handlers mantienen
+  la autorización, aislamiento, concurrencia y guardado transaccional existentes.
+
+Para probar localmente: iniciar PostgreSQL, Redis y Web con sus scripts `Start-*`, abrir
+`http://localhost:5243/login` con `emailAdministrador` y `contrasena` del escenario demo
+y entrar a Depósito. También se admiten usuarios reales de depósito/despacho. Un listado
+vacío indica que ese operador no tiene devoluciones abiertas o rutas por rendir: el demo
+no garantiza un caso preparado para cada cierre. No es un proceso automático de cierre
+diario del Worker ni una liquidación económica. No requiere migraciones.
+
+### Escenario para practicar el cierre
+
+En Development, `POST /dev/datos-demo-cierre` crea un operador separado con credenciales
+demo, un envío fallido por motivo no reintentable y una ruta despachada sin paradas activas.
+No inicia la devolución ni rinde la ruta: esas operaciones se hacen en las pantallas.
+La respuesta trae `usuarios` (emailAdministrador, contrasena, codigoSeguimiento),
+`envioId`, `rutaId` y `bultos`. Cada llamada crea otro escenario sin cambiar los previos.
+Los endpoints demo normal y PWA conservan sus datos y reglas anteriores.
+
+```powershell
+$cierre = Invoke-RestMethod -Method Post -Uri "http://localhost:5243/dev/datos-demo-cierre" -ContentType "application/json" -Body '{}'
+$cierre.usuarios | Select-Object emailAdministrador, contrasena, codigoSeguimiento
+$cierre.bultos
+"http://localhost:5243/backoffice/deposito/devolucion/$($cierre.envioId)"
+"http://localhost:5243/backoffice/deposito/rendicion/$($cierre.rutaId)"
+```
+
+Cerrar la sesión anterior e ingresar con el administrador de este escenario. Iniciar
+la devolución, recibir todos los códigos devueltos en `bultos`, confirmarla y rendir
+la ruta. Después ambas operaciones desaparecen del listado de pendientes.
