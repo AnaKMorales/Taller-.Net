@@ -94,6 +94,14 @@ public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = n
                 e.Eventos.Max(v => v.OcurridoEn)))
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<EnvioPorRecibirDto>> PorRecibirAsync(CancellationToken cancellationToken = default) =>
+        await db.Envios.AsNoTracking()
+            .Where(e => e.Estado == EstadoEnvio.Admitido)
+            .OrderBy(e => e.FechaAdmision)
+            .Select(e => new EnvioPorRecibirDto(e.Id, e.CodigoSeguimiento, e.CuentaComercial.Comercio.RazonSocial,
+                e.Destinatario.Nombre, e.Bultos.Count, e.FechaAdmision))
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<AvisoFallidoDto>> AvisosFallidosAsync(CancellationToken cancellationToken = default)
     {
         var filas = await db.Set<EntregaAviso>().AsNoTracking()

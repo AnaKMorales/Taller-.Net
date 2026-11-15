@@ -1,0 +1,110 @@
+@page "/backoffice/deposito"
+@model UltimaMilla.Web.Pages.Backoffice.Deposito.IndexModel
+@using UltimaMilla.Web.Compartido
+@{
+    ViewData["Title"] = "Depósito y rutas";
+    ViewData["Seccion"] = "deposito";
+    Layout = "_Layout";
+}
+
+<h1>Depósito y rutas</h1>
+<p class="nota">Recibir los envíos, asignarlos a una ruta y preparar la ruta para despachar.</p>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<h2>1. Por recibir en depósito</h2>
+<table>
+    <thead><tr><th>Código</th><th>Comercio</th><th>Destinatario</th><th>Bultos</th><th>Admitido</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var e in Model.PorRecibir)
+        {
+            <tr>
+                <td><code>@e.CodigoSeguimiento</code></td>
+                <td>@e.Comercio</td>
+                <td>@e.Destinatario</td>
+                <td>@e.Bultos</td>
+                <td>@Textos.Fecha(e.FechaAdmision)</td>
+                <td><a href="/backoffice/deposito/recepcion/@e.EnvioId">Recibir</a></td>
+            </tr>
+        }
+        @if (Model.PorRecibir.Count == 0) { <tr><td colspan="6" class="vacio">No hay envíos esperando.</td></tr> }
+    </tbody>
+</table>
+
+<h2>2. Para asignar a una ruta</h2>
+<table>
+    <thead><tr><th>Código</th><th>Estado</th><th>Bultos</th><th>Peso</th><th>Ventana</th><th>Ruta</th></tr></thead>
+    <tbody>
+        @foreach (var e in Model.Disponibles)
+        {
+            <tr>
+                <td><a href="/backoffice/envios/@e.Id"><code>@e.CodigoSeguimiento</code></a></td>
+                <td>@Textos.Estado(e.Estado)</td>
+                <td>@e.Bultos</td>
+                <td>@e.PesoKg.ToString("0.##") kg</td>
+                <td>@Textos.Fecha(e.VentanaDesde)</td>
+                <td>
+                    @if (Model.PuedeDespachar && Model.Rutas.Count > 0)
+                    {
+                        <form method="post" asp-page-handler="Asignar">
+                            <input type="hidden" name="EnvioId" value="@e.Id" />
+                            <input type="hidden" name="VersionEnvio" value="@e.Version" />
+                            <select name="Ruta">
+                                @foreach (var r in Model.Rutas)
+                                {
+                                    <option value="@(r.Id)|@(r.Version)">@r.Repartidor · @r.Matricula (@(r.ParadasActivas)/@(r.MaxParadas))</option>
+                                }
+                            </select>
+                            <button type="submit">Asignar</button>
+                        </form>
+                    }
+                    else if (Model.PuedeDespachar)
+                    {
+                        <span class="nota">Creá una ruta primero.</span>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Disponibles.Count == 0) { <tr><td colspan="6" class="vacio">No hay envíos en depósito para asignar.</td></tr> }
+    </tbody>
+</table>
+
+<h2>3. Rutas en preparación</h2>
+<table>
+    <thead><tr><th>Repartidor</th><th>Vehículo</th><th>Paradas</th><th>Peso</th><th>Volumen</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var r in Model.Rutas)
+        {
+            <tr>
+                <td>@r.Repartidor</td>
+                <td>@r.Matricula</td>
+                <td>@r.ParadasActivas / @r.MaxParadas</td>
+                <td>@r.PesoOcupadoKg.ToString("0.##") / @r.CapacidadPesoKg.ToString("0.##") kg</td>
+                <td>@r.VolumenOcupadoM3.ToString("0.###") / @r.CapacidadVolumenM3.ToString("0.###") m³</td>
+                <td><a href="/backoffice/deposito/rutas/@r.Id">Cargar y despachar</a></td>
+            </tr>
+        }
+        @if (Model.Rutas.Count == 0) { <tr><td colspan="6" class="vacio">No hay rutas en preparación.</td></tr> }
+    </tbody>
+</table>
+
+@if (Model.PuedeDespachar && Model.Recursos is { } recursos)
+{
+    <form method="post" asp-page-handler="CrearRuta" class="formulario">
+        <strong>Nueva ruta</strong>
+        <div>
+            <label>Repartidor
+                <select name="RepartidorId">
+                    @foreach (var p in recursos.Repartidores) { <option value="@p.Id">@p.Email</option> }
+                </select>
+            </label>
+            <label>Vehículo
+                <select name="VehiculoId">
+                    @foreach (var v in recursos.Vehiculos) { <option value="@v.Id">@v.Matricula (@v.CapacidadPesoKg.ToString("0.#") kg)</option> }
+                </select>
+            </label>
+            <label>Máx. paradas <input name="MaxParadas" type="number" min="1" value="@Model.MaxParadas" size="4" /></label>
+            <button type="submit">Crear ruta</button>
+        </div>
+    </form>
+}

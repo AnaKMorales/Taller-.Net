@@ -229,6 +229,22 @@ public sealed partial class PostgresTests
     }
 
     [PostgresFact]
+    public async Task PorRecibirListaLosAdmitidosDelOperador()
+    {
+        var escenario = Escenario();
+        await using (var db = Context())
+        {
+            db.Add(escenario.Envio);
+            await db.SaveChangesAsync();
+        }
+
+        await using var lectura = Context();
+        var envio = Assert.Single(await new ConsultasBackoffice(lectura).PorRecibirAsync());
+        Assert.Equal(escenario.Envio.CodigoSeguimiento, envio.CodigoSeguimiento);
+        Assert.Equal(escenario.Envio.Bultos.Count, envio.Bultos);
+    }
+
+    [PostgresFact]
     public async Task EtiquetaSoloParaElComercioDelEnvio()
     {
         var escenario = Escenario();

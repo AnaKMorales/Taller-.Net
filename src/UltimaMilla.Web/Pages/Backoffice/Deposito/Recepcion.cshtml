@@ -1,0 +1,84 @@
+@page "/backoffice/deposito/recepcion/{id:guid}"
+@model UltimaMilla.Web.Pages.Backoffice.Deposito.RecepcionModel
+@using UltimaMilla.Domain.Deposito
+@using UltimaMilla.Web.Compartido
+@{
+    var e = Model.Envio!;
+    ViewData["Title"] = "Recepción";
+    ViewData["Seccion"] = "deposito";
+    Layout = "_Layout";
+}
+
+<p><a href="/backoffice/deposito">← Depósito y rutas</a></p>
+<h1>Recepción de <code>@e.CodigoSeguimiento</code></h1>
+<p>Estado: <strong>@Textos.Estado(e.Estado)</strong> · Recibidos <strong>@e.Recibidos de @e.Esperados</strong> bultos</p>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+@if (Model.Abierta)
+{
+    <form method="post" asp-page-handler="Escanear" class="formulario">
+        <input type="hidden" name="Version" value="@e.Version" />
+        <label>Código del bulto <input name="Codigo" autofocus autocomplete="off" required /></label>
+        <div><button type="submit">Registrar bulto</button></div>
+    </form>
+}
+
+<table>
+    <thead><tr><th>Bulto</th><th>Peso</th><th>Medidas (cm)</th><th>Recibido</th></tr></thead>
+    <tbody>
+        @foreach (var b in e.Bultos)
+        {
+            <tr>
+                <td><code>@b.Codigo</code></td>
+                <td>@b.PesoKg.ToString("0.##") kg</td>
+                <td>@b.AltoCm.ToString("0.#") × @b.AnchoCm.ToString("0.#") × @b.LargoCm.ToString("0.#")</td>
+                <td>@(b.Recibido ? "✓" : "—")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (e.Discrepancias.Count > 0)
+{
+    <h2>Discrepancias</h2>
+    <ul>
+        @foreach (var d in e.Discrepancias)
+        {
+            <li>@d.Tipo: @d.Detalle (declarado: @d.DetalleDeclarado · recibido: @d.DetalleRecibido)</li>
+        }
+    </ul>
+}
+
+@if (Model.Abierta)
+{
+    <details>
+        <summary>Registrar una discrepancia</summary>
+        <form method="post" asp-page-handler="Discrepancia" class="formulario">
+            <input type="hidden" name="Version" value="@e.Version" />
+            <div>
+                <label>Tipo
+                    <select name="Tipo">
+                        @foreach (var t in Enum.GetValues<TipoDiscrepancia>()) { <option value="@t">@t</option> }
+                    </select>
+                </label>
+                <label>Bulto
+                    <select name="BultoId">
+                        <option value="">(del envío)</option>
+                        @foreach (var b in e.Bultos) { <option value="@b.Id">@b.Codigo</option> }
+                    </select>
+                </label>
+            </div>
+            <label>Detalle <input name="Detalle" required /></label>
+            <label>Declarado <input name="Declarado" required /></label>
+            <label>Recibido <input name="Recibido" required /></label>
+            <div><button type="submit">Registrar discrepancia</button></div>
+        </form>
+    </details>
+
+    <form method="post" asp-page-handler="Confirmar">
+        <input type="hidden" name="Version" value="@e.Version" />
+        @if (e.Faltantes > 0) { <p class="nota">Faltan @e.Faltantes bultos por escanear.</p> }
+        <button type="submit">Confirmar ingreso al depósito</button>
+    </form>
+}

@@ -20,6 +20,9 @@ public sealed record EnvioEnRiesgoDto(Guid EnvioId, string CodigoSeguimiento, st
 // (intentos de entrega): no es un seguimiento continuo del vehículo.
 public sealed record PosicionRepartidorDto(string Repartidor, decimal Latitud, decimal Longitud, DateTime ReportadaEn);
 
+public sealed record EnvioPorRecibirDto(Guid EnvioId, string CodigoSeguimiento, string Comercio, string Destinatario,
+    int Bultos, DateTime FechaAdmision);
+
 // Solo devuelven datos del operador del usuario.
 public interface IConsultasBackoffice
 {
@@ -29,4 +32,6 @@ public interface IConsultasBackoffice
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IncidenciaDto>> IncidenciasAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AvisoFallidoDto>> AvisosFallidosAsync(CancellationToken cancellationToken = default);
+    // Admitidos que todavía no llegaron al depósito
+    Task<IReadOnlyList<EnvioPorRecibirDto>> PorRecibirAsync(CancellationToken cancellationToken = default);
 }

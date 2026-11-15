@@ -49,6 +49,54 @@ public sealed class FlujosCriticosTests(Entorno entorno)
     }
 
     [E2EFact]
+    public async Task ElDepositoRecibeAsignaCargaYDespacha()
+    {
+        // El comercio da de alta un envío con un bulto
+        var comercio = await entorno.NuevaPaginaAsync();
+        await Entorno.IngresarAsync(comercio, entorno.Express.Comercio, entorno.Express.Contrasena);
+        var bulto = $"DEP-{Guid.NewGuid():N}"[..12];
+        await comercio.GotoAsync("/portal/envios/nuevo");
+        foreach (var (campo, valor) in new[] { ("Nombre", "Depósito E2E"), ("Telefono", "099111222"), ("Email", "dep@example.com"),
+                     ("Calle", "Rivera"), ("Numero", "100"), ("Localidad", "Montevideo"), ("CodigoPostal", "11000"),
+                     ("Bultos[0].Codigo", bulto), ("Bultos[0].Peso", "1"), ("Bultos[0].Alto", "10"),
+                     ("Bultos[0].Ancho", "10"), ("Bultos[0].Largo", "10") })
+            await comercio.FillAsync($"input[name='{campo}']", valor);
+        await comercio.ClickAsync("button:has-text('Calcular tarifa y ver fechas')");
+        await comercio.ClickAsync("button:has-text('Confirmar alta')");
+        var codigo = await comercio.Locator(".exito code").InnerTextAsync();
+
+        var admin = await entorno.NuevaPaginaAsync();
+        await Entorno.IngresarAsync(admin, entorno.Express.Admin, entorno.Express.Contrasena);
+
+        // Recepción
+        await admin.GotoAsync("/backoffice/deposito");
+        await admin.Locator($"tr:has-text('{codigo}')").GetByText("Recibir").ClickAsync();
+        await admin.FillAsync("input[name='Codigo']", bulto);
+        await admin.ClickAsync("button:has-text('Registrar bulto')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("1 de 1");
+        await admin.ClickAsync("button:has-text('Confirmar ingreso al depósito')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("ingresado al depósito");
+
+        // Ruta nueva y asignación
+        await admin.ClickAsync("button:has-text('Crear ruta')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("Ruta creada");
+        var fila = admin.Locator($"tr:has-text('{codigo}')");
+        var opcion = fila.Locator("select[name='Ruta'] option", new() { HasTextString = "(0/" }).First;
+        var ruta = (await opcion.GetAttributeAsync("value"))!.Split('|')[0];
+        await fila.Locator("select[name='Ruta']").SelectOptionAsync(await opcion.GetAttributeAsync("value"));
+        await fila.GetByText("Asignar").ClickAsync();
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("asignado");
+
+        // Carga y despacho
+        await admin.GotoAsync($"/backoffice/deposito/rutas/{ruta}");
+        await admin.FillAsync("input[name='Codigo']", bulto);
+        await admin.ClickAsync("button:has-text('Registrar carga')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("1 de 1");
+        await admin.ClickAsync("button:has-text('Despachar ruta')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("Ruta despachada");
+    }
+
+    [E2EFact]
     public async Task ElComercioImportaUnArchivoSinDuplicarAlReimportar()
     {
         var pagina = await entorno.NuevaPaginaAsync();
