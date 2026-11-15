@@ -11,6 +11,13 @@ public sealed record EtiquetaEnvioDto(string CodigoSeguimiento, string Operador,
     string Destinatario, string Telefono, string Calle, string Numero, string Localidad, string CodigoPostal,
     string Zona, ModalidadServicio Modalidad, DateTime FechaComprometida, IReadOnlyList<BultoEtiquetaDto> Bultos);
 
+// Bultos que vuelven al comercio y en qué quedó la devolución.
+public sealed record DevolucionPortalDto(string CodigoSeguimiento, string Destinatario, string? Motivo,
+    IReadOnlyList<string> Bultos, int BultosDelEnvio, DateTime Inicio, DateTime PlazoLimite, DateTime? Cierre)
+{
+    public bool Completada => Cierre is not null;
+}
+
 // Solo envíos de la cuenta comercial del usuario.
 public interface IConsultasPortal
 {
@@ -18,4 +25,6 @@ public interface IConsultasPortal
 
     // null si no existe o es de otro comercio
     Task<EtiquetaEnvioDto?> EtiquetaAsync(string codigoSeguimiento, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DevolucionPortalDto>> DevolucionesAsync(CancellationToken cancellationToken = default);
 }

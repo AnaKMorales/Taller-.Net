@@ -1,0 +1,69 @@
+@page "/portal/devoluciones"
+@* Envíos que vuelven al comercio: qué bultos, por qué y cuándo llegan. *@
+@using Microsoft.AspNetCore.Authorization
+@using UltimaMilla.Application.Portal
+@using UltimaMilla.Web.Compartido
+@using UltimaMilla.Web.Components.Layout
+@using UltimaMilla.Web.Seguridad
+@attribute [Authorize(Policy = Politicas.Portal)]
+@layout PortalLayout
+@inject IConsultasPortal Consultas
+@inject TimeProvider Reloj
+
+<PageTitle>Devoluciones - Portal UltimaMilla</PageTitle>
+
+<h1>Devoluciones</h1>
+<p class="nota">Envíos que el operador te devuelve: no se pudieron entregar o quedaron bultos pendientes.</p>
+
+<div class="contadores">
+    <div><span>@devoluciones.Count(d => !d.Completada)</span>en camino</div>
+    <div><span>@devoluciones.Count(d => d.Completada)</span>devueltas</div>
+</div>
+
+<table>
+    <thead>
+        <tr><th>Código</th><th>Destinatario</th><th>Motivo</th><th>Bultos que vuelven</th><th>Inicio</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var d in devoluciones)
+        {
+            <tr>
+                <td><a href="/seguimiento/@d.CodigoSeguimiento" target="_blank" rel="noopener"><code>@d.CodigoSeguimiento</code></a></td>
+                <td>@d.Destinatario</td>
+                <td>@(d.Motivo ?? "—")</td>
+                <td>
+                    @string.Join(", ", d.Bultos)
+                    @if (d.Bultos.Count < d.BultosDelEnvio) { <br /><span class="nota">@d.Bultos.Count de @d.BultosDelEnvio (entrega parcial)</span> }
+                </td>
+                <td>@Textos.Fecha(d.Inicio)</td>
+                <td>
+                    @if (d.Completada)
+                    {
+                        <text>Devuelta el @Textos.Fecha(d.Cierre)</text>
+                    }
+                    else if (d.PlazoLimite < Reloj.GetUtcNow().UtcDateTime)
+                    {
+                        <span class="error">Plazo vencido (@Textos.Fecha(d.PlazoLimite))</span>
+                    }
+                    else
+                    {
+                        <text>En camino, plazo @Textos.Fecha(d.PlazoLimite)</text>
+                    }
+                </td>
+            </tr>
+        }
+        @if (devoluciones.Count == 0)
+        {
+            <tr><td colspan="6" class="vacio">No tenés devoluciones.</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [CascadingParameter] public HttpContext? HttpContext { get; set; }
+
+    private IReadOnlyList<DevolucionPortalDto> devoluciones = [];
+
+    protected override async Task OnInitializedAsync() =>
+        devoluciones = await Consultas.DevolucionesAsync(HttpContext?.RequestAborted ?? default);
+}

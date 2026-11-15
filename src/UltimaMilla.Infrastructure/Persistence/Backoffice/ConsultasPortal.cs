@@ -13,6 +13,30 @@ public sealed class ConsultasPortal(AppDbContext db) : IConsultasPortal
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DevolucionPortalDto>> DevolucionesAsync(CancellationToken cancellationToken = default)
+    {
+        if (!db.CuentaRestringida) return [];
+        var filas = await db.Envios.AsNoTracking()
+            .Where(e => e.Devolucion != null)
+            .OrderByDescending(e => e.Devolucion!.FechaInicio)
+            .Select(e => new
+            {
+                e.CodigoSeguimiento,
+                e.Destinatario.Nombre,
+                // Motivo del último intento fallido, si lo hubo
+                Motivo = e.Intentos.Where(i => i.Resultado == ResultadoIntento.Fallido)
+                    .OrderByDescending(i => i.Numero).Select(i => i.MotivoNoEntrega!.Nombre).FirstOrDefault(),
+                Bultos = e.Devolucion!.Bultos.Select(b => b.Bulto.Codigo).OrderBy(c => c).ToList(),
+                BultosDelEnvio = e.Bultos.Count,
+                e.Devolucion.FechaInicio,
+                e.Devolucion.PlazoLimite,
+                e.Devolucion.FechaCierre
+            })
+            .ToListAsync(cancellationToken);
+        return filas.Select(f => new DevolucionPortalDto(f.CodigoSeguimiento, f.Nombre, f.Motivo, f.Bultos,
+            f.BultosDelEnvio, f.FechaInicio, f.PlazoLimite, f.FechaCierre)).ToList();
+    }
+
     public async Task<EtiquetaEnvioDto?> EtiquetaAsync(string codigoSeguimiento, CancellationToken cancellationToken = default)
     {
         // Los filtros globales ya dejan solo los envíos de la cuenta del usuario

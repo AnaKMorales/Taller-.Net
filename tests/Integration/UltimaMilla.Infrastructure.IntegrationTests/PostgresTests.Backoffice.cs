@@ -229,6 +229,48 @@ public sealed partial class PostgresTests
     }
 
     [PostgresFact]
+    public async Task DevolucionesSoloParaElComercioDelEnvio()
+    {
+        var e = Escenario();
+        var comercio = e.Envio.CuentaComercial.Usuarios.Single();
+        await using (var db = Context())
+        {
+            db.Add(e.Envio);
+            await db.SaveChangesAsync();
+            e.Recibir();
+            await db.SaveChangesAsync();
+            var ruta = e.Asignar();
+            db.Add(ruta);
+            await db.SaveChangesAsync();
+            ruta.Despachar(e.Admin, EscenarioPersistencia.Fecha);
+            await db.SaveChangesAsync();
+            e.Envio.RegistrarIntento(ResultadoIntento.Fallido, e.Reglas.MotivosNoEntrega.Single(),
+                [e.Foto()], e.Repartidor, EscenarioPersistencia.Fecha.AddHours(1), Guid.NewGuid(),
+                new GeoPunto(-34.9011m, -56.1645m));
+            await db.SaveChangesAsync();
+            e.Envio.IniciarDevolucion(e.Admin, EscenarioPersistencia.Fecha.AddHours(1));
+            await db.SaveChangesAsync();
+        }
+
+        await using (var propia = new AppDbContext(Options(), new TenantActual(TenantContext.ParaUsuario(
+            e.Operador.Id, comercio.Id, RolUsuario.Comercio, e.Envio.CuentaComercial.Id))))
+        {
+            var devolucion = Assert.Single(await new ConsultasPortal(propia).DevolucionesAsync());
+            Assert.Equal(e.Envio.CodigoSeguimiento, devolucion.CodigoSeguimiento);
+            Assert.Equal(e.Reglas.MotivosNoEntrega.Single().Nombre, devolucion.Motivo);
+            Assert.Equal(e.Envio.Bultos.Select(b => b.Codigo), devolucion.Bultos);
+            Assert.False(devolucion.Completada);
+        }
+
+        await using (var otraCuenta = new AppDbContext(Options(), new TenantActual(TenantContext.ParaUsuario(
+            e.Operador.Id, comercio.Id, RolUsuario.Comercio, Guid.NewGuid()))))
+            Assert.Empty(await new ConsultasPortal(otraCuenta).DevolucionesAsync());
+
+        await using (var interno = Context())
+            Assert.Empty(await new ConsultasPortal(interno).DevolucionesAsync());
+    }
+
+    [PostgresFact]
     public async Task PorRecibirListaLosAdmitidosDelOperador()
     {
         var escenario = Escenario();
