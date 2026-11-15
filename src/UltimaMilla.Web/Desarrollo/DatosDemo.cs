@@ -138,10 +138,14 @@ public static class DatosDemo
         var zona = await db.Set<ZonaCobertura>().Include(z => z.Franjas).FirstAsync(ct);
         var reglas = await db.Set<ReglasOperativas>().Include(r => r.PlazosServicio).Include(r => r.PoliticaDevolucion)
             .OrderByDescending(r => r.Version).FirstAsync(ct);
-        var cuadro = await db.Set<CuadroTarifario>().Include(c => c.Lineas)
+        // La zona de cada línea hace falta para buscar la tarifa (LineaTarifa.ZonaId): con varias zonas,
+        // EF solo completa la navegación de las zonas ya cargadas y el resto queda en null.
+        var cuadro = await db.Set<CuadroTarifario>().Include(c => c.Lineas).ThenInclude(l => l.Zona)
             .OrderByDescending(c => c.Version).FirstAsync(ct);
+        // El escenario demo tiene zonas con más de una franja (mañana y tarde): se usa la primera del día.
+        var franja = zona.Franjas.OrderBy(f => f.Desde).First();
 
-        db.Add(NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Destinatario simulado", DateTime.UtcNow));
+        db.Add(NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Destinatario simulado", DateTime.UtcNow, franja: franja));
         await db.SaveChangesAsync(ct);
     }
 
