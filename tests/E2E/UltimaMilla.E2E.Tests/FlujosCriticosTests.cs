@@ -49,6 +49,52 @@ public sealed class FlujosCriticosTests(Entorno entorno)
     }
 
     [E2EFact]
+    public async Task ElAdministradorDaDeAltaZonaFlotaYUnComercioQueIngresaAlPortal()
+    {
+        var admin = await entorno.NuevaPaginaAsync();
+        await Entorno.IngresarAsync(admin, entorno.Express.Admin, entorno.Express.Contrasena);
+        var sufijo = Guid.NewGuid().ToString("N")[..6];
+        const string clave = "Portal-2026";
+
+        await admin.GotoAsync("/backoffice/administracion/zonas");
+        var zona = admin.Locator("form:has(button:has-text('Crear zona'))");
+        await zona.Locator("input[name='Nombre']").FillAsync($"Zona {sufijo}");
+        await zona.Locator("input[name='CodigoPostal']").FillAsync("12000");
+        await zona.Locator("input[name='Franja']").FillAsync("Mañana");
+        await zona.Locator("input[name='Desde']").FillAsync("09:00");
+        await zona.Locator("input[name='Hasta']").FillAsync("13:00");
+        await zona.Locator("button").ClickAsync();
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("creada");
+
+        await admin.GotoAsync("/backoffice/administracion/flota");
+        await admin.FillAsync("input[name='Matricula']", $"E2E{sufijo}");
+        await admin.FillAsync("input[name='Peso']", "350,5");
+        await admin.FillAsync("input[name='Volumen']", "8");
+        await admin.ClickAsync("button:has-text('Crear vehículo')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("creado");
+        await admin.FillAsync("input[name='Email']", $"rep-{sufijo}@e2e.uy");
+        await admin.FillAsync("input[name='Contrasena']", clave);
+        await admin.ClickAsync("button:has-text('Crear repartidor')");
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("creado");
+
+        await admin.GotoAsync("/backoffice/administracion/comercios");
+        await admin.FillAsync("input[name='RazonSocial']", $"Tienda {sufijo}");
+        await admin.FillAsync("input[name='Telefono']", "099000111");
+        await admin.FillAsync("input[name='Email']", $"tienda-{sufijo}@e2e.uy");
+        await admin.ClickAsync("button:has-text('Crear comercio')");
+        await admin.Locator($"tr:has-text('Tienda {sufijo}')").GetByText("Editar y usuarios").ClickAsync();
+        var usuario = admin.Locator("form:has(button:has-text('Crear usuario'))");
+        await usuario.Locator("input[name='Email']").FillAsync($"portal-{sufijo}@e2e.uy");
+        await usuario.Locator("input[name='Contrasena']").FillAsync(clave);
+        await usuario.Locator("button").ClickAsync();
+        await Expect(admin.Locator(".exito")).ToContainTextAsync("creado");
+
+        var comercio = await entorno.NuevaPaginaAsync();
+        await Entorno.IngresarAsync(comercio, $"portal-{sufijo}@e2e.uy", clave);
+        await Expect(comercio.GetByRole(AriaRole.Heading, new() { Name = "Mis envíos" })).ToBeVisibleAsync();
+    }
+
+    [E2EFact]
     public async Task ElDepositoRecibeAsignaCargaYDespacha()
     {
         // El comercio da de alta un envío con un bulto
