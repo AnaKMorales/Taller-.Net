@@ -157,6 +157,8 @@
         # Apagado por defecto: el Worker bloquea destinos en direcciones privadas (protección contra que un comercio
         # apunte a la red interna). SOLO DEMO: WEBHOOKS_PERMITIR_DESTINOS_PRIVADOS=true, porque el receptor es privado.
         Webhooks__PermitirDestinosPrivados: ${WEBHOOKS_PERMITIR_DESTINOS_PRIVADOS:-false}
+        # Base del enlace de seguimiento en los avisos al destinatario (en AWS la pone compose.aws.yaml)
+        Notificaciones__UrlPublica: ${URL_PUBLICA:-http://localhost:8000}
       mem_limit: 256m
       restart: unless-stopped
 

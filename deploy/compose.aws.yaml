@@ -35,6 +35,11 @@
     web:
       ports: !reset []
 
+    # Enlace absoluto al seguimiento en los avisos al destinatario
+    worker:
+      environment:
+        Notificaciones__UrlPublica: https://${DOMINIO:?Falta DOMINIO}
+
     receptor:
       ports: !reset []
     postgres:
