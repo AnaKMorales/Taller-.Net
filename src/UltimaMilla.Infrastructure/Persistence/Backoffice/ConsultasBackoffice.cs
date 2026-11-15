@@ -58,9 +58,20 @@ public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = n
             .Take(500)
             .Select(e => new { e.Responsable!.Email, e.Posicion, e.OcurridoEn })
             .ToListAsync(cancellationToken);
-        return eventos.GroupBy(e => e.Email)
-            .Select(g => g.First())
-            .Select(e => new PosicionRepartidorDto(e.Email, e.Posicion!.Latitud, e.Posicion.Longitud, e.OcurridoEn))
+        var ultimas = eventos.GroupBy(e => e.Email).Select(g => g.First()).ToList();
+
+        // El vehículo es el de la última ruta despachada del repartidor
+        var emails = ultimas.Select(e => e.Email).ToList();
+        var vehiculos = (await db.Set<Ruta>().AsNoTracking()
+                .Where(r => r.DespachadaEn != null && emails.Contains(r.Repartidor.Email))
+                .Select(r => new { r.Repartidor.Email, r.Vehiculo.Matricula, r.DespachadaEn })
+                .ToListAsync(cancellationToken))
+            .GroupBy(r => r.Email)
+            .ToDictionary(g => g.Key, g => g.MaxBy(r => r.DespachadaEn)!.Matricula);
+
+        return ultimas
+            .Select(e => new PosicionRepartidorDto(e.Email, e.Posicion!.Latitud, e.Posicion.Longitud, e.OcurridoEn,
+                vehiculos.GetValueOrDefault(e.Email)))
             .OrderBy(p => p.Repartidor)
             .ToList();
     }

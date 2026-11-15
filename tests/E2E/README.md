@@ -7,6 +7,7 @@ levantada y recorren los flujos críticos:
 | --- | --- |
 | `ElAdministradorPublicaUnaNuevaVersionDelTarifario` | Admin cambia un precio y publica una versión nueva |
 | `ElComercioDaDeAltaUnEnvioConLaTarifaCalculada` | Comercio carga un envío, calcula la tarifa y confirma |
+| `ElTableroMuestraLaFlotaEnElMapa` | Admin abre el tablero y ve los vehículos en el mapa |
 | `ElAdministradorDaDeAltaZonaFlotaYUnComercioQueIngresaAlPortal` | Admin crea zona, vehículo, repartidor y comercio con usuario; ese usuario entra al portal |
 | `ElDepositoRecibeAsignaCargaYDespacha` | Comercio crea un envío; admin lo recibe, crea ruta, asigna, carga y despacha |
 | `ElComercioImportaUnArchivoSinDuplicarAlReimportar` | Comercio sube un CSV dos veces: crea y después marca "Ya importado" |

@@ -65,9 +65,37 @@
     refrescoPendiente = null;
     try {
       const respuesta = await fetch('/backoffice/tablero?handler=Panel', { headers: { 'Accept': 'text/html' } });
-      if (respuesta.ok) panel.innerHTML = await respuesta.text(); // HTML generado y escapado por el servidor
+      if (respuesta.ok) {
+        panel.innerHTML = await respuesta.text(); // HTML generado y escapado por el servidor
+        dibujarFlota();
+      }
     } catch { /* sin conexión: se reintenta en el próximo ciclo */ }
   }
+
+  // Mapa de la flota: un marcador por vehículo con su última posición
+  const mapa = window.L ? L.map('mapa-flota').setView([-34.88, -56.17], 11) : null;
+  mapa && L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap'
+  }).addTo(mapa);
+  const marcadores = mapa ? L.layerGroup().addTo(mapa) : null;
+  let encuadrado = false;
+
+  function dibujarFlota() {
+    if (!mapa) return;
+    const posiciones = JSON.parse(document.getElementById('posiciones-flota')?.textContent ?? '[]');
+    marcadores.clearLayers();
+    for (const p of posiciones) {
+      const texto = document.createElement('div'); // textContent: sin inyectar HTML
+      texto.textContent = `${p.vehiculo ?? 'Sin vehículo'} · ${p.repartidor} · ${p.hora}`;
+      L.marker([p.lat, p.lon]).bindPopup(texto).bindTooltip(p.vehiculo ?? p.repartidor).addTo(marcadores);
+    }
+    // Solo se encuadra la primera vez, para no mover el mapa mientras el usuario lo mira
+    if (!encuadrado && posiciones.length > 0) {
+      mapa.fitBounds(posiciones.map(p => [p.lat, p.lon]), { maxZoom: 14, padding: [30, 30] });
+      encuadrado = true;
+    }
+  }
+  dibujarFlota();
   function pedirRefresco() {
     if (refrescoPendiente === null) refrescoPendiente = setTimeout(refrescarPanel, 1000);
   }

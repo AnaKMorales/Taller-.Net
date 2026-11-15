@@ -49,6 +49,18 @@ public sealed class FlujosCriticosTests(Entorno entorno)
     }
 
     [E2EFact]
+    public async Task ElTableroMuestraLaFlotaEnElMapa()
+    {
+        var pagina = await entorno.NuevaPaginaAsync();
+        await Entorno.IngresarAsync(pagina, entorno.Express.Admin, entorno.Express.Contrasena);
+
+        await pagina.GotoAsync("/backoffice/tablero");
+
+        await Expect(pagina.Locator("#mapa-flota .leaflet-marker-icon").First).ToBeVisibleAsync();
+        await pagina.ScreenshotAsync(new() { Path = Path.Combine(Path.GetTempPath(), "tablero-mapa.png"), FullPage = true });
+    }
+
+    [E2EFact]
     public async Task ElAdministradorDaDeAltaZonaFlotaYUnComercioQueIngresaAlPortal()
     {
         var admin = await entorno.NuevaPaginaAsync();

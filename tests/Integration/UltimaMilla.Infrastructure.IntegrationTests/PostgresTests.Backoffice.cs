@@ -98,6 +98,7 @@ public sealed partial class PostgresTests
             var posicion = Assert.Single(await new ConsultasBackoffice(db, ahora).UltimasPosicionesAsync(TimeSpan.FromHours(12)));
             Assert.Equal((e.Repartidor.Email, -34.9011m, -56.1645m, EscenarioPersistencia.Fecha.AddHours(1)),
                 (posicion.Repartidor, posicion.Latitud, posicion.Longitud, posicion.ReportadaEn));
+            Assert.Equal(e.Vehiculo.Matricula, posicion.Vehiculo);
             // Una posición más vieja que la antigüedad máxima ya no se muestra.
             Assert.Empty(await new ConsultasBackoffice(db, ahora).UltimasPosicionesAsync(TimeSpan.FromHours(1)));
         }

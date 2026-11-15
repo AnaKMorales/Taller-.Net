@@ -51,6 +51,9 @@
     <partial name="_PanelRiesgo" model="Model.Panel" />
 </section>
 
+@* Fuera del panel para no recrear el mapa en cada refresco *@
+<div id="mapa-flota" style="height: 360px; border: 1px solid #d9e2ec; margin: .5rem 0 1.5rem;"></div>
+
 <h2>Últimos cambios</h2>
 <table>
     <thead>
@@ -78,6 +81,10 @@
 <script id="textos-tablero" type="application/json">@Html.Raw(Model.TextosJson)</script>
 
 @section Scripts {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="/lib/signalr/signalr.min.js"></script>
     <script src="/js/tablero.js"></script>
 }

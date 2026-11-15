@@ -30,16 +30,20 @@
 </table>
 
 <h2>Flota</h2>
-<p class="nota">Última posición informada por cada repartidor en las últimas @Model.FlotaHoras horas, tomada de los
-    intentos de entrega que registra la app.</p>
+<p class="nota">Última posición de cada vehículo en las últimas @Model.FlotaHoras horas. La informa la app del repartidor
+    al registrar cada entrega o intento (ver ADR-005).</p>
+@* Datos para el mapa (tablero.js); se reemplazan con cada refresco del panel *@
+<script id="posiciones-flota" type="application/json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+    Model.Flota.Select(p => new { repartidor = p.Repartidor, vehiculo = p.Vehiculo, lat = p.Latitud, lon = p.Longitud, hora = p.ReportadaEn.ToLocalTime().ToString("dd/MM HH:mm") })))</script>
 <table>
-    <thead><tr><th>Repartidor</th><th>Posición</th><th>Informada</th><th></th></tr></thead>
+    <thead><tr><th>Vehículo</th><th>Repartidor</th><th>Posición</th><th>Informada</th><th></th></tr></thead>
     <tbody>
         @foreach (var p in Model.Flota)
         {
             var lat = p.Latitud.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var lon = p.Longitud.ToString(System.Globalization.CultureInfo.InvariantCulture);
             <tr>
+                <td>@(p.Vehiculo ?? "—")</td>
                 <td>@p.Repartidor</td>
                 <td>@lat, @lon</td>
                 <td>@Textos.Fecha(p.ReportadaEn)</td>
@@ -48,7 +52,7 @@
         }
         @if (Model.Flota.Count == 0)
         {
-            <tr><td colspan="4" class="vacio">Ningún repartidor informó su posición todavía.</td></tr>
+            <tr><td colspan="5" class="vacio">Ningún repartidor informó su posición todavía.</td></tr>
         }
     </tbody>
 </table>

@@ -18,7 +18,8 @@ public sealed record EnvioEnRiesgoDto(Guid EnvioId, string CodigoSeguimiento, st
 
 // Última posición conocida de un repartidor. Hoy sale de los eventos que registra la app con posición
 // (intentos de entrega): no es un seguimiento continuo del vehículo.
-public sealed record PosicionRepartidorDto(string Repartidor, decimal Latitud, decimal Longitud, DateTime ReportadaEn);
+public sealed record PosicionRepartidorDto(string Repartidor, decimal Latitud, decimal Longitud, DateTime ReportadaEn,
+    string? Vehiculo = null);
 
 public sealed record EnvioPorRecibirDto(Guid EnvioId, string CodigoSeguimiento, string Comercio, string Destinatario,
     int Bultos, DateTime FechaAdmision);

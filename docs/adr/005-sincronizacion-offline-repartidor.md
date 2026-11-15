@@ -131,6 +131,13 @@ hecho relevante tiene su ubicación, aunque no haya un recorrido continuo. El GP
 así que funciona sin conexión. Si en el futuro se necesita seguimiento continuo, la alternativa es
 una app nativa o un contenedor (por ejemplo, .NET MAUI) con permiso de ubicación en segundo plano.
 
+**Alcance sobre los requisitos 23 y 29.** La posición de la flota que muestra el tablero es la última
+lectura de cada repartidor, asociada al vehículo de su última ruta despachada, y se ve en un mapa que se
+actualiza en vivo (SignalR) cuando llega un evento nuevo. Es una posición **por evento**, no un recorrido:
+entre una entrega y la siguiente, el tablero muestra el último punto conocido y la hora en que se tomó, de
+modo que el despachador sabe qué tan reciente es. Un reporte periódico mientras la app está abierta
+mejoraría la frecuencia, pero no resolvería la pantalla apagada, que es el caso habitual en la calle.
+
 ## Consecuencias
 
 - El repartidor trabaja sin red y reenviar nunca duplica intentos.
