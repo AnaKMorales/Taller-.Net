@@ -1,0 +1,75 @@
+@page "/backoffice/administracion/comercios/{id:guid}"
+@model UltimaMilla.Web.Pages.Backoffice.Administracion.ComercioModel
+@{
+    var c = Model.Cuenta!;
+    ViewData["Title"] = c.RazonSocial;
+    ViewData["Seccion"] = "comercios";
+    Layout = "_Layout";
+}
+
+<p><a href="/backoffice/administracion/comercios">← Comercios</a></p>
+<h1>@c.RazonSocial @(c.Activa ? "" : "(de baja)")</h1>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+@if (c.Activa)
+{
+    <form method="post" asp-page-handler="Modificar" class="formulario">
+        <input type="hidden" name="Version" value="@c.Version" />
+        <div>
+            <label>Razón social <input name="RazonSocial" value="@c.RazonSocial" required /></label>
+            <label>Teléfono <input name="Telefono" value="@c.Telefono" required size="12" /></label>
+            <label>Email <input name="Email" type="email" value="@c.Email" required /></label>
+            <button type="submit">Guardar</button>
+        </div>
+    </form>
+}
+
+<h2>Usuarios del portal</h2>
+<table>
+    <thead><tr><th>Email</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var u in Model.Usuarios)
+        {
+            <tr>
+                <td>@u.Email</td>
+                <td>@(u.Activo ? "Activo" : "De baja")</td>
+                <td>
+                    @if (u.Activo && c.Activa)
+                    {
+                        <form method="post" asp-page-handler="CambiarEmail" style="display:inline">
+                            <input type="hidden" name="UsuarioId" value="@u.Id" />
+                            <input type="hidden" name="EmailActual" value="@u.Email" />
+                            <input name="Email" type="email" placeholder="Nuevo email" required />
+                            <button type="submit">Cambiar email</button>
+                        </form>
+                        <form method="post" asp-page-handler="BajaUsuario" style="display:inline">
+                            <input type="hidden" name="UsuarioId" value="@u.Id" />
+                            <input type="hidden" name="EmailActual" value="@u.Email" />
+                            <button type="submit">Dar de baja</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Usuarios.Count == 0) { <tr><td colspan="3" class="vacio">Sin usuarios.</td></tr> }
+    </tbody>
+</table>
+
+@if (c.Activa)
+{
+    <form method="post" asp-page-handler="Usuario" class="formulario">
+        <strong>Nuevo usuario</strong>
+        <div>
+            <label>Email <input name="Email" type="email" required /></label>
+            <label>Contraseña inicial <input name="Contrasena" type="password" required autocomplete="new-password" /></label>
+            <button type="submit">Crear usuario</button>
+        </div>
+    </form>
+
+    <form method="post" asp-page-handler="Baja">
+        <input type="hidden" name="Version" value="@c.Version" />
+        <p class="nota">La baja impide que el comercio ingrese o cree envíos; sus envíos y su historial se conservan.</p>
+        <button type="submit">Dar de baja el comercio</button>
+    </form>
+}

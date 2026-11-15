@@ -1,0 +1,53 @@
+@page "/backoffice/administracion/flota"
+@model UltimaMilla.Web.Pages.Backoffice.Administracion.FlotaModel
+@using UltimaMilla.Web.Compartido
+@{
+    ViewData["Title"] = "Flota";
+    ViewData["Seccion"] = "flota";
+    Layout = "_Layout";
+}
+
+<h1>Flota</h1>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<h2>Repartidores</h2>
+<table>
+    <thead><tr><th>Email</th><th>Estado</th></tr></thead>
+    <tbody>
+        @foreach (var r in Model.Repartidores)
+        {
+            <tr><td>@r.Email</td><td>@(r.Activo ? "Activo" : "Inactivo")</td></tr>
+        }
+        @if (Model.Repartidores.Count == 0) { <tr><td colspan="2" class="vacio">Todavía no hay repartidores.</td></tr> }
+    </tbody>
+</table>
+<form method="post" asp-page-handler="Repartidor" class="formulario">
+    <strong>Nuevo repartidor</strong>
+    <div>
+        <label>Email <input name="Email" type="email" required /></label>
+        <label>Contraseña inicial <input name="Contrasena" type="password" required autocomplete="new-password" /></label>
+        <button type="submit">Crear repartidor</button>
+    </div>
+</form>
+
+<h2>Vehículos</h2>
+<table>
+    <thead><tr><th>Matrícula</th><th>Capacidad de peso</th><th>Capacidad de volumen</th></tr></thead>
+    <tbody>
+        @foreach (var v in Model.Vehiculos)
+        {
+            <tr><td>@v.Matricula</td><td>@Numeros.Texto(v.CapacidadPesoKg) kg</td><td>@Numeros.Texto(v.CapacidadVolumenM3) m³</td></tr>
+        }
+        @if (Model.Vehiculos.Count == 0) { <tr><td colspan="3" class="vacio">Todavía no hay vehículos.</td></tr> }
+    </tbody>
+</table>
+<form method="post" asp-page-handler="Vehiculo" class="formulario">
+    <strong>Nuevo vehículo</strong>
+    <div>
+        <label>Matrícula <input name="Matricula" required size="10" /></label>
+        <label>Peso (kg) <input name="Peso" inputmode="decimal" required size="6" /></label>
+        <label>Volumen (m³) <input name="Volumen" inputmode="decimal" required size="6" /></label>
+        <button type="submit">Crear vehículo</button>
+    </div>
+</form>

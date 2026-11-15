@@ -20,6 +20,9 @@
             <a href="/backoffice/reportes" class="@(ViewData["Seccion"] as string == "reportes" ? "activo" : "")">Reportes</a>
             <a href="/backoffice/configuracion/tarifas" class="@(ViewData["Seccion"] as string == "tarifas" ? "activo" : "")">Tarifas</a>
             <a href="/backoffice/configuracion/reglas" class="@(ViewData["Seccion"] as string == "reglas" ? "activo" : "")">Reglas</a>
+            <a href="/backoffice/administracion/comercios" class="@(ViewData["Seccion"] as string == "comercios" ? "activo" : "")">Comercios</a>
+            <a href="/backoffice/administracion/flota" class="@(ViewData["Seccion"] as string == "flota" ? "activo" : "")">Flota</a>
+            <a href="/backoffice/administracion/zonas" class="@(ViewData["Seccion"] as string == "zonas" ? "activo" : "")">Zonas</a>
         }
         @if (User.IsInRole("Comercio"))
         {

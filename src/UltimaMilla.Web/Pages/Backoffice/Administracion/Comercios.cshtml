@@ -1,0 +1,38 @@
+@page "/backoffice/administracion/comercios"
+@model UltimaMilla.Web.Pages.Backoffice.Administracion.ComerciosModel
+@{
+    ViewData["Title"] = "Comercios";
+    ViewData["Seccion"] = "comercios";
+    Layout = "_Layout";
+}
+
+<h1>Comercios</h1>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<table>
+    <thead><tr><th>Razón social</th><th>Teléfono</th><th>Email</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var c in Model.Cuentas.OrderBy(c => c.RazonSocial))
+        {
+            <tr>
+                <td>@c.RazonSocial</td>
+                <td>@c.Telefono</td>
+                <td>@c.Email</td>
+                <td>@(c.Activa ? "Activa" : "De baja")</td>
+                <td><a href="/backoffice/administracion/comercios/@c.CuentaId">Editar y usuarios</a></td>
+            </tr>
+        }
+        @if (Model.Cuentas.Count == 0) { <tr><td colspan="5" class="vacio">Todavía no hay comercios.</td></tr> }
+    </tbody>
+</table>
+
+<form method="post" class="formulario">
+    <strong>Nuevo comercio</strong>
+    <div>
+        <label>Razón social <input name="RazonSocial" required /></label>
+        <label>Teléfono <input name="Telefono" required size="12" /></label>
+        <label>Email <input name="Email" type="email" required /></label>
+        <button type="submit">Crear comercio</button>
+    </div>
+</form>

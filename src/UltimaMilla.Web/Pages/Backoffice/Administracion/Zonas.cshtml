@@ -1,0 +1,50 @@
+@page "/backoffice/administracion/zonas"
+@model UltimaMilla.Web.Pages.Backoffice.Administracion.ZonasModel
+@{
+    ViewData["Title"] = "Zonas de cobertura";
+    ViewData["Seccion"] = "zonas";
+    Layout = "_Layout";
+}
+
+<h1>Zonas de cobertura</h1>
+<p class="nota">Las tarifas de una zona nueva se cargan después en Tarifas.</p>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+
+<table>
+    <thead><tr><th>Zona</th><th>Código postal</th><th>Franjas</th><th>Agregar franja</th></tr></thead>
+    <tbody>
+        @foreach (var z in Model.Zonas)
+        {
+            <tr>
+                <td>@z.Nombre</td>
+                <td>@z.CodigoPostal</td>
+                <td>@string.Join(" · ", z.Franjas.OrderBy(f => f.Desde).Select(f => $"{f.Nombre} {f.Desde:HH\\:mm}–{f.Hasta:HH\\:mm}"))</td>
+                <td>
+                    <form method="post" asp-page-handler="Franja">
+                        <input type="hidden" name="ZonaId" value="@z.Id" />
+                        <input name="Franja" placeholder="Nombre" required size="8" />
+                        <input name="Desde" type="time" required />
+                        <input name="Hasta" type="time" required />
+                        <button type="submit">Agregar</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (Model.Zonas.Count == 0) { <tr><td colspan="4" class="vacio">Todavía no hay zonas.</td></tr> }
+    </tbody>
+</table>
+
+<form method="post" asp-page-handler="Zona" class="formulario">
+    <strong>Nueva zona</strong>
+    <div>
+        <label>Nombre <input name="Nombre" required /></label>
+        <label>Código postal <input name="CodigoPostal" required size="6" /></label>
+    </div>
+    <div>
+        <label>Primera franja <input name="Franja" required size="10" placeholder="Mañana" /></label>
+        <label>Desde <input name="Desde" type="time" required /></label>
+        <label>Hasta <input name="Hasta" type="time" required /></label>
+        <button type="submit">Crear zona</button>
+    </div>
+</form>
