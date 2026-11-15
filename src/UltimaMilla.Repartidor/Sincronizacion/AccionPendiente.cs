@@ -18,4 +18,5 @@ public sealed record AccionPendiente(
     EstadoAccion Estado = EstadoAccion.Pendiente,
     int Intentos = 0,
     DateTimeOffset? ProximoIntentoEn = null,
-    string? Detalle = null);
+    string? Detalle = null,
+    DiagnosticoConflictoDto? Conflicto = null);

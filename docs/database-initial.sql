@@ -1561,3 +1561,13 @@ VALUES ('20261115190814_AgregarIdentidad', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+ALTER TABLE "SuscripcionesAviso" ADD "VersionContrato" integer NOT NULL DEFAULT 1;
+
+ALTER TABLE "SuscripcionesAviso" ADD CONSTRAINT "CK_SuscripcionesAviso_VersionContrato" CHECK ("VersionContrato" IN (1, 2));
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261115215128_VersionWebhookPorSuscripcion', '10.0.12');
+
+COMMIT;
+

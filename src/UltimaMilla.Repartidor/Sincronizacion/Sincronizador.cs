@@ -67,7 +67,8 @@ public sealed class Sincronizador(ColaAcciones cola, IApiRepartidor api, TimePro
                     {
                         Estado = EstadoAccion.Rechazada,
                         ProximoIntentoEn = null,
-                        Detalle = respuesta.Detalle ?? "El servidor rechazó la acción."
+                        Detalle = respuesta.Detalle ?? "El servidor rechazó la acción.",
+                        Conflicto = respuesta.Conflicto
                     }, sesion.RepartidorId);
                 }
                 else

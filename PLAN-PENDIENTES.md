@@ -1,5 +1,12 @@
 # Plan de cierre de requisitos
 
+Avance 15/11: implementados diagnóstico por bulto persistido/visible en la PWA y salida
+webhook V2 optativa por suscripción, con V1 predeterminado para receptores anteriores.
+Ver [contratos y ensayo](docs/conflictos-pwa-webhooks-v2.md). Las menciones históricas a
+esas implementaciones como faltantes quedan reemplazadas por este avance. Resta el
+ensayo manual integrado de navegador/RabbitMQ en el entorno final, no otro desarrollo
+del núcleo para esos dos puntos. Requiere migración VersionWebhookPorSuscripcion.
+
 Avance 15/11: por acuerdo del equipo, Agustín toma las pantallas de cierre operativo,
 extravíos e identidad visual; PWA queda para el final. Integradas las de devoluciones
 y rendición en `/backoffice/deposito/cierre`, con enlace desde Depósito y desde el detalle

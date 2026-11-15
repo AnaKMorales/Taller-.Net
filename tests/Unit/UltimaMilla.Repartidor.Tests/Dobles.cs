@@ -30,6 +30,7 @@ internal sealed class ServidorEnMemoria : IApiRepartidor
     // Registra la acción pero "pierde" la respuesta, como un corte justo después de guardar.
     public bool PerderProximaRespuesta { get; set; }
     public HashSet<Guid> EnviosConflictivos { get; } = [];
+    public DiagnosticoConflictoDto? Diagnostico { get; set; }
     public int Llamadas { get; private set; }
     public int Registradas => _procesadas.Count;
     public int Duplicadas { get; private set; }
@@ -49,7 +50,7 @@ internal sealed class ServidorEnMemoria : IApiRepartidor
         if (!EnLinea) throw new HttpRequestException("Sin red");
         if (SesionVencida) throw new SesionExpiradaException();
         if (EnviosConflictivos.Contains(accion.EnvioId))
-            return new RespuestaAccion(ResultadoAccion.Rechazada, "El envío cambió de estado.");
+            return new RespuestaAccion(ResultadoAccion.Rechazada, "El envío cambió de estado.", Diagnostico);
         if (!_procesadas.Add(accion.IdOperacion))
         {
             Duplicadas++;

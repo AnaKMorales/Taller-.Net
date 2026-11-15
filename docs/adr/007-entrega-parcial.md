@@ -121,14 +121,17 @@ aviso distinto del que el repartidor registró. La versión del envío protege e
 conjunto. El servidor devuelve el diagnóstico por bulto de la composición autorizada,
 tanto si la versión ya era obsoleta al leer el envío como si cambió durante el guardado.
 En el segundo caso, se consulta el estado confirmado en un contexto nuevo. La PWA asocia
-el conflicto HTTP con la visita de su cola y pide que se actualice la hoja. Queda pendiente
-presentar ese detalle en la PWA.
+el conflicto HTTP con la visita de su cola y pide que se actualice la hoja. Desde el
+15/11 también conserva y muestra el detalle por bulto, junto a la solicitud original,
+sin reenvío automático ni sustitución de la versión que leyó el repartidor.
 
 ## Pendientes para completar el cambio
 
-- Conectar en backoffice las operaciones de asignación y devolución de pendientes.
-- Mostrar en la PWA el detalle del conflicto que ya devuelve la API.
-- Habilitar la salida V2 para los comercios compatibles y comprobar la recepción.
+- Comprobar en el ensayo final las operaciones de asignación y devolución de pendientes
+  ya integradas en backoffice.
+- Verificar en navegador la presentación/persistencia del conflicto por bulto implementada.
+- Verificar por RabbitMQ la salida V2 optativa por suscripción: implementada el 15/11,
+  con recepción HTTP firmada y reintentos probados. V1 sigue siendo el valor predeterminado.
 - Demostración offline/sincronización del 12/11 y evaluación final de dificultades y pruebas.
 
 Las pruebas del núcleo y de migración no sustituyen esa demostración. SQL directo puede

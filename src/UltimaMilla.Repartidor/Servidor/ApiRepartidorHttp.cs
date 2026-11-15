@@ -111,7 +111,11 @@ public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simula
             var detalle = problema?.Detail ?? problema?.Title ?? "El servidor rechazó la visita.";
             if (respuesta.StatusCode == HttpStatusCode.Conflict)
                 detalle += " Actualizá la hoja antes de volver a registrar.";
-            return new(ResultadoAccion.Rechazada, detalle);
+            var conflicto = respuesta.StatusCode == HttpStatusCode.Conflict && problema?.Conflicto is { } candidato &&
+                candidato.ParadaId == intento.ParadaId && candidato.VersionActualEnvio != Guid.Empty &&
+                candidato.Bultos is not null && candidato.Bultos.All(b => b is not null && intento.Bultos.Any(i => i.BultoId == b.BultoId))
+                    ? candidato : null;
+            return new(ResultadoAccion.Rechazada, detalle, conflicto);
         }
 
         respuesta.EnsureSuccessStatusCode();

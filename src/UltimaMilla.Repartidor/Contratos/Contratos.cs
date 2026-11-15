@@ -109,7 +109,10 @@ public sealed record EvidenciaIntentoDto(Guid Referencia, TipoPrueba Tipo, DateT
     string? Archivo = null, string? Texto = null);
 
 internal sealed record IntentoConfirmadoDto(Guid EnvioId, Guid IdOperacion, bool Repetido);
-internal sealed record ProblemaIntentoDto(string? Title, string? Detail);
+public sealed record BultoConflictoDto(Guid BultoId, string? Codigo, string? EstadoActual, string Motivo);
+public sealed record DiagnosticoConflictoDto(Guid ParadaId, Guid VersionActualEnvio, bool ParadaActiva,
+    IReadOnlyList<BultoConflictoDto> Bultos);
+internal sealed record ProblemaIntentoDto(string? Title, string? Detail, DiagnosticoConflictoDto? Conflicto = null);
 
 public enum ResultadoAccion
 {
@@ -121,6 +124,6 @@ public enum ResultadoAccion
     Rechazada
 }
 
-public sealed record RespuestaAccion(ResultadoAccion Resultado, string? Detalle = null);
+public sealed record RespuestaAccion(ResultadoAccion Resultado, string? Detalle = null, DiagnosticoConflictoDto? Conflicto = null);
 
 public sealed record ReporteSincronizacionDto(Guid DispositivoId, int Pendientes, int Rechazadas);

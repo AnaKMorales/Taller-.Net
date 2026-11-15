@@ -1224,3 +1224,44 @@ emails repetidos de dos operadores: se corrigió el email del comercio ajeno, si
 la autenticación productiva. No se ejecutó navegador ni toda la solución/E2E. La carga
 real del logo externo y el aspecto se comprobarán con el usuario. No cambian Domain ni
 Application. Se actualizaron contrato, README, plan y seguimiento. Sin commit ni push.
+
+### 15/11/2026: conflictos por bulto en PWA y webhooks V2 optativos
+
+El usuario autorizó explícitamente ambos pendientes, ampliando el alcance a PWA y Worker.
+ApiRepartidorHttp lee el diagnóstico del 409 (solo de la parada/bultos enviados), la cola
+lo persiste por repartidor y Pendientes muestra estado/motivo por bulto. Conserva versión,
+IdOperacion y evidencias originales. No aplica un subconjunto ni cambia versiones para
+reenviar; las acciones rechazadas requieren revisión y descarte explícito. El JSON local
+agrega una propiedad opcional para conservar compatibilidad con registros anteriores.
+
+SuscripcionAviso incorpora VersionContrato 1/2 inmutable al crearla. El panel permite
+elegir formato y mantiene V1 predeterminado. Migración VersionWebhookPorSuscripcion con
+default 1 y CHECK de rango, snapshot y SQL de instalación actualizados. EntregaWebhooks
+conserva el cuerpo V1 y arma V2 desde el intento histórico con HuellaSolicitud, resultados,
+motivos y referencias a pruebas inmutables. No consulta los estados actuales para inferir
+resultados. Eventos sin intento llevan bultos vacíos. La proyección V1 interna del Worker
+se conserva: sirve también al reenvío manual con MensajeId nuevo, que recupera V2 desde
+el mismo historial. No se alteran HMAC, restricciones de destino, idempotencia de entrega,
+reintentos/DLQ ni el nuevo aviso al destinatario.
+
+Web/solución Release estricta aprobada. Los primeros intentos corrigieron exclusivamente
+preparación/análisis de pruebas y formulario: llaves de JSON interpolado, advertencia
+Blazor por inicializar SupplyParameterFromForm y dos advertencias de Assert.Single.
+La regresión detectó una suposición de la prueba nueva sobre cuál evento era el último
+cuando dos fechas coincidían: se suscribió al tipo real del fixture, sin modificar la
+lógica de negocio. Regresión final seleccionada: 479 pruebas unitarias/arquitectura y
+24 integraciones únicas aprobadas sin omisiones (23 en regresión y una de formulario
+añadida después; otras selecciones repiten casos). La prueba HTTP usa receptor Kestrel
+local y cliente real con firmas, dos fallos 503 y recuperación; compara V2 con outbox,
+cambia después el envío, comprueba reenvío manual y evita repetir el V1 exitoso. La prueba
+PWA usa cliente/cola reales con API y Bearer, almacenamiento en memoria y PostgreSQL.
+La migración se verifica en base temporal conservando suscripciones previas en V1.
+EF informa modelo alineado. Cobertura Domain 86,65 % (1279/1476), Application 81,78 %
+(835/1021). No se ejecutó toda la integración, E2E ni navegador/RabbitMQ del ensayo final.
+
+No se aplicó la migración a desarrollo ni se crearon cuentas demo para el usuario.
+Documentados contratos y ensayo en conflictos-pwa-webhooks-v2.md, con actualizaciones
+de README, seguimiento, plan y ADR-007, que permanece en curso hasta el ensayo completo.
+El SQL se generó con el formato existente, sin convertir el script entero a idempotente.
+Sin commit ni push. Los otros pendientes de revisión de liquidaciones/CSV/etiquetas y
+cierre automático del Worker no se implementaron en este bloque.

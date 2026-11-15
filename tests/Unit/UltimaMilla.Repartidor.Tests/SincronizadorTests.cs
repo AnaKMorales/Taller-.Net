@@ -5,6 +5,30 @@ namespace UltimaMilla.Repartidor.Tests;
 
 public sealed class SincronizadorTests
 {
+    [Fact]
+    public async Task ConflictoPersisteAlReabrirLaColaSinReintentarNiCambiarLaVisita()
+    {
+        var (hoja, accion) = Datos.VisitaParcial();
+        var id = Datos.Sesion.RepartidorId;
+        await _cola.EncolarAsync(accion, hoja, id);
+        _servidor.EnviosConflictivos.Add(accion.EnvioId);
+        _servidor.Diagnostico = new(accion.Intento!.ParadaId, Guid.NewGuid(), false,
+            [new(accion.Intento.Bultos[0].BultoId, "B-01", "Entregado", "EstadoCambio")]);
+        await _sincronizador.SincronizarAsync(Datos.Sesion, ignorarEspera: true);
+        var reabierta = new ColaAcciones(_almacen);
+        var guardada = Assert.Single(await reabierta.ListarAsync(id));
+        Assert.Equal(EstadoAccion.Rechazada, guardada.Estado);
+        Assert.Equal(_servidor.Diagnostico.VersionActualEnvio, guardada.Conflicto!.VersionActualEnvio);
+        Assert.Equal("EstadoCambio", Assert.Single(guardada.Conflicto.Bultos).Motivo);
+        Assert.Equal(accion.IdOperacion, guardada.Accion.IdOperacion);
+        Assert.Equal(accion.Intento.VersionEsperada, guardada.Accion.Intento!.VersionEsperada);
+        Assert.Equal(accion.Intento.Evidencias.Count, guardada.Accion.Intento.Evidencias.Count);
+        Assert.Empty(await reabierta.ListarAsync(Guid.NewGuid()));
+        var llamadas = _servidor.Llamadas;
+        await new Sincronizador(reabierta, _servidor, _reloj).SincronizarAsync(Datos.Sesion, ignorarEspera: true);
+        Assert.Equal(llamadas, _servidor.Llamadas);
+    }
+
     private readonly AlmacenEnMemoria _almacen = new();
     private readonly ServidorEnMemoria _servidor = new();
     private readonly RelojManual _reloj = new(Datos.Inicio);

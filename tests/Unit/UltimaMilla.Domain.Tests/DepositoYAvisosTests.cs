@@ -3,6 +3,17 @@ namespace UltimaMilla.Domain.Tests;
 public sealed class DepositoYAvisosTests
 {
   [Fact]
+  public void SuscripcionesConservanV1PorDefectoYPermitenOptarPorV2SinCambiarLaAnterior()
+  {
+    var cuenta = new Escenario().Cuenta;
+    var previa = new SuscripcionAviso(cuenta, [TipoEvento.EntregaExitosa], "secreto", new Uri("https://uno.example/hook"));
+    var nueva = new SuscripcionAviso(cuenta, [TipoEvento.EntregaExitosa], "secreto", new Uri("https://dos.example/hook"), 2);
+    Assert.Equal(1, previa.VersionContrato); Assert.Equal(2, nueva.VersionContrato);
+    Assert.Throws<ArgumentException>(() => new SuscripcionAviso(cuenta, [TipoEvento.EntregaExitosa], "secreto", new Uri("https://tres.example/hook"), 3));
+    Assert.Equal(2, cuenta.Suscripciones.Count);
+  }
+
+  [Fact]
   public void DiscrepanciaPuedeSerDelEnvioODeUnoDeSusBultos()
   {
     var e = new Escenario();
