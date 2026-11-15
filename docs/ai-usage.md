@@ -1265,3 +1265,41 @@ de README, seguimiento, plan y ADR-007, que permanece en curso hasta el ensayo c
 El SQL se generó con el formato existente, sin convertir el script entero a idempotente.
 Sin commit ni push. Los otros pendientes de revisión de liquidaciones/CSV/etiquetas y
 cierre automático del Worker no se implementaron en este bloque.
+
+### 15/11/2026: cierre diario e indicadores en Worker
+
+Agustín autorizó explícitamente implementar este bloque si no existía. Se revisaron
+Worker, reportes y la letra original Laboratorio__NET_2026.pdf, sección 4, pág. 3,
+mediante la skill de PDF y extracción local. No se encontró el proceso periódico.
+La letra no define un cierre contable: se documentó como decisión de implementación un
+cierre estadístico por operador/día, sin finalizar rutas, devoluciones ni pagos.
+
+Se agregó CierreOperativoWorker con ejecución inicial e intervalo configurable de cinco
+minutos. Application define los puertos y calendario UTC−03:00; Infrastructure reutiliza
+ReportesGestion y guarda un modelo de lectura técnico. El primer cierre se conserva y
+el resumen actual se recalcula ante datos tardíos. El cierre representa el primer cálculo
+posterior al día, no una reconstrucción exacta de la medianoche. Rotación de fechas
+históricas con máximo por ciclo, transacción Repeatable Read y bloqueo asesor PostgreSQL
+por operador/día. Cada operador utiliza contextos aislados y un fallo no detiene a los demás.
+La API GET /api/operacion/cierres valida identidad activa y rol Administrador/Despachador.
+No se agregó pantalla ni se sustituyeron las fórmulas financieras del reporte actual.
+
+Migración 20261115222840_ResumenesOperativosDiarios, snapshot y SQL de instalación
+actualizados. EF confirmó que el modelo coincide con las migraciones. Se actualizaron
+los recuentos de tablas de dos pruebas existentes y se agregó comprobación del índice
+único operador/fecha. Se corrigió además la comprobación nullable de Simbolos en
+CodigoBarras128Tests, un bloqueo preexistente de compilación estricta tras el nuevo merge;
+no se modificó el escáner ni el cifrado de la PWA.
+
+Validación: build Release con warnaserror, sin errores/advertencias; 494 pruebas unitarias
+y de arquitectura (139 Application, 144 Domain, 111 Infrastructure, 62 Repartidor,
+25 Worker y 13 arquitectura), y 22 integraciones seleccionadas con PostgreSQL real,
+todas aprobadas y sin omisiones. Incluyen las cuatro nuevas de cierre, además de reportes,
+cierre en depósito/pantallas y migración desde cero. Los cuatro casos unitarios nuevos
+cubren calendario y ejecución/reintento/parada del Worker. Cobertura Domain 86,65 %
+(1279/1476), Application 81,62 % (844/1034).
+
+No se ejecutó la integración completa, E2E ni el ensayo desplegado con todos los servicios.
+Las pruebas usaron bases temporales; no se aplicó la migración a desarrollo ni se crearon
+cuentas demo para el usuario. Contrato y límites en docs/cierre-diario-indicadores.md;
+README, PLAN-PENDIENTES y seguimiento actualizados. Sin commit ni push.

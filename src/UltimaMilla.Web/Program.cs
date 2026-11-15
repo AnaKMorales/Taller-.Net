@@ -41,6 +41,8 @@ using UltimaMilla.Web.Seguridad;
 using UltimaMilla.Web.Tiempo;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<UltimaMilla.Application.Backoffice.ICierresOperativos,
+    UltimaMilla.Infrastructure.Persistence.Operacion.ConsultaCierresOperativos>();
 builder.AgregarTelemetriaWeb();
 
 builder.Services.AddSerilog((services, configuration) =>

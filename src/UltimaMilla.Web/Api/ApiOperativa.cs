@@ -43,6 +43,12 @@ public static class ApiOperativa
             return Results.Ok(new { token = tokens.RequestToken, cabecera = CabeceraAntiforgery });
         }).RequireAuthorization().WithMetadata(new ApiOperativaMetadata());
 
+        app.MapGet("/api/operacion/cierres", async (DateOnly desde, DateOnly hasta,
+            UltimaMilla.Application.Backoffice.ICierresOperativos consulta, CancellationToken ct) =>
+                Results.Ok(await consulta.ConsultarAsync(desde, hasta, ct)))
+            .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador), nameof(RolUsuario.Despachador)))
+            .WithMetadata(new ApiOperativaMetadata()).AddEndpointFilter<ErroresApiFilter>();
+
         var incidencias = app.MapGroup("/api/incidencias/envios")
             .WithMetadata(new ApiOperativaMetadata())
             .RequireAuthorization(p => p.RequireAuthenticatedUser().RequireRole(nameof(RolUsuario.Administrador), nameof(RolUsuario.Despachador)))

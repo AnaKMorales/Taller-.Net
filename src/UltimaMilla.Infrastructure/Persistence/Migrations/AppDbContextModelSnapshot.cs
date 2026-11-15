@@ -1781,6 +1781,52 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.ToTable("MensajesProcesados", (string)null);
                 });
 
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Operacion.ResumenOperativoDiario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActualJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("ActualizadoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AlCierreJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("CerradoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Dia")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Recalculos")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("VersionCalculo")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Dia")
+                        .IsUnique();
+
+                    b.ToTable("ResumenesOperativosDiarios", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ResumenOperativo_Cierre", "(\"CerradoEn\" IS NULL) = (\"AlCierreJson\" IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Outbox.MensajeOutbox", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2754,6 +2800,15 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Inbox.MensajeProcesado", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UltimaMilla.Infrastructure.Persistence.Operacion.ResumenOperativoDiario", b =>
                 {
                     b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
                         .WithMany()
