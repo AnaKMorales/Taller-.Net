@@ -36,6 +36,13 @@
         <p class="error">@error</p>
     }
     <label>Dirección <input name="Destino" value="@Destino" placeholder="https://mitienda.com/avisos" size="50" required /></label>
+    <label>Formato que acepta tu sistema
+        <select name="VersionContrato" value="@VersionContrato">
+            <option value="1" selected="@(VersionContrato == 1)">V1 · compatible con receptores existentes</option>
+            <option value="2" selected="@(VersionContrato == 2)">V2 · incluye resultados por bulto</option>
+        </select>
+    </label>
+    <p class="nota">Las direcciones existentes conservan V1. Para cambiar de formato, agregá una suscripción con el nuevo formato y desactivá la anterior.</p>
     <fieldset>
         <legend>Eventos a recibir</legend>
         @foreach (var (tipo, nombre) in Textos.Eventos)
@@ -49,13 +56,14 @@
 <h2>Mis direcciones de avisos</h2>
 <table>
     <thead>
-        <tr><th>Destino</th><th>Eventos</th><th>Estado</th><th>Entregados</th><th>Fallidos</th><th>Pendientes</th><th></th></tr>
+        <tr><th>Destino</th><th>Formato</th><th>Eventos</th><th>Estado</th><th>Entregados</th><th>Fallidos</th><th>Pendientes</th><th></th></tr>
     </thead>
     <tbody>
         @foreach (var s in suscripciones)
         {
             <tr>
                 <td><code>@s.Destino</code></td>
+                <td>V@s.VersionContrato</td>
                 <td>@string.Join(", ", s.Eventos.Select(Textos.Evento))</td>
                 <td>@(s.Activa ? "Activo" : "Desactivado")</td>
                 <td>@s.Entregados</td>
@@ -75,7 +83,7 @@
         }
         @if (suscripciones.Count == 0)
         {
-            <tr><td colspan="7" class="vacio">Todavía no agregaste ninguna dirección.</td></tr>
+            <tr><td colspan="8" class="vacio">Todavía no agregaste ninguna dirección.</td></tr>
         }
     </tbody>
 </table>
@@ -124,6 +132,7 @@
 @code {
     [CascadingParameter] public HttpContext? HttpContext { get; set; }
     [SupplyParameterFromForm(FormName = "crear")] public string? Destino { get; set; }
+    [SupplyParameterFromForm(FormName = "crear")] public int? VersionContrato { get; set; }
 
     private IReadOnlyList<SuscripcionDto> suscripciones = [];
     private IReadOnlyList<AvisoDto> avisos = [];
@@ -133,7 +142,11 @@
 
     private CancellationToken Cancelacion => HttpContext?.RequestAborted ?? default;
 
-    protected override Task OnInitializedAsync() => CargarAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        VersionContrato ??= 1;
+        await CargarAsync();
+    }
 
     private async Task CrearAsync()
     {
@@ -150,14 +163,14 @@
         try
         {
             // Sin redirección: el secreto se muestra en esta respuesta y no se guarda en ningún otro lado.
-            creada = await Panel.CrearSuscripcionAsync(destino, eventosElegidos, Cancelacion);
+            creada = await Panel.CrearSuscripcionAsync(destino, eventosElegidos, VersionContrato ?? 1, Cancelacion);
             Destino = null;
             eventosElegidos = [];
             await CargarAsync();
         }
         catch (ArgumentException)
         {
-            error = "Revisá la dirección (http o https) y elegí al menos un evento.";
+            error = "Revisá la dirección (http o https), la versión (1 o 2) y elegí al menos un evento.";
         }
     }
 

@@ -9,6 +9,11 @@ verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
 
+Los [conflictos por bulto de la PWA y webhooks V2](docs/conflictos-pwa-webhooks-v2.md)
+ya conservan y muestran el diagnóstico offline y permiten elegir V1/V2 por suscripción
+en el portal. Requiere `VersionWebhookPorSuscripcion`; las suscripciones previas siguen
+en V1. Queda el ensayo completo en navegador y por RabbitMQ en el entorno final.
+
 Las pantallas de [devoluciones y rendición](docs/cierre-deposito.md) están en
 `/backoffice/deposito/cierre`, accesibles desde Depósito. Permiten recibir los bultos
 esperados, completar devoluciones y rendir rutas sin paradas activas, con versiones y

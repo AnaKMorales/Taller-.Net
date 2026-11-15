@@ -19,13 +19,14 @@ public sealed class PanelAvisos(AppDbContext db) : IPanelAvisos
                 s.UrlDestino,
                 s.TiposEvento,
                 s.Activa,
+                s.VersionContrato,
                 Entregados = s.Entregas.Count(e => e.Exitoso),
                 Fallidos = s.Entregas.Count(e => !e.Exitoso && e.Intentos > 0),
                 Pendientes = s.Entregas.Count(e => e.Intentos == 0)
             })
             .ToListAsync(cancellationToken);
         return filas.Select(f => new SuscripcionDto(f.Id, f.UrlDestino.AbsoluteUri, f.TiposEvento, f.Activa,
-            f.Entregados, f.Fallidos, f.Pendientes)).ToList();
+            f.Entregados, f.Fallidos, f.Pendientes, f.VersionContrato)).ToList();
     }
 
     public async Task<IReadOnlyList<AvisoDto>> UltimosAvisosAsync(int cantidad, CancellationToken cancellationToken = default)
@@ -40,14 +41,18 @@ public sealed class PanelAvisos(AppDbContext db) : IPanelAvisos
             .ToListAsync(cancellationToken);
     }
 
+    public Task<SuscripcionCreada> CrearSuscripcionAsync(Uri destino, IReadOnlyCollection<TipoEvento> eventos,
+        CancellationToken cancellationToken = default) => CrearSuscripcionAsync(destino, eventos, 1, cancellationToken);
+
     public async Task<SuscripcionCreada> CrearSuscripcionAsync(Uri destino, IReadOnlyCollection<TipoEvento> eventos,
+        int versionContrato,
         CancellationToken cancellationToken = default)
     {
         if (db.CuentaComercialIdActual is not Guid cuentaId) throw new AislamientoOperadorException();
         var cuenta = await db.Set<CuentaComercial>().SingleAsync(c => c.Id == cuentaId, cancellationToken);
         // 32 bytes aleatorios: el comercio lo usa para verificar la firma de cada aviso.
         var secreto = "whsec_" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
-        var suscripcion = new SuscripcionAviso(cuenta, eventos, secreto, destino);
+        var suscripcion = new SuscripcionAviso(cuenta, eventos, secreto, destino, versionContrato);
         db.Add(suscripcion);
         await db.SaveChangesAsync(cancellationToken);
         return new SuscripcionCreada(suscripcion.Id, secreto);

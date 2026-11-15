@@ -49,8 +49,9 @@ public sealed class ProcesadorAvisos(ITenantResolver resolver, IRegistroIdempote
     // Acepta los dos contratos que publica el outbox:
     // - V1 (envio.evento.v1): cambios de estado del envío.
     // - V2 (envio.evento.v2): intentos registrados por bulto y entrega parcial; agrega el resultado de cada bulto.
-    // Un V2 se entrega a los comercios en formato V1 (los mismos campos, sin el detalle de bultos): así los
-    // sistemas que ya reciben avisos no se rompen (requisito 36). Cualquier otra versión se descarta.
+    // La proyección V1 interna mantiene compatibles los manejadores existentes. EntregaWebhooks elige V1/V2
+    // por suscripción y recupera el detalle V2 del intento histórico inmutable, también en reenvíos manuales.
+    // Cualquier otra versión de entrada se descarta.
     private static EventoEnvioV1? Deserializar(MensajeRecibido mensaje)
     {
         EventoEnvioV1? evento;

@@ -1535,13 +1535,21 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("VersionContrato")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId");
 
                     b.HasIndex("CuentaComercialKey", "TenantId");
 
-                    b.ToTable("SuscripcionesAviso", (string)null);
+                    b.ToTable("SuscripcionesAviso", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SuscripcionesAviso_VersionContrato", "\"VersionContrato\" IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("UltimaMilla.Domain.Operadores.Operador", b =>
