@@ -26,8 +26,8 @@ public sealed partial class PostgresTests
         var e = Escenario();
         await using var db = Context();
         db.Add(e.Envio); await db.SaveChangesAsync();
-        ContrasenasUsuario.Asignar(db, e.Envio.CuentaComercial.Usuarios.Single(), ClaveApiComercio);
-        ContrasenasUsuario.Asignar(db, e.Admin, ClaveApiComercio);
+        await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, e.Envio.CuentaComercial.Usuarios.Single(), ClaveApiComercio);
+        await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, e.Admin, ClaveApiComercio);
         await db.SaveChangesAsync();
         return e;
     }
@@ -138,7 +138,7 @@ public sealed partial class PostgresTests
             otraCuenta = new(operador, new Comercio("Otro", "099000007", "otro@example.com"));
             usuario = new(operador, "integracion-otra@example.com", RolUsuario.Comercio);
             usuario.AsignarCuentaComercial(otraCuenta);
-            db.Add(otraCuenta); ContrasenasUsuario.Asignar(db, usuario, ClaveApiComercio); await db.SaveChangesAsync();
+            db.Add(otraCuenta); await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, usuario, ClaveApiComercio); await db.SaveChangesAsync();
         }
         using var servidor = ServidorComercios(new() { Ahora = EscenarioPersistencia.Fecha });
         using var primero = servidor.Cliente(); using var segundo = servidor.Cliente();

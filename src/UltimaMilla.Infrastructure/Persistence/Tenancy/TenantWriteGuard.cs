@@ -27,6 +27,8 @@ internal static class TenantWriteGuard
 
         foreach (var entry in entries)
         {
+            // Identity no tiene TenantId: su pertenencia la valida IdentidadWriteGuard.
+            if (Identidad.IdentidadModel.EsIdentidad(entry.Metadata.ClrType)) continue;
             if (entry.Entity is Comercio)
             {
                 // Los datos comunes no se editan desde un operador: afectarían a sus otras cuentas.

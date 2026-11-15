@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Metadata;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
@@ -11,7 +12,8 @@ internal static class TenantModel
     internal static void Configure(ModelBuilder builder, AppDbContext context)
     {
         var roots = builder.Model.GetEntityTypes().Where(t => t.BaseType is null).ToArray();
-        var tenantTypes = roots.Where(t => t.ClrType != typeof(Operador) && t.ClrType != typeof(Comercio)).ToArray();
+        var tenantTypes = roots.Where(t => t.ClrType != typeof(Operador) && t.ClrType != typeof(Comercio) &&
+            !IdentidadModel.EsIdentidad(t.ClrType)).ToArray();
         Expression<Func<Guid>> current = () => context.OperadorIdActual;
 
         foreach (var type in tenantTypes)
@@ -30,6 +32,8 @@ internal static class TenantModel
         // Toda referencia entre datos privados transporta también el operador en su FK.
         foreach (var fk in builder.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys()).ToArray())
         {
+            // La FK CuentaAcceso -> Usuario no lleva tenant: Identity no tiene TenantId (lo valida IdentidadWriteGuard).
+            if (IdentidadModel.EsIdentidad(fk.DeclaringEntityType.ClrType)) continue;
             var principal = fk.PrincipalEntityType.GetRootType();
             if (principal.FindProperty(TenantId) is not { } principalTenant) continue;
             var dependentTenant = fk.DeclaringEntityType.FindProperty(TenantId)!;

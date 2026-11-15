@@ -10,6 +10,7 @@ using UltimaMilla.Domain.Notificaciones;
 using UltimaMilla.Domain.Operadores;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Infrastructure.Persistence;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 
 namespace UltimaMilla.Web.Desarrollo;
@@ -188,7 +189,11 @@ public static class EscenarioDemo
         await using var transaccion = await db.Database.BeginTransactionAsync(ct);
         db.AddRange(pendiente, parcial, fallido, entregado, admitido, admin, usuarioComercio, repartidor);
         foreach (var usuario in new[] { admin, usuarioComercio, repartidor })
-            ContrasenasUsuario.Asignar(db, usuario, contrasena);
+        {
+            // Clave propia: se valida como antes (largo mínimo). Sin clave: Demo1234!, con la política de Identity.
+            if (contrasenaIndicada is null) await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, usuario, contrasena);
+            else await FabricaCuentasAcceso.Predeterminada.CrearConClaveDemoAsync(db, usuario, contrasena, SolicitudDatosDemo.LargoMinimo);
+        }
         await db.SaveChangesAsync(ct);
 
         // Hoja de ruta del repartidor: pendiente, parcial, fallido y entregado.

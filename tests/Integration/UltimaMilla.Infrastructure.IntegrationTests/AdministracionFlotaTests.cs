@@ -56,7 +56,7 @@ public sealed partial class PostgresTests
         using var sesion = await pwa.PostAsJsonAsync("/api/repartidor/sesion", new SolicitudLoginRepartidor(nuevo.Email, alta.Contrasena));
         Assert.Equal(HttpStatusCode.OK, sesion.StatusCode);
         await using var lectura = Context();
-        var hash = await lectura.Set<Usuario>().Where(u => u.Id == nuevo.Id).Select(u => EF.Property<string>(u, ContrasenasUsuario.Columna)).SingleAsync();
+        var hash = await lectura.Set<CuentaAcceso>().Where(c => c.Id == nuevo.Id).Select(c => c.PasswordHash).SingleAsync();
         Assert.NotEqual(alta.Contrasena, hash);
         Assert.Equal(e.Operador.Id, (await lectura.Set<Repartidor>().Include(r => r.Operador).SingleAsync(r => r.Id == nuevo.Id)).OperadorId);
     }

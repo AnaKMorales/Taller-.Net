@@ -3,12 +3,16 @@ using Npgsql;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Administracion;
 using UltimaMilla.Application.Tenancy;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 
 namespace UltimaMilla.Infrastructure.Persistence.Administracion;
 
-public sealed class AdministracionComercios(DbContextOptions<AppDbContext> options, ITenantActual actual) : IAdministracionComercios
+public sealed class AdministracionComercios(DbContextOptions<AppDbContext> options, ITenantActual actual,
+    FabricaCuentasAcceso? fabrica = null) : IAdministracionComercios
 {
+    private readonly FabricaCuentasAcceso _cuentasAcceso = fabrica ?? FabricaCuentasAcceso.Predeterminada;
+
     public async Task<IReadOnlyList<CuentaAdministracionDto>> CuentasAsync(CancellationToken ct = default)
     {
         await using var db = Abrir(); await Administrador(db, ct);
@@ -47,11 +51,16 @@ public sealed class AdministracionComercios(DbContextOptions<AppDbContext> optio
             throw new InvalidOperationException("El email ya pertenece a un usuario del operador.");
         var usuario = new Usuario(admin.Operador, email, RolUsuario.Comercio);
         usuario.AsignarCuentaComercial(cuenta);
-        db.Add(usuario); ContrasenasUsuario.Asignar(db, usuario, solicitud.Contrasena);
+        db.Add(usuario);
+        // Credenciales en ASP.NET Identity; se guardan en el mismo SaveChanges que el Usuario.
+        await _cuentasAcceso.CrearAsync(db, usuario, solicitud.Contrasena);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException error) when (error.InnerException is PostgresException {
             SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Usuarios_OperadorId_EmailNormalizado" })
         { throw new InvalidOperationException("Otro usuario ya utiliza ese email en el operador.", error); }
+        catch (DbUpdateException error) when (error.InnerException is PostgresException {
+            SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: FabricaCuentasAcceso.IndiceUsuarioUnico })
+        { throw new InvalidOperationException(FabricaCuentasAcceso.MensajeEmailNoDisponible, error); }
         return new(usuario.Id, usuario.Email, usuario.Activo);
     }
 
@@ -90,11 +99,16 @@ public sealed class AdministracionComercios(DbContextOptions<AppDbContext> optio
             if (await db.Set<Usuario>().AnyAsync(u => u.Id != usuarioId && EF.Property<string>(u, "EmailNormalizado") == email, ct))
                 throw new InvalidOperationException("El email ya pertenece a un usuario del operador.");
             usuario.ActualizarEmail(email);
+            // El email es también el usuario de ASP.NET Identity: se cambia en la misma transacción.
+            await _cuentasAcceso.CambiarEmailAsync(db, usuarioId, email);
         }
         try { await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); }
         catch (DbUpdateException error) when (error.InnerException is PostgresException {
             SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Usuarios_OperadorId_EmailNormalizado" })
         { throw new InvalidOperationException("Otro usuario ya utiliza ese email en el operador.", error); }
+        catch (DbUpdateException error) when (error.InnerException is PostgresException {
+            SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: FabricaCuentasAcceso.IndiceUsuarioUnico })
+        { throw new InvalidOperationException(FabricaCuentasAcceso.MensajeEmailNoDisponible, error); }
         return new(usuario.Id, usuario.Email, usuario.Activo);
     }
 

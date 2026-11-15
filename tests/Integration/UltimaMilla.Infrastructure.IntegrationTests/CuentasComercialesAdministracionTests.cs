@@ -54,7 +54,7 @@ public sealed partial class PostgresTests
             var compartido = await db.Set<Comercio>().IgnoreQueryFilters().SingleAsync(c => c.Id == e.Envio.ComercioId);
             var cuenta = new CuentaComercial(otro, compartido); cuentaAjena = cuenta.Id;
             var user = new Usuario(otro, "otro-comercio@example.com", RolUsuario.Comercio); user.AsignarCuentaComercial(cuenta);
-            db.AddRange(cuenta, adminOtro, user); ContrasenasUsuario.Asignar(db, user, ClaveApiComercio); await db.SaveChangesAsync();
+            db.AddRange(cuenta, adminOtro, user); await FabricaCuentasAcceso.Predeterminada.CrearAsync(db, user, ClaveApiComercio); await db.SaveChangesAsync();
         }
         var propio = new AdministracionComercios(Options(), TenantFlota(e));
         var ajeno = new AdministracionComercios(Options(), new TenantActual(TenantContext.ParaUsuario(otro.Id, adminOtro.Id, RolUsuario.Administrador)));

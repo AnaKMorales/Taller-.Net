@@ -3,12 +3,16 @@ using Npgsql;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Administracion;
 using UltimaMilla.Application.Tenancy;
+using UltimaMilla.Infrastructure.Persistence.Identidad;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
 
 namespace UltimaMilla.Infrastructure.Persistence.Administracion;
 
-public sealed class AdministracionFlota(DbContextOptions<AppDbContext> options, ITenantActual actual) : IAdministracionFlota
+public sealed class AdministracionFlota(DbContextOptions<AppDbContext> options, ITenantActual actual,
+    FabricaCuentasAcceso? fabrica = null) : IAdministracionFlota
 {
+    private readonly FabricaCuentasAcceso _cuentasAcceso = fabrica ?? FabricaCuentasAcceso.Predeterminada;
+
     public async Task<IReadOnlyList<RepartidorAdministracionDto>> RepartidoresAsync(CancellationToken ct = default)
     {
         await using var db = Abrir();
@@ -39,7 +43,8 @@ public sealed class AdministracionFlota(DbContextOptions<AppDbContext> options, 
             throw new InvalidOperationException("El email ya pertenece a un usuario del operador.");
         var repartidor = new Repartidor(admin.Operador, email);
         db.Add(repartidor);
-        ContrasenasUsuario.Asignar(db, repartidor, solicitud.Contrasena);
+        // Credenciales en ASP.NET Identity; se guardan en el mismo SaveChanges que el Repartidor.
+        await _cuentasAcceso.CrearAsync(db, repartidor, solicitud.Contrasena);
         await Guardar(db, ct);
         return new(repartidor.Id, repartidor.Email, repartidor.Activo);
     }
@@ -77,5 +82,8 @@ public sealed class AdministracionFlota(DbContextOptions<AppDbContext> options, 
             SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName:
                 "IX_Usuarios_OperadorId_EmailNormalizado" or "IX_Vehiculos_OperadorId_MatriculaNormalizada" })
         { throw new InvalidOperationException("Otro registro ya utiliza ese email o matrícula en el operador.", error); }
+        catch (DbUpdateException error) when (error.InnerException is PostgresException {
+            SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: FabricaCuentasAcceso.IndiceUsuarioUnico })
+        { throw new InvalidOperationException(FabricaCuentasAcceso.MensajeEmailNoDisponible, error); }
     }
 }

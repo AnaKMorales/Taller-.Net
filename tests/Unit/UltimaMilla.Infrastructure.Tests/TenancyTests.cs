@@ -10,7 +10,17 @@ public sealed class TenancyTests
     public void TodasLasRaicesTienenFiltroYLasRelacionesPrivadasIncluyenTenant()
     {
         using var db = new AppDbContextFactory().CreateDbContext([]);
-        var roots = db.Model.GetEntityTypes().Where(t => t.BaseType is null).ToArray();
+        var todas = db.Model.GetEntityTypes().Where(t => t.BaseType is null).ToArray();
+        // Única excepción deliberada: las tablas de ASP.NET Identity (el login busca antes de conocer el operador).
+        var identidad = todas.Where(t => EsIdentidad(t.ClrType)).ToArray();
+        Assert.Equal(["AspNetUserClaims", "AspNetUserLogins", "AspNetUserTokens", "AspNetUsers"],
+            identidad.Select(t => t.GetTableName()).Order(StringComparer.Ordinal));
+        Assert.All(identidad, type =>
+        {
+            Assert.Empty(type.GetDeclaredQueryFilters());
+            Assert.Null(type.FindProperty("TenantId"));
+        });
+        var roots = todas.Except(identidad).ToArray();
         Assert.All(roots, type =>
         {
             Assert.NotNull(type.FindDeclaredQueryFilter("AislamientoOperador"));
@@ -24,10 +34,13 @@ public sealed class TenancyTests
             Assert.Contains(type.GetForeignKeys(), fk => fk.PrincipalEntityType.ClrType == typeof(Operador)
                 && fk.Properties.SingleOrDefault()?.Name == "TenantId");
         });
-        Assert.All(db.Model.GetEntityTypes().SelectMany(t => t.GetForeignKeys())
+        Assert.All(db.Model.GetEntityTypes().Where(t => !EsIdentidad(t.ClrType)).SelectMany(t => t.GetForeignKeys())
             .Where(f => f.PrincipalEntityType.FindProperty("TenantId") is not null),
             fk => Assert.Contains(fk.Properties, p => p.Name == "TenantId"));
     }
+
+    private static bool EsIdentidad(Type tipo) =>
+        tipo == typeof(UltimaMilla.Infrastructure.Persistence.Identidad.CuentaAcceso) || tipo.Namespace == "Microsoft.AspNetCore.Identity";
 
     [Fact]
     public void OperadorVacioSeRechaza()
