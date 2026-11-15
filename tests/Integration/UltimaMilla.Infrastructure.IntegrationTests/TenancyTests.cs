@@ -14,6 +14,11 @@ public sealed partial class PostgresTests
         var (a, b) = await DosOperadores();
         await CompletarFlujo(a);
         await CompletarFlujo(b);
+        // El resumen técnico solo se genera al ejecutar el cierre, no durante el flujo de envíos.
+        var cierres = new UltimaMilla.Infrastructure.Persistence.Operacion.ProcesamientoOperativo(
+            Options(), new RelojConfiguracion { Ahora = EscenarioPersistencia.Fecha.AddDays(1) });
+        await cierres.ProcesarAsync(a.Operador.Id, 3);
+        await cierres.ProcesarAsync(b.Operador.Id, 3);
         // MensajesProcesados también es dato por operador: se siembra una fila para cada uno.
         await Registro().EjecutarUnaVezAsync(TenantDe(a), Guid.NewGuid(), "avisos", _ => Task.CompletedTask);
         await Registro().EjecutarUnaVezAsync(TenantDe(b), Guid.NewGuid(), "avisos", _ => Task.CompletedTask);
