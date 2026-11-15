@@ -1,0 +1,23 @@
+@page "/backoffice/deposito/rendicion/{id:guid}"
+@model UltimaMilla.Web.Pages.Backoffice.Deposito.RendicionModel
+@using UltimaMilla.Web.Compartido
+@{ var r = Model.Ruta!; ViewData["Title"] = "Rendición de ruta"; ViewData["Seccion"] = "deposito"; Layout = "_Layout"; }
+<p><a href="/backoffice/deposito/cierre">← Devoluciones y rendición</a></p>
+<h1>Rendición de ruta</h1>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+<p>Paradas pendientes: <strong>@r.ParadasPendientes</strong>.</p>
+<p>La rendición no completa devoluciones automáticamente ni registra cobros.</p>
+<table><thead><tr><th>Orden</th><th>Envío</th><th>Estado</th><th>Parada</th><th>Devolución</th></tr></thead><tbody>
+@foreach (var p in r.Paradas)
+{
+    <tr><td>@p.Orden</td><td><a href="/backoffice/envios/@p.EnvioId">@p.CodigoSeguimiento</a></td><td>@Textos.Estado(p.EstadoEnvio)</td><td>@(p.Activa ? "Pendiente" : "Finalizada")</td><td><a href="/backoffice/deposito/devolucion/@p.EnvioId">@(p.EstadoDevolucion?.ToString() ?? "Consultar")</a></td></tr>
+}
+</tbody></table>
+@if (r.RendidaEn is { } fecha) { <p class="exito">Ruta rendida: @Textos.Fecha(fecha).</p> }
+else if (r.DespachadaEn is null) { <p>La ruta todavía no fue despachada.</p> }
+else if (r.ParadasPendientes > 0) { <p>Finalizá las paradas pendientes antes de rendir.</p> }
+else
+{
+    <form method="post" asp-page-handler="Rendir"><input type="hidden" name="Version" value="@r.Version" /><p>Confirmá el cierre operativo de esta ruta.</p><button type="submit">Confirmar rendición</button></form>
+}

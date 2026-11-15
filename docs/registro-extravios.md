@@ -80,3 +80,21 @@ con versiones nuevas. Esta etapa no implementa esa pantalla ni cambia PWA o Work
 Se verifican consulta sin efectos, permisos/CSRF, aislamiento/revocación, validación,
 cronología, versiones de ambos agregados, entrega parcial, carrera entre decisiones,
 historial/outbox único y rollback de todos los cambios ante fallo del mensaje.
+## Formulario del detalle (15/11/2026)
+
+El detalle `/backoffice/envios/{id}` ofrece **Marcar un envío como extraviado** al
+administrador y al despachador cuando hay bultos en un estado susceptible de extravío.
+Los estados finales y admitido no ofrecen el formulario. El handler sigue siendo la
+autoridad que valida la operación. No aparece al operario de depósito.
+
+El formulario pide detalle obligatorio de hasta 2000 caracteres y confirmación explícita,
+valida antiforgery y conserva las versiones leídas del envío y de su ruta activa. Si
+hay conflicto, recarga los datos, muestra el error y exige confirmar nuevamente.
+Después del éxito redirige al detalle, que muestra estado, bultos e historial actualizados.
+En parciales solo afecta los pendientes; el resumen puede seguir siendo entrega parcial.
+
+Para el ensayo local generar **otro** escenario con POST `/dev/datos-demo-cierre`, iniciar
+sesión con `usuarios.emailAdministrador` y `usuarios.contrasena` devueltos y abrir
+`/backoffice/envios/{envioId}`. El envío no entregado inicial admite extravío. No iniciar
+ni completar su devolución antes de este ensayo; no reutilizar el envío ya devuelto.
+No hacen falta migraciones ni cambios de reglas, datos anteriores, PWA o Worker.

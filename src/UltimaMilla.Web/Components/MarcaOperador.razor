@@ -1,0 +1,9 @@
+@using UltimaMilla.Application.Administracion
+<span style="display:inline-flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    @if (Datos.LogoUrl is { } logo)
+    {
+        <img src="@logo" alt="Logo de @Datos.Marca" referrerpolicy="no-referrer" style="max-width:140px;max-height:56px;object-fit:contain" />
+    }
+    <strong>@Datos.Marca</strong>
+</span>
+@code { [Parameter, EditorRequired] public IdentidadOperadorDto Datos { get; set; } = default!; }

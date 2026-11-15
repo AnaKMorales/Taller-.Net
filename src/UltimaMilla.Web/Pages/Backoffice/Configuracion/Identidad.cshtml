@@ -1,0 +1,24 @@
+@page "/backoffice/configuracion/identidad"
+@model UltimaMilla.Web.Pages.Backoffice.Configuracion.IdentidadModel
+@{ ViewData["Title"] = "Identidad visual"; ViewData["Seccion"] = "identidad"; Layout = "_Layout"; }
+<h1>Identidad visual del operador</h1>
+<p>Marca y contacto públicos del portal y seguimiento. La razón social legal no cambia.</p>
+@if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
+@if (Model.Error is not null) { <p class="error" role="alert">@Model.Error</p> }
+<form method="post" class="formulario identidad-formulario">
+    <input type="hidden" asp-for="Version" />
+    <label asp-for="Marca">Marca pública<input asp-for="Marca" required maxlength="200" /></label>
+    <label asp-for="Primario">Color principal (encabezado)<input asp-for="Primario" type="color" required /></label>
+    <label asp-for="Secundario">Color secundario (contacto)<input asp-for="Secundario" type="color" required /></label>
+    <label asp-for="Telefono">Teléfono de contacto<input asp-for="Telefono" type="tel" maxlength="50" /></label>
+    <label asp-for="Email">Email de contacto<input asp-for="Email" type="email" maxlength="254" /></label>
+    <label asp-for="Logo">URL HTTPS del logo<input asp-for="Logo" type="url" maxlength="2048" placeholder="https://tu-sitio.com/logo.png" /></label>
+    <p class="nota">Contacto y logo son opcionales. El logo se carga desde la dirección indicada; no se suben archivos. Si no carga, la marca sigue visible.</p>
+    <div><button type="submit">Guardar identidad visual</button></div>
+</form>
+<style>
+    .identidad-formulario { max-width: 640px; }
+    .identidad-formulario label { display: grid; gap: .4rem; margin: 0; }
+    .identidad-formulario input:not([type=color]) { box-sizing: border-box; width: 100%; padding: .6rem; font: inherit; }
+    .identidad-formulario input[type=color] { width: 5rem; height: 2.5rem; }
+</style>

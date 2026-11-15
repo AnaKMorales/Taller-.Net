@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Backoffice;
 using UltimaMilla.Application.Despacho;
+using UltimaMilla.Application.Envios.Extravio;
+using UltimaMilla.Domain.Envios;
 using UltimaMilla.Domain.Configuracion;
 using UltimaMilla.Domain.Usuarios;
 using UltimaMilla.Web.Seguridad;
@@ -14,7 +16,7 @@ namespace UltimaMilla.Web.Pages.Backoffice;
 // entrega parcial (requisitos 33 y 34). Las acciones usan IDespachoPendientes, que aplica las reglas del
 // dominio, el aislamiento y el control de versiones; esta página solo arma la solicitud y muestra el resultado.
 [Authorize(Policy = Politicas.Backoffice)]
-public sealed class EnvioModel(IDetalleEnvio detalles, IDespachoPendientes despacho) : PageModel
+public sealed class EnvioModel(IDetalleEnvio detalles, IDespachoPendientes despacho, RegistrarExtravioHandler extravios) : PageModel
 {
     public const string RutaNueva = "nueva";
 
@@ -22,6 +24,13 @@ public sealed class EnvioModel(IDetalleEnvio detalles, IDespachoPendientes despa
 
     public DetalleEnvioDto? Envio { get; private set; }
     public PlanificacionPendientesDto? Planificacion { get; private set; }
+    public ConsultaExtravioDto? Extravio { get; private set; }
+    [BindProperty] public Guid VersionExtravioEnvio { get; set; }
+    [BindProperty] public Guid? VersionExtravioRuta { get; set; }
+    [BindProperty] public string? DetalleExtravio { get; set; }
+    [BindProperty] public bool ConfirmarExtravio { get; set; }
+    public bool OfreceExtravio => PuedeDespachar && Extravio?.Bultos.Any(b =>
+        b.Estado is not (EstadoBulto.Admitido or EstadoBulto.Entregado or EstadoBulto.Devuelto or EstadoBulto.Extraviado)) == true;
     public string? Error { get; private set; }
     [TempData] public string? Exito { get; set; }
 
@@ -101,6 +110,17 @@ public sealed class EnvioModel(IDetalleEnvio detalles, IDespachoPendientes despa
         }, ct);
     }
 
+    public async Task<IActionResult> OnPostExtraviarAsync(CancellationToken ct)
+    {
+        if (!PuedeDespachar) return Forbid();
+        return await EjecutarAsync(async () =>
+        {
+            if (!ConfirmarExtravio) throw new ArgumentException("Confirmá el extravío antes de continuar.");
+            await extravios.Handle(Id, new(VersionExtravioEnvio, VersionExtravioRuta, DetalleExtravio ?? ""), ct);
+            return "Extravío registrado. Se actualizaron los bultos pendientes y el historial del envío.";
+        }, ct);
+    }
+
     private async Task<IActionResult> EjecutarAsync(Func<Task<string>> accion, CancellationToken ct)
     {
         try
@@ -129,6 +149,7 @@ public sealed class EnvioModel(IDetalleEnvio detalles, IDespachoPendientes despa
     {
         Envio = await detalles.ObtenerAsync(Id, ct);
         if (Envio is null) return false;
+        if (PuedeDespachar) Extravio = await extravios.ConsultarAsync(Id, ct);
         if (PuedeDespachar && Envio.AdmiteGestionDePendientes)
         {
             try

@@ -82,8 +82,10 @@ public sealed class FlujosCriticosTests(Entorno entorno)
         await Expect(admin.Locator(".exito")).ToContainTextAsync("Ruta creada");
         var fila = admin.Locator($"tr:has-text('{codigo}')");
         var opcion = fila.Locator("select[name='Ruta'] option", new() { HasTextString = "(0/" }).First;
-        var ruta = (await opcion.GetAttributeAsync("value"))!.Split('|')[0];
-        await fila.Locator("select[name='Ruta']").SelectOptionAsync(await opcion.GetAttributeAsync("value"));
+        var valorRuta = await opcion.GetAttributeAsync("value")
+            ?? throw new InvalidOperationException("La opción de ruta no tiene un valor para asignar el envío.");
+        var ruta = valorRuta.Split('|')[0];
+        await fila.Locator("select[name='Ruta']").SelectOptionAsync(valorRuta);
         await fila.GetByText("Asignar").ClickAsync();
         await Expect(admin.Locator(".exito")).ToContainTextAsync("asignado");
 

@@ -126,6 +126,33 @@ no se dan por completas áreas ajenas sin contrastarlas con su implementación e
 
 ## Registro de avances
 
+### 15/11: formulario y aplicación visual de identidad (letra original, requisito 5)
+
+Administrador configura marca, colores, contacto y URL HTTPS de logo con versión y CSRF.
+El portal toma el operador de la sesión; el seguimiento lo resuelve por token opaco.
+Ambos muestran marca/logo y contacto, con colores primario/secundario y texto contrastante.
+El seguimiento permite imágenes HTTPS en su CSP y el logo usa no-referrer. Sin caché
+adicional: cambios visibles al recargar. No cambia razón social legal, etiquetas, PWA,
+Worker ni comunicaciones. Sin migración nueva. Ver [identidad](docs/identidad-operador.md).
+
+### 15/11: formulario de extravío en el detalle (letra original, requisito 11)
+
+Administrador y despachador pueden registrar el extravío desde el detalle de envío,
+con motivo, confirmación explícita, antiforgery y versiones de envío/ruta. Se reutiliza
+el handler existente; estados, historial, bultos y outbox conservan su guardado atómico.
+Sin migraciones. El escenario de cierre nuevo permite ensayarlo antes de devolver su
+envío. Ver [formulario y alcance](docs/registro-extravios.md).
+
+### 15/11: pantallas de devoluciones y rendición (letra original, requisito 22)
+
+Integradas a petición de Agustín: listado del operador, detalle de devolución con inicio
+según reglas, recepción de bultos y confirmación, y detalle/rendición de rutas sin paradas
+activas. Enlaces desde Depósito y detalle de envío. Reutilizan handlers, roles de depósito,
+versiones y antiforgery; conservan los bultos entregados en parciales. Sin migración ni
+cambios de Worker/PWA. No son el cierre diario automático. Pasan 15 integraciones,
+incluidas dos nuevas de formularios, CSRF, concurrencia, aislamiento y bloqueo de rendición.
+Ver [pantallas y pruebas manuales](docs/cierre-deposito.md).
+
 ### 14/11: separación de comercios homónimos en reportes (letra original, requisito 30)
 
 Corregida la agrupación de cumplimiento y liquidación del reporte de gestión: utiliza

@@ -9,18 +9,25 @@ verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
 ## Estado actual
 
+Las pantallas de [devoluciones y rendición](docs/cierre-deposito.md) están en
+`/backoffice/deposito/cierre`, accesibles desde Depósito. Permiten recibir los bultos
+esperados, completar devoluciones y rendir rutas sin paradas activas, con versiones y
+antiforgery. Pueden usarlas administrador, despachador y operario de depósito.
+
 Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por
 cuenta comercial, aunque dos clientes tengan el mismo nombre. La corrección conserva
 el formato de respuesta y no requiere migración.
 
 El [registro operativo de extravíos](docs/registro-extravios.md) dispone de consulta y API
-de confirmación con permisos, versiones y guardado de historial/outbox. Falta conectar
-el formulario del backoffice. No requiere migración.
+de confirmación con permisos, versiones y guardado de historial/outbox. El detalle de envío
+incluye formulario para Administrador/Despachador, con detalle y confirmación explícita.
+No requiere migración.
 
 La [identidad visual del operador](docs/identidad-operador.md) tiene backend para configurar
 marca, colores, contacto público y URL de logo, con lecturas para las aplicaciones y el
 seguimiento por token. Requiere la migración `IdentidadVisualOperador`. Queda integrar
-los formularios, la aplicación visual y las comunicaciones con las responsables de esas áreas.
+el consumo en comunicaciones con su responsable. El formulario administrativo está en
+`/backoffice/configuracion/identidad`; portal y seguimiento ya aplican los datos guardados.
 
 La [administración de flota](docs/administracion-flota.md) permite al administrador crear
 y consultar repartidores con credenciales y vehículos con sus capacidades. Faltan las

@@ -110,3 +110,27 @@ ausencia de IDs, frescura de la consulta separada, aislamiento, revocación, ám
 de solo lectura, concurrencia, rollback y recuperación de datos previos con la migración.
 Queda pendiente aplicar los datos en las tres salidas (portal, seguimiento y comunicaciones)
 y demostrarlo en conjunto. La configuración del backend por sí sola no prueba esa integración.
+## Pantallas y aplicación visual (15/11/2026)
+
+Administrador: `/backoffice/configuracion/identidad`, accesible desde Identidad visual
+en el menú. Campos de marca, selectores de color, teléfono/email opcionales y logo HTTPS
+opcional. La escritura usa el puerto existente, antiforgery y la versión que se editó.
+Un conflicto conserva los campos y exige recargar antes de reintentar; no sobrescribe
+automáticamente un cambio de otro administrador. La razón social legal no se modifica.
+
+El portal usa IConsultaIdentidadOperador.ActualAsync con la sesión validada. El seguimiento
+usa PorSeguimientoAsync con el token del envío. La marca y el logo se muestran sobre el
+color primario y el contacto sobre el secundario, con texto negro o blanco según el fondo.
+El logo se carga en el navegador con no-referrer y la CSP del seguimiento admite imágenes
+HTTPS. Si el logo no está disponible, la marca sigue visible. No se suben ni descargan
+imágenes desde el servidor. No se agregan datos internos a la respuesta pública.
+
+Los cambios se ven al recargar, incluso en seguimientos de envíos anteriores; no afectan
+su estado, programación ni precio. Contacto vacío se omite. No hay caché de identidad.
+Worker/comunicaciones, etiquetas e identidad de la PWA no se modifican en este bloque.
+No necesita otra migración: reutiliza IdentidadVisualOperador.
+
+Para probar: conservar los usuarios del escenario actual. Con el mismo administrador,
+guardar una marca distinta, colores y contacto; abrir desde el detalle de un envío su
+seguimiento público. Después entrar al portal con emailComercio de ese mismo escenario
+(misma contraseña demo). No es necesario crear otro operador ni otro usuario.

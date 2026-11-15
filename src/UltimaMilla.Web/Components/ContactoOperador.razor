@@ -1,0 +1,11 @@
+@using UltimaMilla.Application.Administracion
+@using UltimaMilla.Web.Compartido
+@if (Datos.TelefonoContacto is not null || Datos.EmailContacto is not null)
+{
+    <footer style="@TemaOperador.Fondo(Datos.ColorSecundario);padding:1rem;margin-top:1rem">
+        <strong>Contacto · @Datos.Marca</strong>
+        @if (Datos.TelefonoContacto is { } tel) { <div>Teléfono: @tel</div> }
+        @if (Datos.EmailContacto is { } email) { <div><a style="color:inherit" href="mailto:@email">@email</a></div> }
+    </footer>
+}
+@code { [Parameter, EditorRequired] public IdentidadOperadorDto Datos { get; set; } = default!; }
