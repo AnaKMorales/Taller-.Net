@@ -75,7 +75,9 @@
   // Mapa de la flota: un marcador por vehículo con su última posición
   const mapa = window.L ? L.map('mapa-flota').setView([-34.88, -56.17], 11) : null;
   mapa && L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    // OSM exige Referer. Enviar solo el origen evita divulgar rutas o parámetros del tablero.
+    referrerPolicy: 'origin',
+    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(mapa);
   const marcadores = mapa ? L.layerGroup().addTo(mapa) : null;
   let encuadrado = false;
