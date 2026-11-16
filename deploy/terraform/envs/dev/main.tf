@@ -52,6 +52,7 @@ module "instancia" {
 module "cicd" {
   count                = var.habilitar_cicd ? 1 : 0
   source               = "../../modules/cicd"
+  modo                 = var.modo_cicd
   nombre               = local.nombre
   region               = var.region
   repositorio          = var.repositorio_github

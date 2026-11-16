@@ -10,7 +10,8 @@ output "dominio" {
 
 output "github_variables" {
   description = "Cargar en GitHub: Settings > Secrets and variables > Actions > Variables (no son secretos)."
-  # AWS_ROLE_ARN solo existe con habilitar_cicd = true; sin esa variable el pipeline de GitHub no despliega.
+  # AWS_ROLE_ARN solo existe con modo_cicd = "oidc". Con "claves" el pipeline usa los secrets AWS_ACCESS_KEY_ID y
+  # AWS_SECRET_ACCESS_KEY (clave del usuario de la salida usuario_pipeline).
   value = merge(
     {
       AWS_REGION      = var.region
@@ -18,8 +19,13 @@ output "github_variables" {
       DEPLOY_BUCKET   = module.artefactos.nombre
       ECR_REGISTRY    = module.ecr.registro
     },
-    var.habilitar_cicd ? { AWS_ROLE_ARN = module.cicd[0].rol_arn } : {}
+    var.habilitar_cicd && var.modo_cicd == "oidc" ? { AWS_ROLE_ARN = module.cicd[0].rol_arn } : {}
   )
+}
+
+output "usuario_pipeline" {
+  description = "Solo con modo_cicd = \"claves\": usuario IAM del pipeline. Su clave se crea con aws iam create-access-key y va a los secrets de GitHub."
+  value       = var.habilitar_cicd && var.modo_cicd == "claves" ? module.cicd[0].usuario : ""
 }
 
 output "repositorios_ecr" {

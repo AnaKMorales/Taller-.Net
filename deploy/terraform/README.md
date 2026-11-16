@@ -60,7 +60,8 @@ Sin `dominio` propio se usa `<ip-con-guiones>.sslip.io` (resuelve solo a esa IP 
 2. **DNS:** con dominio propio, registro A → `ip_publica` (o `zona_route53_id` para que Terraform lo cree).
    Let's Encrypt valida por HTTP-01: el DNS tiene que resolver **antes** del primer despliegue (con `sslip.io` ya resuelve).
 3. Hacer *push* a `main`: el pipeline compila, prueba, sube las 4 imágenes a ECR (etiqueta = SHA) y ejecuta
-   `desplegar.sh` en la instancia por SSM Run Command. Sin SSH y sin claves de larga duración.
+   `desplegar.sh` en la instancia por SSM Run Command. Sin SSH (con OIDC, además, sin claves de larga duración;
+   ver *Problemas conocidos* si la SCP lo niega).
 
 **Datos de demostración en la instancia:** `deploy/aws/sembrar-demo.sh` enciende Development unos instantes, crea los dos
 operadores demo (una sola llamada a `/dev/datos-demo`), lo apaga, verifica que `/dev/datos-demo` vuelve a dar 404 y guarda las
@@ -99,11 +100,21 @@ Logs del arranque: `/var/log/cloud-init-output.log`.
 
 - **SCP de la organización:** si `apply` falla con `explicit deny in a service control policy`, hay que pedir
   al administrador de la cuenta que habilite esa acción. Con la SCP actual, EC2/ECR solo funcionan en `us-east-2`.
-- **OIDC bloqueado por la SCP** (`iam:CreateOpenIDConnectProvider` / `ListOpenIDConnectProviders`): `habilitar_cicd = false` en
-  `terraform.tfvars` omite por completo el módulo `cicd` (no se crea ni se busca nada de OIDC). Consecuencias:
-  la salida `github_variables` no trae `AWS_ROLE_ARN` y el pipeline de GitHub solo compila y prueba; el despliegue se hace con
-  `deploy/aws/desplegar-manual.sh`, que exige el árbol de Git limpio (las etiquetas de ECR son el SHA del commit e inmutables).
-  Alternativa de último recurso (no cumple el diseño): usuario IAM con claves como *secrets* de GitHub.
+- **OIDC bloqueado por la SCP** (`iam:CreateOpenIDConnectProvider` / `ListOpenIDConnectProviders`, nuestro caso):
+  `modo_cicd = "claves"` en `terraform.tfvars`. El módulo `cicd` crea un **usuario IAM solo para el pipeline**, con los mismos
+  permisos mínimos que tendría el rol OIDC (subir a los 4 repositorios de ECR, `s3:PutObject` en `deploy/*` del bucket,
+  `ssm:SendCommand` solo a esta instancia y leer el resultado). Terraform **no crea la clave** (quedaría en el estado):
+
+  ```bash
+  terraform apply                                   # crea el usuario (salida usuario_pipeline)
+  aws iam create-access-key --user-name "$(terraform output -raw usuario_pipeline)"
+  ```
+
+  En GitHub (*Settings → Secrets and variables → Actions*): secrets `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` con esa
+  clave, y las variables de `github_variables` (sin `AWS_ROLE_ARN`). El pipeline usa la clave cuando no hay `AWS_ROLE_ARN`.
+  Es menos seguro que OIDC (la clave no vence sola): rotarla con `create-access-key` + borrar la vieja
+  (`aws iam delete-access-key`), y borrarla si el repositorio se compromete. Con `habilitar_cicd = false` no hay pipeline
+  de despliegue y queda solo `deploy/aws/desplegar-manual.sh`, que exige el árbol de Git limpio.
 - **El proveedor OIDC ya existe** en la cuenta (otro proyecto): `crear_proveedor_oidc = false` (solo aplica con `habilitar_cicd = true`).
 - **Cambiar las claves de Postgres/RabbitMQ** en SSM después del primer despliegue no cambia las ya inicializadas
   en los volúmenes de Docker.

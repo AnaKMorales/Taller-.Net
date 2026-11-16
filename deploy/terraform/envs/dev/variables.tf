@@ -57,7 +57,13 @@ variable "correo_presupuesto" {
 variable "habilitar_cicd" {
   type        = bool
   default     = true
-  description = "false omite por completo el modulo cicd (proveedor OIDC de GitHub y rol del pipeline): no se crea ni se busca nada de OIDC. Para cuentas cuya SCP niega iam:CreateOpenIDConnectProvider / ListOpenIDConnectProviders. Sin cicd no hay despliegue desde GitHub: se usa deploy/aws/desplegar-manual.sh."
+  description = "false omite por completo el modulo cicd: no hay despliegue desde GitHub y se usa deploy/aws/desplegar-manual.sh. Si la SCP de la cuenta niega OIDC, usar modo_cicd = \"claves\" en lugar de apagarlo."
+}
+
+variable "modo_cicd" {
+  type        = string
+  default     = "oidc"
+  description = "Solo si habilitar_cicd = true. \"oidc\" (rol con credenciales temporales) o \"claves\" (usuario IAM con los mismos permisos minimos, para cuentas cuya SCP niega OIDC; su clave va en los secrets de GitHub)."
 }
 
 variable "crear_proveedor_oidc" {
