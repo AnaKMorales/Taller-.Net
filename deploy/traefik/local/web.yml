@@ -9,7 +9,16 @@ http:
       entryPoints:
         - web
       service: web
+    grafana:
+      rule: 'Host(`{{ default "localhost" (env "DOMINIO") }}`) && PathPrefix(`/grafana`)'
+      entryPoints:
+        - web
+      service: grafana
   services:
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://lgtm:3000"
     web:
       loadBalancer:
         passHostHeader: true

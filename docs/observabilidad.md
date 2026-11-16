@@ -92,7 +92,7 @@ equipo de tres permite una sola instancia de API.
 El compose `deploy/observabilidad/compose.yaml` usa grafana/otel-lgtm con versión fijada.
 Incluye OpenTelemetry Collector, Grafana, Prometheus, Tempo y Loki para demostración y
 desarrollo. Provisiona las fuentes y el tablero desde archivos del repositorio.
-No instala ni configura la infraestructura AWS del equipo. Sus puertos se publican solo
+Es para desarrollar desde el IDE; con el stack completo ver más abajo. Sus puertos se publican solo
 en localhost y el contenedor no tiene volumen persistente para retener las mediciones al
 recrearlo.
 
@@ -132,10 +132,27 @@ Para detener el tablero:
 docker compose -f deploy/observabilidad/compose.yaml down
 ```
 
-En AWS se deben configurar el receptor accesible desde Web y Worker, los exportadores y
-el acceso al tablero desde la infraestructura del equipo. En una red de contenedores se
-usa el nombre del servicio colector en lugar de localhost. El stack local no valida ese
-despliegue. También se admiten las variables estándar OTLP por señal y autenticación.
+## Con el stack completo y en AWS
+
+`deploy/compose.yaml` incluye el servicio `lgtm` (misma imagen y versión) en el perfil `app`, así que se
+despliega en la EC2 junto con Web y Worker. Web y Worker exportan con `OpenTelemetry__ExportarOtlp=true` y
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4317` por la red interna; el colector no publica puertos hacia afuera.
+Mediciones en el volumen `lgtm_data` (sobreviven a un redespliegue) y límite de 1,5 GB de memoria.
+
+Grafana sale por Traefik en `/grafana` (en AWS `https://<dominio>/grafana/`, mismo certificado). Usuario `admin`,
+clave `GRAFANA_ADMIN_PASSWORD`: en local en `deploy/.env`; en AWS la genera Terraform (módulo `parametros`) en SSM:
+
+```bash
+aws ssm get-parameter --with-decryption --name /ultimamilla/dev/GRAFANA_ADMIN_PASSWORD --query Parameter.Value --output text
+```
+
+La imagen trae acceso anónimo como Admin por defecto: se apaga (`GF_AUTH_ANONYMOUS_ENABLED=false`) porque en AWS
+queda expuesto a internet. El pipeline y `desplegar-manual.sh` suben `deploy/observabilidad/provisioning` y
+`dashboards` al bucket junto con el compose, y `desplegar.sh` verifica que `lgtm` quede corriendo.
+Si `lgtm` se cae, Web y Worker siguen funcionando: solo se pierden mediciones de ese lapso.
+
+No levantar a la vez este compose y `deploy/observabilidad/compose.yaml` (el de desarrollo desde el IDE):
+los dos usan el puerto local 3300.
 
 ## Salud
 

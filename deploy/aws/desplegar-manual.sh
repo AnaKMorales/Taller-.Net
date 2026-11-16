@@ -46,6 +46,8 @@ aws s3 cp deploy/compose.yaml "s3://$BUCKET/deploy/compose.yaml"
 aws s3 cp deploy/compose.aws.yaml "s3://$BUCKET/deploy/compose.aws.yaml"
 aws s3 cp deploy/aws/desplegar.sh "s3://$BUCKET/deploy/desplegar.sh"
 aws s3 cp deploy/traefik "s3://$BUCKET/deploy/traefik" --recursive
+aws s3 cp deploy/observabilidad/provisioning "s3://$BUCKET/deploy/observabilidad/provisioning" --recursive
+aws s3 cp deploy/observabilidad/dashboards "s3://$BUCKET/deploy/observabilidad/dashboards" --recursive
 
 echo "==> Esperando a que la instancia esté registrada en SSM"
 for _ in $(seq 1 40); do

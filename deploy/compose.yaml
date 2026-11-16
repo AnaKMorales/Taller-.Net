@@ -127,6 +127,9 @@
         DataProtection__RutaClaves: /claves
         # Límite del seguimiento por IP; se sube solo durante la prueba de carga (tests/carga)
         Seguimiento__PedidosPorMinuto: ${SEGUIMIENTO_PEDIDOS_POR_MINUTO:-30}
+        # Telemetría (métricas, trazas y logs) al colector OTLP de "lgtm" (gRPC 4317), dentro de la red interna.
+        OpenTelemetry__ExportarOtlp: "true"
+        OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       volumes:
         - claves_data:/claves
       ports:
@@ -159,6 +162,8 @@
         Webhooks__PermitirDestinosPrivados: ${WEBHOOKS_PERMITIR_DESTINOS_PRIVADOS:-false}
         # Base del enlace de seguimiento en los avisos al destinatario (en AWS la pone compose.aws.yaml)
         Notificaciones__UrlPublica: ${URL_PUBLICA:-http://localhost:8000}
+        OpenTelemetry__ExportarOtlp: "true"
+        OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       mem_limit: 256m
       restart: unless-stopped
 
@@ -177,6 +182,39 @@
       mem_limit: 128m
       restart: unless-stopped
 
+    # Observabilidad (6.12): colector OpenTelemetry + Prometheus (métricas) + Tempo (trazas) + Loki (logs) + Grafana,
+    # en la imagen oficial grafana/otel-lgtm. Web y Worker le mandan OTLP por la red interna; nada más llega a él.
+    # Grafana sale por Traefik en /grafana (en AWS con HTTPS) con usuario admin y GRAFANA_ADMIN_PASSWORD (SSM en AWS).
+    # La imagen trae acceso anónimo como Admin por defecto: se apaga, porque en AWS queda expuesto a internet.
+    # Tablero técnico: deploy/observabilidad/dashboards (provisioning automático). Si no arranca, la app sigue igual.
+    lgtm:
+      profiles: ["app"]
+      image: grafana/otel-lgtm:0.38.1
+      environment:
+        GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+        GF_AUTH_ANONYMOUS_ENABLED: "false"
+        GF_SECURITY_ADMIN_USER: admin
+        GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Falta GRAFANA_ADMIN_PASSWORD en deploy/.env}
+        GF_SERVER_ROOT_URL: ${GRAFANA_URL_RAIZ:-http://localhost:8000/grafana/}
+        GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+        GF_USERS_ALLOW_SIGN_UP: "false"
+        ENABLE_LOGS_OTELCOL: "false"
+        ENABLE_LOGS_LOKI: "false"
+      volumes:
+        - ./observabilidad/provisioning:/etc/grafana/provisioning:ro
+        - ./observabilidad/dashboards:/var/lib/ultimamilla-dashboards:ro
+        - lgtm_data:/data
+      ports:
+        - "127.0.0.1:${GRAFANA_PORT:-3300}:3000"
+      healthcheck:
+        test: ["CMD", "/otel-lgtm/docker/healthcheck.sh"]
+        interval: 15s
+        timeout: 5s
+        retries: 20
+        start_period: 60s
+      mem_limit: 1536m
+      restart: unless-stopped
+
   # Red interna con subred fija. Traefik (y solo él) llega a Web desde esta subred, así que Web confía en
   # X-Forwarded-* únicamente de acá: pasar la misma variable a Web como ForwardedHeaders__RedConfiable.
   networks:
@@ -188,4 +226,5 @@
   volumes:
     postgres_data:
     rabbitmq_data:
+    lgtm_data:
     claves_data:

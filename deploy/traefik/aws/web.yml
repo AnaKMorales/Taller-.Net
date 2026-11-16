@@ -10,7 +10,19 @@ http:
       service: web
       tls:
         certResolver: le
+    # Grafana (tablero técnico) en /grafana, mismo dominio y certificado. Grafana pide usuario y clave.
+    grafana:
+      rule: 'Host(`{{ env "DOMINIO" }}`) && PathPrefix(`/grafana`)'
+      entryPoints:
+        - websecure
+      service: grafana
+      tls:
+        certResolver: le
   services:
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://lgtm:3000"
     web:
       loadBalancer:
         passHostHeader: true

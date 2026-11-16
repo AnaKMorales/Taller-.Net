@@ -40,8 +40,8 @@ echo "==> Levantando contenedores (el migrador corre primero; web y worker esper
 echo "==> Estado"
 "${compose[@]}" ps
 
-# /health todavía no existe: se comprueba que web y worker estén corriendo.
-for servicio in web worker traefik; do
+# Se comprueba que web, worker, traefik y lgtm estén corriendo (la salud de Web se ve en /ready).
+for servicio in web worker traefik lgtm; do
   if [ "$("${compose[@]}" ps --status running --quiet "$servicio" | wc -l)" -eq 0 ]; then
     echo "ERROR: el servicio $servicio no está corriendo" >&2
     "${compose[@]}" logs --tail 50 "$servicio" >&2 || true

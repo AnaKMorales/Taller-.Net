@@ -276,6 +276,8 @@ jobs:
           aws s3 cp deploy/compose.aws.yaml "s3://${{ vars.DEPLOY_BUCKET }}/deploy/compose.aws.yaml"
           aws s3 cp deploy/aws/desplegar.sh "s3://${{ vars.DEPLOY_BUCKET }}/deploy/desplegar.sh"
           aws s3 cp deploy/traefik "s3://${{ vars.DEPLOY_BUCKET }}/deploy/traefik" --recursive
+          aws s3 cp deploy/observabilidad/provisioning "s3://${{ vars.DEPLOY_BUCKET }}/deploy/observabilidad/provisioning" --recursive
+          aws s3 cp deploy/observabilidad/dashboards "s3://${{ vars.DEPLOY_BUCKET }}/deploy/observabilidad/dashboards" --recursive
 
       - name: Ordenar el despliegue por SSM
         run: |

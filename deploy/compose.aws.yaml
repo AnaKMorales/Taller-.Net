@@ -42,6 +42,10 @@
 
     receptor:
       ports: !reset []
+    lgtm:
+      ports: !reset []
+      environment:
+        GF_SERVER_ROOT_URL: https://${DOMINIO:?Falta DOMINIO}/grafana/
     postgres:
       ports: !reset []
     redis:

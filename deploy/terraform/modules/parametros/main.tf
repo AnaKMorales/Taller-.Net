@@ -15,10 +15,17 @@ resource "random_password" "rabbitmq" {
   special = false
 }
 
+# Clave del usuario admin de Grafana (/grafana). Para verla: aws ssm get-parameter --with-decryption --name <ruta>/GRAFANA_ADMIN_PASSWORD
+resource "random_password" "grafana" {
+  length  = 24
+  special = false
+}
+
 resource "aws_ssm_parameter" "secreto" {
   for_each = {
-    POSTGRES_PASSWORD = random_password.postgres.result
-    RABBITMQ_PASSWORD = random_password.rabbitmq.result
+    POSTGRES_PASSWORD      = random_password.postgres.result
+    RABBITMQ_PASSWORD      = random_password.rabbitmq.result
+    GRAFANA_ADMIN_PASSWORD = random_password.grafana.result
   }
   name  = "${var.ruta}/${each.key}"
   type  = "SecureString"
