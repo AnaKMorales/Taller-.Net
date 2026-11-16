@@ -138,10 +138,13 @@ public static class DatosDemo
         var zona = await db.Set<ZonaCobertura>().Include(z => z.Franjas).FirstAsync(ct);
         var reglas = await db.Set<ReglasOperativas>().Include(r => r.PlazosServicio).Include(r => r.PoliticaDevolucion)
             .OrderByDescending(r => r.Version).FirstAsync(ct);
-        var cuadro = await db.Set<CuadroTarifario>().Include(c => c.Lineas)
+        // Las líneas necesitan su zona cargada (LineaTarifa.ZonaId sale de la navegación) aunque el operador tenga varias.
+        var cuadro = await db.Set<CuadroTarifario>().Include(c => c.Lineas).ThenInclude(l => l.Zona)
             .OrderByDescending(c => c.Version).FirstAsync(ct);
 
-        db.Add(NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Destinatario simulado", DateTime.UtcNow));
+        // La zona puede ofrecer varias franjas: se usa la primera.
+        db.Add(NuevoEnvio(cuenta, zona, reglas, cuadro, admin, "Destinatario simulado", DateTime.UtcNow,
+            franja: zona.Franjas.OrderBy(f => f.Desde).First()));
         await db.SaveChangesAsync(ct);
     }
 

@@ -16,7 +16,15 @@ public sealed class ConexionRabbitMq(OpcionesRabbitMq opciones) : IAsyncDisposab
         try
         {
             if (_conexion is { IsOpen: true }) return _conexion;
-            if (_conexion is not null) await _conexion.DisposeAsync();
+            if (_conexion is not null)
+            {
+                // Cerrada por el broker o la red: con AutomaticRecoveryEnabled la misma conexión se reconecta sola
+                // y recupera sus canales y el consumidor de "avisos". Reemplazarla dejaba al consumidor colgado de la
+                // conexión descartada: el Worker seguía publicando pero no volvía a consumir (pruebas de resiliencia).
+                if (_conexion.CloseReason?.Initiator != ShutdownInitiator.Application)
+                    throw new InvalidOperationException("La conexión con RabbitMQ se está recuperando; se reintenta en el próximo ciclo.");
+                await _conexion.DisposeAsync();
+            }
             opciones.Validar();
             var fabrica = new ConnectionFactory
             {

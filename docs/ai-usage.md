@@ -1303,3 +1303,27 @@ No se ejecutó la integración completa, E2E ni el ensayo desplegado con todos l
 Las pruebas usaron bases temporales; no se aplicó la migración a desarrollo ni se crearon
 cuentas demo para el usuario. Contrato y límites en docs/cierre-diario-indicadores.md;
 README, PLAN-PENDIENTES y seguimiento actualizados. Sin commit ni push.
+
+### 15/11/2026: pruebas de resiliencia (opcional 7.4)
+
+Responsable: Aldana. Se usó Claude Code para leer la letra, armar el script
+scripts/probar-resiliencia.sh y documentar en docs/pruebas-de-resiliencia.md. El script
+corta Redis, RabbitMQ, PostgreSQL, el receptor de webhooks y el Worker con docker compose,
+mide con curl y con consultas a la base, y compara lo esperado con lo observado.
+
+Qué se aceptó: la estructura del script y la medición por EntregasAviso. Qué se modificó:
+la primera versión contaba avisos en el historial del receptor (en memoria, se pierde al
+reiniciarlo) y medía demasiado pronto; se cambió a contar en la base y esperar con límite.
+Qué se descartó: correrlo dentro del CI (cortar contenedores lo haría inestable).
+
+Las pruebas encontraron un fallo real: tras una caída de RabbitMQ con eventos pendientes,
+el Worker seguía publicando pero no volvía a consumir "avisos" (0 consumidores, mensajes
+trabados) hasta reiniciarlo. ConexionRabbitMq descartaba la conexión que se estaba
+recuperando sola (AutomaticRecoveryEnabled) y el consumidor quedaba en la conexión vieja.
+Corregido: solo se reemplaza una conexión cerrada por la propia aplicación. También se
+corrigió /dev/simular/alta (solo Development), que fallaba con varias zonas o franjas.
+
+Validación: los 5 escenarios pasan en local; build Release con warnaserror sin errores;
+494 pruebas unitarias y de arquitectura aprobadas; integración con PostgreSQL y RabbitMQ
+locales 310/310 (la de aislamiento DosOperadoresConComercioCompartidoSoloVenSuGrafoCompleto
+fallaba por no sembrar ResumenesOperativosDiarios; quedó corregida en 55547ea). Sin commit ni push.
