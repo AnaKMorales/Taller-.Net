@@ -143,7 +143,7 @@ Grafana sale por Traefik en `/grafana` (en AWS `https://<dominio>/grafana/`, mis
 clave `GRAFANA_ADMIN_PASSWORD`: en local en `deploy/.env`; en AWS la genera Terraform (módulo `parametros`) en SSM:
 
 ```bash
-aws ssm get-parameter --with-decryption --name /ultimamilla/dev/GRAFANA_ADMIN_PASSWORD --query Parameter.Value --output text
+aws ssm get-parameter --region us-east-2 --with-decryption --name /ultimamilla/dev/GRAFANA_ADMIN_PASSWORD --query Parameter.Value --output text
 ```
 
 La imagen trae acceso anónimo como Admin por defecto: se apaga (`GF_AUTH_ANONYMOUS_ENABLED=false`) porque en AWS

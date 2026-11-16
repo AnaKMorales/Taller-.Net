@@ -7,80 +7,83 @@ de tres están en [Seguimiento del cambio de requerimientos](CAMBIOS-REQUERIMIEN
 El [plan de cierre de requisitos](PLAN-PENDIENTES.md) separa obligaciones confirmadas,
 verificaciones con el equipo y mejoras fuera de la prioridad actual.
 
+## Cómo ejecutarlo
+
+### Todo en contenedores (local)
+
+Requiere Docker. Copiar `deploy/.env.example` a `deploy/.env` y completar las claves
+(`POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `GRAFANA_ADMIN_PASSWORD`); `deploy/.env` está en `.gitignore`.
+
+```bash
+cd deploy
+docker compose --env-file .env up -d                          # solo dependencias: PostgreSQL, Redis, RabbitMQ
+docker compose --env-file .env --profile app up -d --build    # + migrador, web, worker, receptor, traefik y lgtm
+```
+
+| Qué | Dónde |
+| --- | --- |
+| Web (backoffice, portal, seguimiento) | http://localhost:8000 (Traefik) o http://127.0.0.1:8080 |
+| PWA del repartidor | http://localhost:8000/repartidor/ |
+| Grafana (tablero técnico), usuario `admin` | http://localhost:8000/grafana/ |
+| Receptor de webhooks de prueba | http://127.0.0.1:58080/recibidos |
+
+El migrador aplica las migraciones y termina; web y worker esperan a que salga bien.
+Datos de demostración (solo con `WEB_ENTORNO=Development`): `POST /dev/datos-demo` crea dos operadores
+con configuraciones distintas y una cuenta por rol. Todos los puertos escuchan solo en `127.0.0.1`.
+
+### En AWS
+
+Una EC2 con Docker en `us-east-2`, definida con Terraform en [deploy/terraform](deploy/terraform/README.md)
+(`terraform apply` / `terraform destroy`, variables por ambiente, presupuesto con alertas).
+Solo Traefik publica 80/443, con HTTPS de Let's Encrypt. Secretos en SSM Parameter Store, bajados a un
+`.env` al desplegar. Imágenes en ECR con el SHA del commit como etiqueta.
+
+- **Pipeline:** cada push a `main` compila, prueba (unitarias, integración, arquitectura, E2E), sube las
+  imágenes a ECR y despliega por SSM Run Command, sin SSH. La SCP de la organización niega OIDC, así que
+  el pipeline usa un usuario IAM con permisos mínimos (`modo_cicd = "claves"`), creado por Terraform; su
+  clave está solo en los secrets de GitHub. Ver *Problemas conocidos* en el README de Terraform.
+- **Despliegue manual** (mismo resultado, desde una máquina con credenciales): `deploy/aws/desplegar-manual.sh`.
+- **Datos demo:** `deploy/aws/sembrar-demo.sh` (cuentas en `~/demo-cuentas.txt`, fuera del repo).
+- **Grafana:** `https://<dominio>/grafana/`, usuario `admin`; la clave la genera Terraform:
+  `aws ssm get-parameter --region us-east-2 --with-decryption --name /ultimamilla/dev/GRAFANA_ADMIN_PASSWORD --query Parameter.Value --output text`.
+
+### Pruebas de resiliencia
+
+`scripts/probar-resiliencia.sh` corta Redis, RabbitMQ, PostgreSQL, el receptor de webhooks y el Worker
+sobre el stack local, compara lo esperado con lo observado y deja un informe en `TestResults/`.
+Resultados, el fallo que encontró (el Worker dejaba de consumir tras una caída de RabbitMQ) y su
+corrección: [docs/pruebas-de-resiliencia.md](docs/pruebas-de-resiliencia.md).
+
 ## Estado actual
 
 El [cierre diario y recálculo de indicadores](docs/cierre-diario-indicadores.md) se ejecuta
 en el Worker al arrancar y cada cinco minutos. Guarda resúmenes por operador/día, conserva
-el primer cierre y actualiza los indicadores ante datos tardíos. Requiere la migración
-`ResumenesOperativosDiarios`. La consulta administrativa está en `/api/operacion/cierres`;
-los detalles de fechas, permisos y recuperación están en el contrato enlazado.
+el primer cierre y actualiza los indicadores ante datos tardíos. La consulta administrativa
+está en `/api/operacion/cierres`.
 
 Los [conflictos por bulto de la PWA y webhooks V2](docs/conflictos-pwa-webhooks-v2.md)
-ya conservan y muestran el diagnóstico offline y permiten elegir V1/V2 por suscripción
-en el portal. Requiere `VersionWebhookPorSuscripcion`; las suscripciones previas siguen
-en V1. Queda el ensayo completo en navegador y por RabbitMQ en el entorno final.
+conservan y muestran el diagnóstico offline y permiten elegir V1/V2 por suscripción en el
+portal; las suscripciones previas siguen en V1.
 
-Las pantallas de [devoluciones y rendición](docs/cierre-deposito.md) están en
-`/backoffice/deposito/cierre`, accesibles desde Depósito. Permiten recibir los bultos
-esperados, completar devoluciones y rendir rutas sin paradas activas, con versiones y
-antiforgery. Pueden usarlas administrador, despachador y operario de depósito.
+Pantallas del backoffice (`/backoffice/...`): tablero en vivo con envíos en riesgo y mapa de la flota,
+detalle de envío (asignación, devolución de pendientes, extravío), incidencias, reportes, mensajes
+fallidos; administración de [comercios](docs/administracion-comercios.md), [flota](docs/administracion-flota.md)
+y [zonas](docs/administracion-zonas.md); configuración de tarifas, reglas e
+[identidad visual](docs/identidad-operador.md); y depósito: [recepción](docs/recepcion-deposito.md),
+[carga](docs/carga-rutas.md) y [despacho](docs/despacho-operativo.md) de rutas,
+[devoluciones y rendición](docs/cierre-deposito.md).
 
-Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por
-cuenta comercial, aunque dos clientes tengan el mismo nombre. La corrección conserva
-el formato de respuesta y no requiere migración.
+Portal del comercio (`/portal/...`): alta individual, [importación idempotente](docs/importacion-envios.md),
+etiquetas, mis envíos, devoluciones, avisos (suscripciones, historial y reenvío), cuenta corriente y
+liquidaciones. También hay [alta por API](docs/api-comercios.md) con Bearer e idempotencia por referencia.
 
-El [registro operativo de extravíos](docs/registro-extravios.md) dispone de consulta y API
-de confirmación con permisos, versiones y guardado de historial/outbox. El detalle de envío
-incluye formulario para Administrador/Despachador, con detalle y confirmación explícita.
-No requiere migración.
+Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por cuenta
+comercial, aunque dos clientes tengan el mismo nombre. La [asignación regular](docs/asignacion-regular.md)
+valida versiones, capacidad y ventana horaria.
 
-La [identidad visual del operador](docs/identidad-operador.md) tiene backend para configurar
-marca, colores, contacto público y URL de logo, con lecturas para las aplicaciones y el
-seguimiento por token. Requiere la migración `IdentidadVisualOperador`. Queda integrar
-el consumo en comunicaciones con su responsable. El formulario administrativo está en
-`/backoffice/configuracion/identidad`; portal y seguimiento ya aplican los datos guardados.
-
-La [administración de flota](docs/administracion-flota.md) permite al administrador crear
-y consultar repartidores con credenciales y vehículos con sus capacidades. Faltan las
-pantallas y las operaciones de edición/baja.
-
-La [administración de comercios](docs/administracion-comercios.md) permite crear y consultar
-comercios/cuentas y sus usuarios con credenciales, conservando el aislamiento. Quedan las
-pantallas. El backend de A1 incluye permisos por rol y cuenta verificados, permite cambiar el email y dar de baja lógica
-usuarios de Comercio de una única cuenta propia, así como editar la ficha local y dar
-de baja la cuenta comercial sin afectar otros operadores. Esta última etapa requiere
-aplicar la migración `AdministracionCuentaComercial`.
-
-La [administración de zonas y franjas](docs/administracion-zonas.md) permite crear y consultar
-zonas con sus horarios y añadir nuevas franjas. Se integra con el tarifario y las opciones
-de alta existentes; quedan las pantallas y la edición/baja.
-
-La consulta de preparación y la API de despacho están documentadas en
-[Despacho operativo](docs/despacho-operativo.md). La [API de carga por código](docs/carga-rutas.md)
-también está disponible; las interfaces de carga y despacho siguen pendientes.
-
-La [recepción en depósito](docs/recepcion-deposito.md) cuenta con API de consulta,
-escaneo, registro de discrepancias y confirmación. Su interfaz sigue pendiente.
-
-La [asignación regular](docs/asignacion-regular.md) permite consultar envíos preparados,
-rutas abiertas y flota, y asignar con versiones, capacidad y ventana horaria verificadas.
-La conexión a los formularios del backoffice sigue pendiente.
-
-El [cierre en depósito](docs/cierre-deposito.md) tiene API para iniciar, escanear y
-completar devoluciones, y para consultar/rendir rutas. Falta conectar las pantallas;
-la rendición implementada es operativa y no incluye cobros o liquidaciones.
-
-El backend de importación masiva idempotente y su contrato para integrar al portal se
-describen en [Importación de envíos](docs/importacion-envios.md). La lectura de archivos
-y la pantalla de importación siguen pendientes.
-
-El [alta por API para comercios](docs/api-comercios.md) permite autenticación Bearer,
-consulta de opciones, cotización y creación idempotente por referencia de pedido.
-
-La solución usa .NET 10 y se trabaja con Rider. Actualmente existen Domain, Application,
-Infrastructure, una base Web con Razor Pages y Blazor, pruebas unitarias y pruebas de integración
-de persistencia y pruebas de arquitectura, la PWA del repartidor conectada a la API y el
-Worker de mensajería. El despliegue se integra desde la infraestructura del equipo.
+La solución usa .NET 10 y se trabaja con Rider: Domain, Application, Infrastructure, Web (Razor Pages
+y Blazor), la PWA del repartidor (Blazor WebAssembly, servida por Web en `/repartidor/`) y el Worker,
+con pruebas unitarias, de integración, de arquitectura y E2E.
 
 Domain contiene las entidades y relaciones de los cuatro diagramas UML, agrupadas por
 área funcional. El detalle, las convenciones adoptadas y los límites de esta implementación
@@ -109,8 +112,7 @@ del compose de observabilidad para la prueba de trazabilidad. No depende del des
 en AWS. Configura las conexiones de integración y publica los reportes TRX en
 `resultados-pruebas`. `scripts/Assert-TestResults.ps1` hace fallar el job si encuentra
 pruebas omitidas o incompletas, o si no hay resultados. Las credenciales de CI son
-exclusivamente para esos contenedores efímeros. La primera corrida completa de esta
-configuración debe validarse en Actions después de subir el cambio.
+exclusivamente para esos contenedores efímeros.
 
 La prueba con colector real se ejecuta en un proceso independiente dentro de `build-test`,
 con reporte `TestResults/colector/colector.trx` y control de omisiones propio. Continúa
@@ -178,7 +180,8 @@ el operador ni la cuenta comercial del mensaje.
 
 ## Tablero técnico local
 
-El colector, Grafana, Prometheus, Tempo y Loki se pueden levantar juntos para desarrollo:
+Para desarrollar desde el IDE (sin el perfil `app`; no levantar los dos a la vez, comparten el puerto 3300),
+el colector, Grafana, Prometheus, Tempo y Loki se pueden levantar juntos:
 
 ```powershell
 docker compose -f deploy/observabilidad/compose.yaml up -d
@@ -197,8 +200,8 @@ El Worker toma muestras técnicas de PostgreSQL y RabbitMQ cada 30 segundos. La 
 su cola al sincronizar; el servidor mantiene las últimas muestras durante cinco minutos.
 El reporte de telemetría es auxiliar y sus fallos no bloquean las entregas.
 La profundidad de RabbitMQ cuenta mensajes listos, y la métrica de avisos cuenta intentos
-persistidos que todavía no tuvieron éxito. El despliegue en AWS requiere configurar su
-colector y las variables de los procesos desde la infraestructura del equipo.
+persistidos que todavía no tuvieron éxito. Con el stack completo (perfil `app`, local o AWS) el colector
+es el servicio `lgtm` y Grafana queda en `/grafana`; ver *Cómo ejecutarlo*.
 
 Ver [funcionamiento, métricas, límites y pruebas de observabilidad](docs/observabilidad.md).
 
@@ -246,7 +249,7 @@ Estos comportamientos se prueban en memoria. Infrastructure ya contiene los mape
 EF Core y las migraciones para PostgreSQL. Se validaron pruebas de integración contra
 PostgreSQL local, incluidas las de aislamiento automático por operador. Envíos y rutas ya
 cuentan con concurrencia optimista. El outbox ya registra mensajes de eventos en la misma
-transacción; la publicación y la conexión del login siguen pendientes.
+transacción y el Worker lo publica en RabbitMQ (ver *Outbox transaccional*).
 
 El núcleo ya registra intentos por bulto con resultados y evidencias, genera el estado
 EntregadoParcialmente y reconoce reenvíos por contenido y parada de origen. La firma
@@ -255,7 +258,7 @@ continuar en otra ruta con o sin recargo fijo, o devolverse al comercio según l
 versionadas. La capacidad y la devolución incluyen solo pendientes. El recargo se registra
 una vez al despachar la visita y se conserva separado de la tarifa original; no representa
 un pago realizado. Ver [políticas e integración](docs/politicas-pendientes.md).
-Faltan endpoints e integración de las aplicaciones. Ver [contrato y límites](docs/intentos-por-bulto.md).
+La PWA registra los resultados por bulto y el backoffice opera los pendientes. Ver [contrato y límites](docs/intentos-por-bulto.md).
 
 RegistrarIntentoHandler ya orquesta este registro desde Application: identidad autenticada,
 catálogo del envío, versión esperada y guardado atómico. Los reenvíos iguales reconocen
@@ -333,7 +336,7 @@ integración y pendientes por responsable: [backend de los monitoreos](docs/api-
 La migración `ReglasEntregaParcial` agrega el permiso de entrega parcial y la acción para
 bultos pendientes a cada versión de reglas. PoliticasPendientesYRecargoFijo agrega el importe
 fijo por visita y las relaciones de devolución y cargo. El núcleo aplica las tres políticas;
-las pantallas y demás aplicaciones todavía requieren integración. El progreso está en
+el formulario de reglas, el despacho y la PWA ya las usan. El seguimiento está en
 [CAMBIOS-REQUERIMIENTOS.md](CAMBIOS-REQUERIMIENTOS.md).
 
 ## Outbox transaccional
@@ -412,7 +415,7 @@ Redis queda en `127.0.0.1:56379`. `Start-Web.ps1` toma la contraseña de `deploy
 aplica las migraciones pendientes y levanta la Web en `http://localhost:5243`. Sin la cadena
 `ConnectionStrings:Redis`, la Web usa caché en memoria.
 
-Endpoints para probarla (los `/dev` existen solo en Development, porque todavía no hay login):
+Endpoints para probarla (los `/dev` existen solo en Development, para generar datos y eventos de prueba):
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
@@ -458,7 +461,7 @@ nuevo y, solo si el guardado se confirmó, lo pasa al puerto `INotificadorTabler
 `TenantResolver`, nunca por un dato que mande el navegador. En desarrollo, el tablero tiene botones para
 simular un alta y una recepción en depósito y ver los cambios en vivo.
 
-Límites actuales: el reintento manual de avisos fallidos se agrega cuando esté el Worker; con una transacción
+Límites actuales: con una transacción
 explícita el aviso al tablero sale antes del commit (lo resuelve el outbox); el alta en Blazor (`/envios/nuevo`)
 todavía no recibe el contexto del operador dentro del circuito interactivo.
 
