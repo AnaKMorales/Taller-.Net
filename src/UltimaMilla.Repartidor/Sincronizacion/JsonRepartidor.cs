@@ -22,4 +22,7 @@ namespace UltimaMilla.Repartidor.Sincronizacion;
 [JsonSerializable(typeof(RespuestaAccion))]
 [JsonSerializable(typeof(ReporteSincronizacionDto))]
 [JsonSerializable(typeof(List<AccionPendiente>))]
+[JsonSerializable(typeof(LotePosicionesDto))]
+[JsonSerializable(typeof(PosicionesRegistradasDto))]
+[JsonSerializable(typeof(List<LecturaPosicionDto>))]
 internal sealed partial class JsonRepartidor : JsonSerializerContext;

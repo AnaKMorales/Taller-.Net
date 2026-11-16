@@ -802,6 +802,52 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("UltimaMilla.Domain.Despacho.PosicionVehiculo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdLectura")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("PrecisionMetros")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("Punto")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("RecibidaEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("RegistradaEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RutaKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("RutaId");
+
+                    b.Property<Guid>("TenantId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "TenantId");
+
+                    b.HasIndex("RegistradaEn");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("RutaKey", "IdLectura")
+                        .IsUnique();
+
+                    b.HasIndex("RutaKey", "TenantId");
+
+                    b.ToTable("PosicionesVehiculo", (string)null);
+                });
+
             modelBuilder.Entity("UltimaMilla.Domain.Despacho.RecargoVisita", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2317,6 +2363,24 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Envio");
+
+                    b.Navigation("Ruta");
+                });
+
+            modelBuilder.Entity("UltimaMilla.Domain.Despacho.PosicionVehiculo", b =>
+                {
+                    b.HasOne("UltimaMilla.Domain.Operadores.Operador", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UltimaMilla.Domain.Despacho.Ruta", "Ruta")
+                        .WithMany()
+                        .HasForeignKey("RutaKey", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Ruta");
                 });

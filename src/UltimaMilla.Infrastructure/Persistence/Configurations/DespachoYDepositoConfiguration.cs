@@ -93,3 +93,20 @@ internal sealed class RendicionConfiguration : IEntityTypeConfiguration<Rendicio
     }
 }
 
+
+internal sealed class PosicionVehiculoConfiguration : IEntityTypeConfiguration<PosicionVehiculo>
+{
+    public void Configure(EntityTypeBuilder<PosicionVehiculo> b)
+    {
+        Mapping.Entity(b, "PosicionesVehiculo");
+        Mapping.Key(b, "Ruta");
+        // Sin colección en Ruta: una lectura de GPS no forma parte del agregado ni cambia su versión.
+        b.HasOne(x => x.Ruta).WithMany().HasForeignKey("RutaKey");
+        b.Property(x => x.Punto).HasConversion(Mapping.GeoConverter!).HasColumnType("jsonb").IsRequired();
+        b.Property(x => x.PrecisionMetros).HasPrecision(8, 2);
+        // Reenviar el mismo lote desde la cola offline no duplica filas.
+        b.HasIndex("RutaKey", nameof(PosicionVehiculo.IdLectura)).IsUnique();
+        // El mapa de la flota busca la última lectura reciente de cada repartidor.
+        b.HasIndex(nameof(PosicionVehiculo.RegistradaEn));
+    }
+}

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using UltimaMilla.Application.Despacho;
 using UltimaMilla.Application.Envios.RegistrarIntento;
 using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Domain.Usuarios;
@@ -76,6 +77,21 @@ public static class ApiRepartidor
         .Produces(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status409Conflict);
 
+        // Lecturas periódicas del GPS durante la jornada (req. 23). El lote viene de la cola offline del dispositivo:
+        // repetidas y rechazadas se informan en la respuesta para que el dispositivo las descarte.
+        api.MapPost("/posiciones", async (SolicitudPosicionesRepartidor solicitud, ITenantActual tenant,
+            RegistrarPosicionesHandler handler, CancellationToken ct) =>
+        {
+            if (tenant.Contexto is not { UsuarioId: not null }) return Results.Unauthorized();
+            return Results.Ok(await handler.Handle(solicitud.Lecturas, ct));
+        })
+        .RequireAuthorization(Politicas.Repartidor)
+        .AddEndpointFilter<ErroresApiFilter>()
+        .Produces<PosicionesRegistradasDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
+
         api.MapPost("/telemetria", (ReporteSincronizacion solicitud, ITenantActual tenant,
             UltimaMilla.Web.Observabilidad.EstadoSincronizaciones estado) =>
         {
@@ -89,3 +105,5 @@ public static class ApiRepartidor
 }
 
 public sealed record ReporteSincronizacion(Guid DispositivoId, int Pendientes, int Rechazadas);
+
+public sealed record SolicitudPosicionesRepartidor(IReadOnlyList<LecturaPosicionDto>? Lecturas);

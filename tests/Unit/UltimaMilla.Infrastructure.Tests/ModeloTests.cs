@@ -13,10 +13,10 @@ public sealed class ModeloTests
         using var db = Context();
         var domainTypes = typeof(Entidad).Assembly.GetTypes()
             .Where(t => !t.IsAbstract && typeof(Entidad).IsAssignableFrom(t)).ToArray();
-        Assert.Equal(36, domainTypes.Length);
+        Assert.Equal(37, domainTypes.Length);
         Assert.All(domainTypes, t => Assert.NotNull(db.Model.FindEntityType(t)));
-        // 40 del modelo previo + 4 de Identity + el resumen técnico diario.
-        Assert.Equal(45, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        // 40 del modelo previo + 4 de Identity + el resumen técnico diario + las posiciones del vehículo.
+        Assert.Equal(46, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
         var resumen = db.Model.FindEntityType(typeof(UltimaMilla.Infrastructure.Persistence.Operacion.ResumenOperativoDiario))!;
         Assert.Equal("ResumenesOperativosDiarios", resumen.GetTableName());
         Assert.Contains(resumen.GetIndexes(), i => i.IsUnique &&

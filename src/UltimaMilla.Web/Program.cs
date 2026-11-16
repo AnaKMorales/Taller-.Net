@@ -166,6 +166,8 @@ builder.Services.AgregarHojasRuta();
 builder.Services.AddScoped<IDespachoPendientes, DespachoPendientes>();
 builder.Services.AddScoped<IDespachoRutaRepository, DespachoRutaRepository>();
 builder.Services.AddScoped<DespacharRutaHandler>();
+builder.Services.AddScoped<IRegistroPosiciones, UltimaMilla.Infrastructure.Persistence.Despacho.RegistroPosiciones>();
+builder.Services.AddScoped<RegistrarPosicionesHandler>();
 builder.Services.AddScoped<IAsignacionEnvioRutaRepository, AsignacionEnvioRutaRepository>();
 builder.Services.AddScoped<AsignarEnvioRutaHandler>();
 builder.Services.AddScoped<IRegistroCargaRutaRepository, DespachoRutaRepository>();

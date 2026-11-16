@@ -1,6 +1,7 @@
 # ADR-005: trabajo sin conexión y sincronización de la app del repartidor
 
 Estado: aceptada. La PWA usa el login, la descarga de hoja de ruta y el registro por bulto reales.
+Responsable: Aldana. Actualización: 16/11/2026 (seguimiento periódico de la posición).
 
 ## Problema
 
@@ -125,18 +126,30 @@ el navegador suspende la página y `navigator.geolocation` deja de entregar posi
 API web de geolocalización en segundo plano; tampoco Background Sync permite leer el GPS, y su
 soporte es parcial (no existe en iOS).
 
-Mitigación adoptada: **tomar la posición en cada acción**. Al registrar una entrega o fallo se pide
-una lectura puntual (alta precisión, hasta 10 s) que viaja con la acción y con sus pruebas. Así cada
-hecho relevante tiene su ubicación, aunque no haya un recorrido continuo. El GPS no necesita internet,
-así que funciona sin conexión. Si en el futuro se necesita seguimiento continuo, la alternativa es
-una app nativa o un contenedor (por ejemplo, .NET MAUI) con permiso de ubicación en segundo plano.
+Mitigación adoptada, en dos partes:
 
-**Alcance sobre los requisitos 23 y 29.** La posición de la flota que muestra el tablero es la última
-lectura de cada repartidor, asociada al vehículo de su última ruta despachada, y se ve en un mapa que se
-actualiza en vivo (SignalR) cuando llega un evento nuevo. Es una posición **por evento**, no un recorrido:
-entre una entrega y la siguiente, el tablero muestra el último punto conocido y la hora en que se tomó, de
-modo que el despachador sabe qué tan reciente es. Un reporte periódico mientras la app está abierta
-mejoraría la frecuencia, pero no resolvería la pantalla apagada, que es el caso habitual en la calle.
+1. **Posición en cada acción.** Al registrar una entrega o fallo se pide una lectura puntual (alta precisión,
+   hasta 10 s) que viaja con la acción y con sus pruebas. Cada hecho relevante tiene su ubicación.
+2. **Seguimiento periódico mientras la app está abierta** (16/11/2026, req. 23). `SeguimientoPosicion` toma el
+   GPS cada 2 minutos si hay sesión y hoja de ruta, y guarda la lectura en `ColaPosiciones` (almacén local cifrado,
+   por repartidor, tope de 720 lecturas: 24 h; al superarlo se descartan las más viejas). En cada ronda de
+   sincronización, después de las entregas, se envían en lotes de hasta 200 a `POST /api/repartidor/posiciones`.
+   Cada lectura lleva un `IdLectura` generado en el dispositivo: reenviar el lote tras perder la respuesta no
+   duplica filas (índice único por ruta). El servidor guarda `PosicionVehiculo` (Domain/Despacho) solo para una
+   ruta despachada del repartidor autenticado, con hora entre el despacho y la rendición (tolerancia de 5 min para
+   el reloj del dispositivo, máximo 24 h de antigüedad). Una lectura inválida se rechaza sin tirar el lote, y lo
+   que el servidor contestó sale de la cola. No es un evento de envío: no genera outbox ni cambia la versión de la
+   ruta, así que no choca con el despachador.
+
+El GPS no necesita internet: las dos partes funcionan sin conexión.
+
+**Alcance sobre los requisitos 23 y 29.** El mapa de la flota del tablero (refresco cada 60 s) muestra, por
+repartidor, la lectura más reciente entre el seguimiento periódico y los eventos con posición, con el vehículo de
+su última ruta despachada y la hora de la lectura, para que el despachador sepa qué tan reciente es. **Límite que
+sigue en pie:** con la pantalla apagada o la app en segundo plano el navegador suspende la página y no hay lecturas
+hasta que el repartidor vuelve a abrirla. Seguir la posición con la pantalla apagada exige una app nativa o un
+contenedor (por ejemplo, .NET MAUI) con permiso de ubicación en segundo plano, que la letra deja fuera para
+equipos de tres al aceptar una PWA.
 
 ## Consecuencias
 

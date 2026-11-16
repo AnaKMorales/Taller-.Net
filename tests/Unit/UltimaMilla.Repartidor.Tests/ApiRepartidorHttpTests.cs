@@ -46,6 +46,26 @@ public sealed class ApiRepartidorHttpTests
     }
 
     [Fact]
+    public async Task PosicionesViajanConElTokenYUnLoteInvalidoSeDescartaComoRechazado()
+    {
+        var lote = new LotePosicionesDto([new LecturaPosicionDto(Guid.NewGuid(), Guid.NewGuid(), -34.9m, -56.16m, null,
+            Datos.Inicio.UtcDateTime)]);
+        _servidor.Responder(HttpMethod.Post, HttpStatusCode.OK, """{"aceptadas":1,"repetidas":0,"rechazadas":0}""");
+        var ok = await _api.EnviarPosicionesAsync(Datos.Sesion, lote);
+        Assert.Equal(new PosicionesRegistradasDto(1, 0, 0), ok);
+        var pedido = _servidor.Pedidos.Last();
+        Assert.Equal("http://api.test/api/repartidor/posiciones", pedido.Url);
+        Assert.Equal("Bearer t", pedido.Autorizacion);
+        Assert.Contains("\"registradaEn\":\"2026-11-05T12:00:00Z\"", pedido.Cuerpo);
+
+        _servidor.Responder(HttpMethod.Post, HttpStatusCode.BadRequest, "{}");
+        Assert.Equal(new PosicionesRegistradasDto(0, 0, 1), await _api.EnviarPosicionesAsync(Datos.Sesion, lote));
+
+        _servidor.Responder(HttpMethod.Post, HttpStatusCode.Unauthorized, "");
+        await Assert.ThrowsAsync<SesionExpiradaException>(() => _api.EnviarPosicionesAsync(Datos.Sesion, lote));
+    }
+
+    [Fact]
     public async Task CredencialesInvalidasDevuelvenNull()
     {
         _servidor.Responder(HttpMethod.Post, HttpStatusCode.Unauthorized, "");

@@ -1327,3 +1327,21 @@ Validación: los 5 escenarios pasan en local; build Release con warnaserror sin 
 494 pruebas unitarias y de arquitectura aprobadas; integración con PostgreSQL y RabbitMQ
 locales 310/310 (la de aislamiento DosOperadoresConComercioCompartidoSoloVenSuGrafoCompleto
 fallaba por no sembrar ResumenesOperativosDiarios; quedó corregida en 55547ea). Sin commit ni push.
+
+### 16/11/2026: seguimiento periódico de la posición del vehículo (req. 23)
+
+Responsable: Aldana. Se usó Claude Code para diseñar e implementar el seguimiento: entidad `PosicionVehiculo`
+(Domain/Despacho), caso de uso `RegistrarPosicionesHandler` con puerto `IRegistroPosiciones`, implementación en
+Infrastructure, migración `PosicionesVehiculo`, endpoint `POST /api/repartidor/posiciones`, `ColaPosiciones` y
+`SeguimientoPosicion` en la PWA, y la consulta del mapa de la flota que combina ambas fuentes.
+
+Decisiones revisadas: la lectura no es un evento de envío (no genera outbox) ni un hijo del agregado Ruta (no sube
+su versión, para no chocar con el despachador); `IdLectura` generado en el dispositivo da idempotencia al reenviar
+desde la cola offline; una lectura inválida se rechaza sin tirar el lote; un 400 del servidor descarta el lote para
+que la cola no se trabe. Interfaz aparte (`IApiPosiciones`) para no tocar los dobles existentes de `IApiRepartidor`.
+Se corrigió un error del propio asistente al editar `ApiRepartidorHttp.cs` (truncó el archivo; se restauró desde Git
+antes de seguir). Límite que se mantiene: con la pantalla apagada la PWA no puede leer el GPS (ADR-005 actualizado).
+
+Validación: pruebas nuevas de Domain (8), PWA (9) e integración con PostgreSQL real (4, más el escenario de
+aislamiento entre operadores con la tabla nueva). Prueba manual contra la API local: lote aceptado, reenvío marcado
+como repetido, 401 sin token, 400 con lote vacío, y el mapa del tablero mostrando la última lectura con su vehículo.

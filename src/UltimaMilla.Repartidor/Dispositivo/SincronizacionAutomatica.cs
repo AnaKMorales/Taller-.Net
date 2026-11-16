@@ -6,7 +6,8 @@ namespace UltimaMilla.Repartidor.Dispositivo;
 // Decide CUÁNDO sincronizar; el CÓMO está en Sincronizador (probado sin navegador).
 // Momentos: al volver la conexión, cada 30 segundos, después de registrar una acción y con el botón.
 public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincronizador sincronizador,
-    DatosLocales datos, IApiRepartidor api, TimeProvider reloj, ILogger<SincronizacionAutomatica> log, ColaAcciones cola)
+    DatosLocales datos, IApiRepartidor api, TimeProvider reloj, ILogger<SincronizacionAutomatica> log, ColaAcciones cola,
+    SeguimientoPosicion? seguimiento = null)
 {
     private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(30);
     private bool _iniciada;
@@ -21,6 +22,7 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
             if (conexion.EnLinea) _ = SincronizarAhoraAsync();
         };
         _ = BucleAsync();
+        seguimiento?.Iniciar();
         _ = SincronizarAhoraAsync();
     }
 
@@ -51,6 +53,7 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
                 return;
             }
             await ReportarAsync(sesion);
+            await EnviarPosicionesAsync(sesion);
 
             if (resumen.Sincronizadas + resumen.Rechazadas > 0 &&
                 await datos.ObtenerHojaAsync() is { } hoja &&
@@ -74,6 +77,15 @@ public sealed class SincronizacionAutomatica(EstadoConexion conexion, Sincroniza
         {
             log.LogError(ex, "Falló la sincronización automática.");
         }
+    }
+
+    // Las posiciones van después de las entregas y su fallo no las afecta. Una sesión vencida sí se propaga.
+    private async Task EnviarPosicionesAsync(SesionRepartidor sesion)
+    {
+        if (seguimiento is null) return;
+        try { await seguimiento.EnviarPendientesAsync(sesion); }
+        catch (SesionExpiradaException) { throw; }
+        catch (Exception) { log.LogDebug("No se pudieron enviar las posiciones; quedan para la próxima ronda."); }
     }
 
     private async Task ReportarAsync(SesionRepartidor sesion)

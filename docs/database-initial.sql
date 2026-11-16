@@ -1597,3 +1597,32 @@ VALUES ('20261115222840_ResumenesOperativosDiarios', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+CREATE TABLE "PosicionesVehiculo" (
+    "Id" uuid NOT NULL,
+    "RutaId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "IdLectura" uuid NOT NULL,
+    "Punto" jsonb NOT NULL,
+    "PrecisionMetros" numeric(8,2),
+    "RegistradaEn" timestamp with time zone NOT NULL,
+    "RecibidaEn" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_PosicionesVehiculo" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_PosicionesVehiculo_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "FK_PosicionesVehiculo_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_PosicionesVehiculo_Rutas_RutaId_TenantId" FOREIGN KEY ("RutaId", "TenantId") REFERENCES "Rutas" ("Id", "TenantId") ON DELETE RESTRICT
+);
+
+CREATE INDEX "IX_PosicionesVehiculo_RegistradaEn" ON "PosicionesVehiculo" ("RegistradaEn");
+
+CREATE UNIQUE INDEX "IX_PosicionesVehiculo_RutaId_IdLectura" ON "PosicionesVehiculo" ("RutaId", "IdLectura");
+
+CREATE INDEX "IX_PosicionesVehiculo_RutaId_TenantId" ON "PosicionesVehiculo" ("RutaId", "TenantId");
+
+CREATE INDEX "IX_PosicionesVehiculo_TenantId" ON "PosicionesVehiculo" ("TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261116025620_PosicionesVehiculo', '10.0.12');
+
+COMMIT;
+

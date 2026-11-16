@@ -127,3 +127,13 @@ public enum ResultadoAccion
 public sealed record RespuestaAccion(ResultadoAccion Resultado, string? Detalle = null, DiagnosticoConflictoDto? Conflicto = null);
 
 public sealed record ReporteSincronizacionDto(Guid DispositivoId, int Pendientes, int Rechazadas);
+
+// Seguimiento periódico de la posición durante la jornada (req. 23). IdLectura la genera el dispositivo:
+// reenviar el lote tras perder la conexión no duplica filas en el servidor. Hora del dispositivo, en UTC.
+public sealed record LecturaPosicionDto(Guid IdLectura, Guid RutaId, decimal Latitud, decimal Longitud,
+    decimal? PrecisionMetros, DateTime RegistradaEn);
+
+public sealed record LotePosicionesDto(IReadOnlyList<LecturaPosicionDto> Lecturas);
+
+// Repetidas y rechazadas tampoco se reenvían: el servidor ya decidió sobre ellas.
+public sealed record PosicionesRegistradasDto(int Aceptadas, int Repetidas, int Rechazadas);

@@ -7,7 +7,7 @@ namespace UltimaMilla.Repartidor.Dispositivo;
 
 // Puente con wwwroot/js/repartidor.js. Implementa el almacén local sobre IndexedDB
 // (persiste aunque se cierre la app o se reinicie el celular, a diferencia de la memoria).
-public sealed class Navegador(IJSRuntime js) : IAlmacenLocal
+public sealed class Navegador(IJSRuntime js) : IAlmacenLocal, IUbicacionDispositivo
 {
     private Task<IJSObjectReference>? _modulo;
 

@@ -77,6 +77,12 @@ Portal del comercio (`/portal/...`): alta individual, [importación idempotente]
 etiquetas, mis envíos, devoluciones, avisos (suscripciones, historial y reenvío), cuenta corriente y
 liquidaciones. También hay [alta por API](docs/api-comercios.md) con Bearer e idempotencia por referencia.
 
+Seguimiento de la posición del vehículo (req. 23): la PWA toma el GPS cada 2 minutos mientras está abierta,
+lo guarda cifrado en el dispositivo (funciona sin conexión) y lo manda en lotes a `POST /api/repartidor/posiciones`
+al sincronizar. El mapa de la flota del tablero muestra la lectura más reciente de cada repartidor. Con la pantalla
+apagada el navegador no deja leer el GPS: límite de la PWA explicado en el
+[ADR-005](docs/adr/005-sincronizacion-offline-repartidor.md). Requiere la migración `PosicionesVehiculo`.
+
 Los [reportes de gestión](docs/reportes-gestion.md) separan cumplimiento e importes por cuenta
 comercial, aunque dos clientes tengan el mismo nombre. La [asignación regular](docs/asignacion-regular.md)
 valida versiones, capacidad y ventana horaria.

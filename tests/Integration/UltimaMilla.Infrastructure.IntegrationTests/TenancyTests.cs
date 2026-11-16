@@ -228,6 +228,9 @@ public sealed partial class PostgresTests
         db.Add(ruta);
         await db.SaveChangesAsync();
         ruta.Despachar(admin, fecha);
+        // Seguimiento periódico del GPS (req. 23): también es dato por operador.
+        db.Add(new PosicionVehiculo(ruta, repartidor, Guid.NewGuid(), new GeoPunto(-34.9m, -56.16m), 8m,
+            fecha.AddMinutes(30), fecha.AddMinutes(31)));
         envio.RegistrarIntento(ResultadoIntento.Fallido, envio.Reglas.MotivosNoEntrega.Single(),
             [scenario.Foto()], repartidor, fecha.AddHours(1), Guid.NewGuid());
         await db.SaveChangesAsync();

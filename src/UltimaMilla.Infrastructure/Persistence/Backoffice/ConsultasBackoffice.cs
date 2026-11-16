@@ -56,9 +56,18 @@ public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = n
             .Where(e => e.Origen == OrigenEvento.AppRepartidor && e.Posicion != null && e.OcurridoEn >= desde)
             .OrderByDescending(e => e.OcurridoEn)
             .Take(500)
-            .Select(e => new { e.Responsable!.Email, e.Posicion, e.OcurridoEn })
+            .Select(e => new { e.Responsable!.Email, Posicion = e.Posicion!, e.OcurridoEn })
             .ToListAsync(cancellationToken);
-        var ultimas = eventos.GroupBy(e => e.Email).Select(g => g.First()).ToList();
+        // Seguimiento periódico del GPS durante la jornada (req. 23): la PWA lo manda cada pocos minutos.
+        var lecturas = await db.Set<PosicionVehiculo>().AsNoTracking()
+            .Where(p => p.RegistradaEn >= desde)
+            .OrderByDescending(p => p.RegistradaEn)
+            .Take(500)
+            .Select(p => new { p.Ruta.Repartidor.Email, Posicion = p.Punto, OcurridoEn = p.RegistradaEn })
+            .ToListAsync(cancellationToken);
+        // Gana la más reciente de las dos fuentes para cada repartidor.
+        var ultimas = eventos.Concat(lecturas).GroupBy(e => e.Email)
+            .Select(g => g.MaxBy(e => e.OcurridoEn)!).ToList();
 
         // El vehículo es el de la última ruta despachada del repartidor
         var emails = ultimas.Select(e => e.Email).ToList();
@@ -70,7 +79,7 @@ public sealed class ConsultasBackoffice(AppDbContext db, TimeProvider? reloj = n
             .ToDictionary(g => g.Key, g => g.MaxBy(r => r.DespachadaEn)!.Matricula);
 
         return ultimas
-            .Select(e => new PosicionRepartidorDto(e.Email, e.Posicion!.Latitud, e.Posicion.Longitud, e.OcurridoEn,
+            .Select(e => new PosicionRepartidorDto(e.Email, e.Posicion.Latitud, e.Posicion.Longitud, e.OcurridoEn,
                 vehiculos.GetValueOrDefault(e.Email)))
             .OrderBy(p => p.Repartidor)
             .ToList();

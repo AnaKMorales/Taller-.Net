@@ -19,6 +19,8 @@ builder.Services.AddSingleton<EstadoConexion>();
 builder.Services.AddSingleton<DatosLocales>();
 builder.Services.AddSingleton<ColaAcciones>();
 builder.Services.AddSingleton<Sincronizador>();
+builder.Services.AddSingleton<ColaPosiciones>();
+builder.Services.AddSingleton<SeguimientoPosicion>();
 builder.Services.AddSingleton<SincronizacionAutomatica>();
 
 // Dirección de la API de Web (wwwroot/appsettings.json). No es un secreto: el acceso lo da el token.
@@ -28,6 +30,9 @@ builder.Services.AddSingleton(new HttpClient { BaseAddress = api });
 
 // Web recibe las visitas reales. El simulador conserva las acciones de la demo.
 builder.Services.AddSingleton<ApiRepartidorFalsa>();
-builder.Services.AddSingleton<IApiRepartidor, ApiRepartidorHttp>();
+builder.Services.AddSingleton<ApiRepartidorHttp>();
+builder.Services.AddSingleton<IApiRepartidor>(sp => sp.GetRequiredService<ApiRepartidorHttp>());
+builder.Services.AddSingleton<IApiPosiciones>(sp => sp.GetRequiredService<ApiRepartidorHttp>());
+builder.Services.AddSingleton<IUbicacionDispositivo>(sp => sp.GetRequiredService<Navegador>());
 
 await builder.Build().RunAsync();

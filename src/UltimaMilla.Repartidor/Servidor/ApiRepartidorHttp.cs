@@ -9,7 +9,7 @@ using UltimaMilla.Repartidor.Sincronizacion;
 namespace UltimaMilla.Repartidor.Servidor;
 
 // Cliente de sesión, hojas e intentos del repartidor.
-public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simulada, TimeProvider reloj) : IApiRepartidor
+public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simulada, TimeProvider reloj) : IApiRepartidor, IApiPosiciones
 {
     private const string RutaSesion = "api/repartidor/sesion";
     private const string RutaHojas = "api/repartidor/rutas";
@@ -144,6 +144,23 @@ public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simula
         using var response = await http.SendAsync(request, ct);
         if (response.StatusCode == HttpStatusCode.Unauthorized) throw new SesionExpiradaException();
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<PosicionesRegistradasDto> EnviarPosicionesAsync(SesionRepartidor sesion, LotePosicionesDto lote,
+        CancellationToken ct = default)
+    {
+        VerificarVigencia(sesion);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/repartidor/posiciones");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sesion.Token);
+        request.Content = JsonContent.Create(lote, JsonRepartidor.Default.LotePosicionesDto);
+        using var response = await http.SendAsync(request, ct);
+        if (response.StatusCode == HttpStatusCode.Unauthorized) throw new SesionExpiradaException();
+        // Lote inválido: reintentarlo no lo arregla y trabaría la cola; se descarta como rechazado.
+        if (response.StatusCode == HttpStatusCode.BadRequest) return new PosicionesRegistradasDto(0, 0, lote.Lecturas.Count);
+        // 5xx o sin conexión: HttpRequestException y el lote se reintenta en la próxima ronda.
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(JsonRepartidor.Default.PosicionesRegistradasDto, ct)
+            ?? new PosicionesRegistradasDto(0, 0, 0);
     }
 
     private static async Task<ProblemaIntentoDto?> LeerProblemaAsync(HttpResponseMessage respuesta, CancellationToken ct)

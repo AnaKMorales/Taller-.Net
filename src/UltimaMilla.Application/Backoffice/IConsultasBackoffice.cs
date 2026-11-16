@@ -16,8 +16,8 @@ public sealed record AvisoFallidoDto(Guid EntregaId, Guid EnvioId, string Comerc
 public sealed record EnvioEnRiesgoDto(Guid EnvioId, string CodigoSeguimiento, string Destinatario, string Zona,
     EstadoEnvio Estado, DateTimeOffset VentanaHasta, bool Vencido, string? Repartidor);
 
-// Última posición conocida de un repartidor. Hoy sale de los eventos que registra la app con posición
-// (intentos de entrega): no es un seguimiento continuo del vehículo.
+// Última posición conocida de un repartidor: la más reciente entre el seguimiento periódico del GPS de la PWA
+// (PosicionVehiculo, cada pocos minutos con la app abierta) y los eventos con posición (intentos de entrega).
 public sealed record PosicionRepartidorDto(string Repartidor, decimal Latitud, decimal Longitud, DateTime ReportadaEn,
     string? Vehiculo = null);
 
