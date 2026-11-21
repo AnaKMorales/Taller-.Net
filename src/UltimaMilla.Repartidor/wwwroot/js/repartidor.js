@@ -227,13 +227,62 @@ export function limpiarFirma(lienzo) {
     firmas.get(lienzo).trazada = false;
 }
 
-// --- Escaneo de códigos con la cámara (BarcodeDetector, nativo del navegador: funciona sin conexión) ---
-// Chrome y Edge en Android lo traen; Safari/iOS y Firefox no: ahí queda el ingreso manual o un lector externo.
+// --- Escaneo de códigos con la cámara (funciona sin conexión) ---
+// Usa BarcodeDetector si el navegador lo trae (Chrome en Android y Mac). Si no (Windows, iPhone, Firefox), lee
+// los cuadros del video con ZXing, que está en lib/zxing y lo guarda el service worker como el resto de la app.
 const FORMATOS = ['code_128', 'qr_code', 'code_39', 'ean_13', 'ean_8', 'itf', 'upc_a', 'data_matrix'];
 let escaneo = null;
+let zxing = null;
 
 export function escanerDisponible() {
-    return 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
+    return window.isSecureContext && !!navigator.mediaDevices?.getUserMedia;
+}
+
+async function detectorNativo() {
+    if (!('BarcodeDetector' in window)) return null;
+    try {
+        const soportados = await BarcodeDetector.getSupportedFormats();
+        const formatos = FORMATOS.filter(f => soportados.includes(f));
+        if (formatos.length === 0) return null;
+        const detector = new BarcodeDetector({ formats: formatos });
+        return async video => (await detector.detect(video))[0]?.rawValue;
+    } catch {
+        return null;
+    }
+}
+
+function cargarZxing() {
+    zxing ??= new Promise((resolver, rechazar) => {
+        const script = document.createElement('script');
+        script.src = 'lib/zxing/zxing.min.js';
+        script.onload = () => resolver(window.ZXing);
+        script.onerror = () => { zxing = null; rechazar(new Error('zxing')); };
+        document.head.appendChild(script);
+    });
+    return zxing;
+}
+
+async function detectorZxing() {
+    const Z = await cargarZxing();
+    const f = Z.BarcodeFormat;
+    const lector = new Z.MultiFormatReader();
+    lector.setHints(new Map([
+        [Z.DecodeHintType.POSSIBLE_FORMATS, [f.CODE_128, f.QR_CODE, f.CODE_39, f.EAN_13, f.EAN_8, f.ITF, f.UPC_A, f.DATA_MATRIX]],
+        [Z.DecodeHintType.TRY_HARDER, true],
+    ]));
+    const lienzo = document.createElement('canvas');
+    const ctx = lienzo.getContext('2d', { willReadFrequently: true });
+    return async video => {
+        if (!video.videoWidth) return null;
+        // Achicado a 640 px de ancho: alcanza para leer y es mucho más rápido
+        const escala = Math.min(1, 640 / video.videoWidth);
+        lienzo.width = Math.round(video.videoWidth * escala);
+        lienzo.height = Math.round(video.videoHeight * escala);
+        ctx.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+        const imagen = new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(lienzo)));
+        try { return lector.decodeWithState(imagen).getText(); }
+        catch { return null; } // sin código en este cuadro
+    };
 }
 
 // Abre la cámara trasera en el <video> y avisa cada código leído (el mismo código, como mucho cada 2 s).
@@ -243,20 +292,17 @@ export async function iniciarEscaneo(video, receptor) {
     if (!escanerDisponible()) return 'no-disponible';
     let stream;
     try {
-        const soportados = await BarcodeDetector.getSupportedFormats();
-        const formatos = FORMATOS.filter(f => soportados.includes(f));
-        if (formatos.length === 0) return 'no-disponible';
-        const detector = new BarcodeDetector({ formats: formatos });
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         video.srcObject = stream;
         video.setAttribute('playsinline', '');
         await video.play();
+        const leer = await detectorNativo() ?? await detectorZxing();
         const estado = { stream, activo: true, ultimo: null, ultimoEn: 0 };
         escaneo = estado;
         const ciclo = async () => {
             if (!estado.activo) return;
             try {
-                const valor = (await detector.detect(video))[0]?.rawValue;
+                const valor = await leer(video);
                 const ahora = Date.now();
                 if (valor && (valor !== estado.ultimo || ahora - estado.ultimoEn > 2000)) {
                     estado.ultimo = valor;

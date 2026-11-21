@@ -41,7 +41,7 @@ public sealed class Navegador(IJSRuntime js) : IAlmacenLocal, IUbicacionDisposit
     public async Task LimpiarFirmaAsync(ElementReference lienzo) =>
         await (await Modulo()).InvokeVoidAsync("limpiarFirma", lienzo);
 
-    // Escaneo con la cámara (BarcodeDetector). Ver Componentes/EscanerCodigo.razor.
+    // Escaneo con la cámara (BarcodeDetector o ZXing). Ver Componentes/EscanerCodigo.razor.
     public async Task<bool> EscanerDisponibleAsync() =>
         await (await Modulo()).InvokeAsync<bool>("escanerDisponible");
 

@@ -12,7 +12,9 @@ puede ser una PWA).
   etiqueta queda solo con el texto.
 - **Escáner en la PWA.** En el registro de la visita (`Componentes/RegistrarBultos.razor`), el botón
   **Escanear con la cámara** (`Componentes/EscanerCodigo.razor`) abre la cámara trasera y usa `BarcodeDetector`, la
-  API nativa del navegador: funciona **sin conexión** y no agrega dependencias. Lee Code 128, QR, Code 39, EAN,
+  API nativa del navegador, cuando existe. Si no (Windows, iPhone, Firefox), decodifica los cuadros del video con
+  ZXing (`wwwroot/lib/zxing`, MIT), servido por la propia PWA y guardado por el service worker. En los dos casos
+  funciona **sin conexión**. Lee Code 128, QR, Code 39, EAN,
   ITF, UPC y Data Matrix. Cada código leído hace lo mismo que escribirlo y confirmarlo: marca el bulto como entregado
   si pertenece a la visita, o avisa que no pertenece. El mismo código no se repite antes de 2 s y el teléfono vibra
   al leer. La cámara se apaga al cerrar o al salir de la pantalla.
@@ -22,9 +24,9 @@ puede ser una PWA).
 
 ## Límites
 
-- `BarcodeDetector` está en Chrome y Edge para Android (el dispositivo típico del repartidor). **Safari/iOS y Firefox
-  no lo tienen**: ahí el botón no aparece y queda el ingreso manual o un lector externo. Soportarlos requeriría una
-  librería de decodificación servida y cacheada por la PWA.
+- La cámara exige HTTPS (o `localhost`). Sin cámara o con el permiso denegado queda el ingreso manual o un lector
+  externo.
+- ZXing es más lento que `BarcodeDetector` (lee unos 4 cuadros por segundo a 640 px): conviene acercar bien el código.
 - La PWA escanea al **entregar**. La carga del vehículo se registra desde el backoffice (Depósito → Ruta), con
   lector externo o tipeo; esa pantalla no usa la cámara.
 - Verificación: tests del estándar (tabla de 107 símbolos, sumas, paridad, dígito de control), del SVG y de la
