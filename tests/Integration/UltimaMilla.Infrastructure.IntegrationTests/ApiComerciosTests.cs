@@ -41,7 +41,7 @@ public sealed partial class PostgresTests
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.GetProperty("accessToken").GetString());
     }
     private static SolicitudAltaPortal SolicitudApiComercio(Guid zona) => new(zona, ModalidadServicio.Estandar,
-        "Persona", "099123456", "p@example.com", "Calle", "1", "Montevideo", "11000", [new BultoAlta("CAJA", 1, 10, 10, 10)]);
+        "Persona", "099123456", "p@example.com", "Calle", "1", "Montevideo", [new BultoAlta("CAJA", 1, 10, 10, 10)]);
     private static async Task<AltaComercio> CotizarApiComercio(HttpClient cliente, Guid zona, string referencia = "PEDIDO-API-1")
     {
         var solicitud = SolicitudApiComercio(zona);

@@ -54,7 +54,7 @@ public sealed class ImportacionEnvios(DbContextOptions<AppDbContext> options, IT
         if (s.Bultos is null || s.Bultos.Any(b => b is null)) throw new ArgumentException("Faltan los datos de los bultos.");
         static string Numero(decimal valor) => valor.ToString("G29", CultureInfo.InvariantCulture);
         var contenido = JsonSerializer.Serialize(new { s.ZonaId, s.Modalidad, s.DestinatarioNombre,
-            s.DestinatarioTelefono, s.DestinatarioEmail, s.Calle, s.Numero, s.Localidad, s.CodigoPostal,
+            s.DestinatarioTelefono, s.DestinatarioEmail, s.Calle, s.Numero, s.Localidad,
             fila.ClaveEntrega, Bultos = s.Bultos.Select(b => new { b.Codigo, Peso = Numero(b.Peso),
                 Alto = Numero(b.Alto), Ancho = Numero(b.Ancho), Largo = Numero(b.Largo) }).OrderBy(b => b.Codigo, StringComparer.Ordinal) });
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(contenido)));

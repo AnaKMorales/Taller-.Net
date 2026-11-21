@@ -21,7 +21,7 @@ public sealed partial class PostgresTests
         // 14/10 a las 09:00 locales (12:00 UTC), antes del corte de las 16:00: compromiso el 15/10 a las 09:00.
         var reloj = new RelojFijo(new DateTimeOffset(EscenarioPersistencia.Fecha));
         var solicitud = new SolicitudAltaPortal(e.Zona.Id, ModalidadServicio.Estandar, "Destinataria", "099123456",
-            "destinataria@example.com", "Av. Italia", "2500", "Montevideo", "11600",
+            "destinataria@example.com", "Av. Italia", "2500", "Montevideo",
             [new BultoAlta("CAJA-1", 2.5m, 20, 30, 40), new BultoAlta("CAJA-2", 1.2m, 10, 10, 10)]);
 
         AltaCreada creada;

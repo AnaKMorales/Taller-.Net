@@ -53,12 +53,11 @@ Ejemplo de cuerpo para cotizar:
   "calle": "Calle",
   "numero": "100",
   "localidad": "Montevideo",
-  "codigoPostal": "11000",
   "bultos": [{ "codigo": "CAJA-1", "peso": 2.5, "alto": 20, "ancho": 30, "largo": 40 }]
 }
 ```
 
-Peso en kg y dimensiones en cm. La cotización devuelve `tarifa`, `fechaComprometida`
+El código postal no se manda: sale de la zona. Peso en kg y dimensiones en cm. La cotización devuelve `tarifa`, `fechaComprometida`
 y `opciones`, cada una con su `clave`, fecha, franja y ventana concreta. Para crear:
 
 ```json

@@ -52,12 +52,11 @@ else
             <label>Calle <input name="Calle" value="@f.Calle" required /></label>
             <label>Número <input name="Numero" value="@f.Numero" required size="6" /></label>
             <label>Localidad <input name="Localidad" value="@f.Localidad" required /></label>
-            <label>Código postal <input name="CodigoPostal" value="@f.CodigoPostal" required size="6" /></label>
             <label>Zona
                 <select name="ZonaId">
                     @foreach (var z in opciones.Zonas)
                     {
-                        <option value="@z.Id" selected="@(z.Id == f.ZonaId)">@z.Nombre (CP @z.CodigoPostal)</option>
+                        <option value="@z.Id" selected="@(z.Id == f.ZonaId)">@z.Nombre — CP @z.CodigoPostal</option>
                     }
                 </select>
             </label>
@@ -185,7 +184,7 @@ else
 
     private sealed class FormularioAlta
     {
-        public string? Nombre, Telefono, Email, Calle, Numero, Localidad, CodigoPostal, Entrega;
+        public string? Nombre, Telefono, Email, Calle, Numero, Localidad, Entrega;
         public Guid ZonaId;
         public ModalidadServicio Modalidad;
         public List<BultoFormulario> Bultos { get; set; } = [new()];
@@ -195,7 +194,7 @@ else
             var f = new FormularioAlta
             {
                 Nombre = form["Nombre"], Telefono = form["Telefono"], Email = form["Email"], Calle = form["Calle"],
-                Numero = form["Numero"], Localidad = form["Localidad"], CodigoPostal = form["CodigoPostal"],
+                Numero = form["Numero"], Localidad = form["Localidad"],
                 Entrega = form["Entrega"],
                 ZonaId = Guid.TryParse(form["ZonaId"], out var zona) ? zona : Guid.Empty,
                 Modalidad = Enum.TryParse<ModalidadServicio>(form["Modalidad"], out var m) && Enum.IsDefined(m) ? m : ModalidadServicio.Estandar,
@@ -216,7 +215,7 @@ else
 
         // Las filas totalmente vacías se ignoran; los números se leen con coma o punto (Numeros).
         public SolicitudAltaPortal Solicitud() => new(ZonaId, Modalidad, Nombre ?? "", Telefono ?? "", Email ?? "",
-            Calle ?? "", Numero ?? "", Localidad ?? "", CodigoPostal ?? "",
+            Calle ?? "", Numero ?? "", Localidad ?? "",
             Bultos.Where(b => !b.Vacio).Select((b, i) => new BultoAlta(
                 string.IsNullOrWhiteSpace(b.Codigo) ? throw new ArgumentException($"Falta el código del bulto {i + 1}.") : b.Codigo.Trim(),
                 Numeros.Leer(b.Peso, $"peso del bulto {i + 1}"), Numeros.Leer(b.Alto, $"alto del bulto {i + 1}"),

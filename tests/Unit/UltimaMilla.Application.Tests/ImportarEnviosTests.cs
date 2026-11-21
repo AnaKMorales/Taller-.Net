@@ -9,7 +9,7 @@ public sealed class ImportarEnviosTests
 {
     private static FilaImportacion Fila(string referencia) => new(referencia,
         new(Guid.NewGuid(), ModalidadServicio.Estandar, "Persona", "099123456", "p@example.com",
-            "Calle", "1", "Montevideo", "11000", []), "fecha");
+            "Calle", "1", "Montevideo", []), "fecha");
 
     [Fact]
     public async Task NormalizaReferenciasConservaOrdenYContinuaTrasErroresDeValidacion()

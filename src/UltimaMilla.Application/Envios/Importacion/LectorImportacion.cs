@@ -15,7 +15,7 @@ public static class LectorImportacion
     public static readonly string[] Columnas =
     [
         "referencia", "zona", "modalidad", "destinatario", "telefono", "email", "calle", "numero", "localidad",
-        "codigo_postal", "fecha_entrega", "franja", "bulto", "peso_kg", "alto_cm", "ancho_cm", "largo_cm"
+        "fecha_entrega", "franja", "bulto", "peso_kg", "alto_cm", "ancho_cm", "largo_cm"
     ];
 
     public static LecturaImportacion Leer(string contenido, OpcionesAltaDto opciones)
@@ -59,7 +59,7 @@ public static class LectorImportacion
         var primera = lineas[0].valor;
         // Los datos del envío salen de la primera línea; las demás tienen que coincidir
         string[] comunes = ["zona", "modalidad", "destinatario", "telefono", "email", "calle", "numero", "localidad",
-            "codigo_postal", "fecha_entrega", "franja"];
+            "fecha_entrega", "franja"];
         foreach (var (numero, valor) in lineas.Skip(1))
             foreach (var c in comunes)
                 if (valor(c).Length > 0 && valor(c) != primera(c))
@@ -80,7 +80,7 @@ public static class LectorImportacion
 
         var solicitud = new SolicitudAltaPortal(zona.Id, Modalidad(primera("modalidad")),
             primera("destinatario"), primera("telefono"), primera("email"),
-            primera("calle"), primera("numero"), primera("localidad"), primera("codigo_postal"), bultos);
+            primera("calle"), primera("numero"), primera("localidad"), bultos);
         return new FilaImportacion(referencia, solicitud, $"{fecha:yyyy-MM-dd}|{franja.Id}");
     }
 

@@ -20,7 +20,7 @@ public sealed partial class PostgresTests
     {
         await using var db = ContextoComercio(e, e.Envio.CuentaComercial.Id);
         var solicitud = new SolicitudAltaPortal(e.Zona.Id, ModalidadServicio.Estandar, "Persona", "099123456",
-            "persona@example.com", "Calle", "1", "Montevideo", "11000", [new BultoAlta("B-1", 1, 10, 10, 10)]);
+            "persona@example.com", "Calle", "1", "Montevideo", [new BultoAlta("B-1", 1, 10, 10, 10)]);
         var cotizacion = await Handler(db, new RelojFijo(new DateTimeOffset(EscenarioPersistencia.Fecha))).CotizarAsync(solicitud);
         return new("PEDIDO-1", solicitud, cotizacion.Opciones[0].Clave);
     }

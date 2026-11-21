@@ -180,7 +180,7 @@ public sealed class FlujosPortalTests
             Tarifa = new(cuadro.Id, 1, cuadro.VigenteDesde, null,
                 [new(zona.Id, ModalidadServicio.Estandar, 0, 100, 10, 150, [])]);
             Solicitud = new(zona.Id, ModalidadServicio.Estandar, "Persona", "099123456", "persona@example.com",
-                "Calle", "1", "Montevideo", "11000", [new("B-1", 1, 10, 10, 10)]);
+                "Calle", "1", "Montevideo", [new("B-1", 1, 10, 10, 10)]);
         }
 
         public AltaEnvioPortalHandler Alta() => new(this, this, new CalculadorTarifa(), new CrearEnvioHandler(this, new Reloj()), new Reloj(), Operacion);

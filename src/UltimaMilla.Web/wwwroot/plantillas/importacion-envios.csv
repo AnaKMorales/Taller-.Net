@@ -1,4 +1,4 @@
-referencia;zona;modalidad;destinatario;telefono;email;calle;numero;localidad;codigo_postal;fecha_entrega;franja;bulto;peso_kg;alto_cm;ancho_cm;largo_cm
-PED-1001;Centro;Estandar;Ana Pérez;099123456;ana@example.com;Av. 18 de Julio;1234;Montevideo;11100;20/11/2026;Mañana;PED-1001-1;2,5;20;30;40
-PED-1001;;;;;;;;;;;;PED-1001-2;1;10;10;10
-PED-1002;Centro;Urgente;Juan Gómez;098765432;juan@example.com;Colonia;900;Montevideo;11100;20/11/2026;Tarde;PED-1002-1;4;30;30;30
+referencia;zona;modalidad;destinatario;telefono;email;calle;numero;localidad;fecha_entrega;franja;bulto;peso_kg;alto_cm;ancho_cm;largo_cm
+PED-1001;Centro;Estandar;Ana Pérez;099123456;ana@example.com;Av. 18 de Julio;1234;Montevideo;20/11/2026;Mañana;PED-1001-1;2,5;20;30;40
+PED-1001;;;;;;;;;;;PED-1001-2;1;10;10;10
+PED-1002;Centro;Urgente;Juan Gómez;098765432;juan@example.com;Colonia;900;Montevideo;20/11/2026;Tarde;PED-1002-1;4;30;30;30

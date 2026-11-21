@@ -9,7 +9,7 @@ namespace UltimaMilla.Application.Envios.AltaPortal;
 public sealed record SolicitudAltaPortal(
     Guid ZonaId, ModalidadServicio Modalidad,
     string DestinatarioNombre, string DestinatarioTelefono, string DestinatarioEmail,
-    string Calle, string Numero, string Localidad, string CodigoPostal,
+    string Calle, string Numero, string Localidad,
     IReadOnlyList<BultoAlta> Bultos);
 
 // Una fecha y franja de entrega que cumple el plazo comprometido.
@@ -63,7 +63,8 @@ public sealed class AltaEnvioPortalHandler(IOpcionesAlta opciones, ITarifarioVig
             DireccionCalle = solicitud.Calle,
             DireccionNumero = solicitud.Numero,
             DireccionLocalidad = solicitud.Localidad,
-            DireccionCodigoPostal = solicitud.CodigoPostal,
+            // El código postal sale de la zona elegida: así no puede contradecirla
+            DireccionCodigoPostal = zona.CodigoPostal,
             ModalidadServicio = solicitud.Modalidad,
             Bultos = [.. solicitud.Bultos],
             Preparacion = new PreparacionAltaEnvio(cotizacion.Tarifa.Desglose.Total,

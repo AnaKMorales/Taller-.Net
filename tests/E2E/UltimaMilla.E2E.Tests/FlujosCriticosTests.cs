@@ -115,7 +115,7 @@ public sealed class FlujosCriticosTests(Entorno entorno)
         var bulto = $"DEP-{Guid.NewGuid():N}"[..12];
         await comercio.GotoAsync("/portal/envios/nuevo");
         foreach (var (campo, valor) in new[] { ("Nombre", "Depósito E2E"), ("Telefono", "099111222"), ("Email", "dep@example.com"),
-                     ("Calle", "Rivera"), ("Numero", "100"), ("Localidad", "Montevideo"), ("CodigoPostal", "11000"),
+                     ("Calle", "Rivera"), ("Numero", "100"), ("Localidad", "Montevideo"),
                      ("Bultos[0].Codigo", bulto), ("Bultos[0].Peso", "1"), ("Bultos[0].Alto", "10"),
                      ("Bultos[0].Ancho", "10"), ("Bultos[0].Largo", "10") })
             await comercio.FillAsync($"input[name='{campo}']", valor);
