@@ -11,7 +11,7 @@
 @inject OpcionesOperacion Operacion
 @inject NavigationManager Navegacion
 
-<PageTitle>Etiquetas @Codigo</PageTitle>
+<PageTitle>Etiquetas</PageTitle>
 <HeadContent>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/css/etiqueta.css" />
@@ -36,7 +36,8 @@
                     @(etiqueta.Modalidad == ModalidadServicio.Urgente ? "URGENTE" : "Estándar")
                 </span>
             </header>
-            <div class="codigo">@etiqueta.CodigoSeguimiento</div>
+            @* El código de seguimiento no va: abre el seguimiento sin login y la etiqueta la ve cualquiera que toque el paquete *@
+            <div class="codigo">@bulto.Codigo</div>
             <div class="para">
                 <small>Para</small>
                 <strong>@etiqueta.Destinatario</strong>
@@ -48,7 +49,6 @@
                 <div><dt>Zona</dt><dd>@etiqueta.Zona</dd></div>
                 <div><dt>Entrega</dt><dd>@Entrega</dd></div>
                 <div><dt>Bulto</dt><dd class="grande">@(i + 1) de @etiqueta.Bultos.Count</dd></div>
-                <div><dt>Código bulto</dt><dd>@bulto.Codigo</dd></div>
                 <div><dt>Peso</dt><dd>@bulto.Peso.ToString("0.##") kg</dd></div>
             </dl>
             @* Code 128 del código del bulto: lo escanea la cámara de la PWA del repartidor. *@
@@ -56,7 +56,7 @@
             {
                 <div class="barras">@((MarkupString)barras)</div>
             }
-            <footer>Remite: @etiqueta.Comercio · Seguimiento: /seguimiento/@etiqueta.CodigoSeguimiento</footer>
+            <footer>Remite: @etiqueta.Comercio</footer>
         </section>
     }
 }

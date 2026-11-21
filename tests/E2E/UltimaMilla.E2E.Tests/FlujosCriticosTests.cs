@@ -189,6 +189,8 @@ public sealed class FlujosCriticosTests(Entorno entorno)
 
         await Expect(pagina.Locator(".etiqueta")).ToHaveCountAsync(3);
         await Expect(pagina.Locator(".etiqueta").Last).ToContainTextAsync("3 de 3");
+        // El código de seguimiento no puede quedar impreso en el paquete
+        await Expect(pagina.Locator("body")).Not.ToContainTextAsync(entorno.Express.SeguimientoParcial);
     }
 
     [E2EFact]
