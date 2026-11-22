@@ -34,7 +34,6 @@ public sealed class FlujosCriticosTests(Entorno entorno)
         await pagina.FillAsync("input[name='Calle']", "Av. Italia");
         await pagina.FillAsync("input[name='Numero']", "2500");
         await pagina.FillAsync("input[name='Localidad']", "Montevideo");
-        await pagina.FillAsync("input[name='CodigoPostal']", "11000");
         await pagina.FillAsync("input[name='Bultos[0].Codigo']", "E2E-1");
         await pagina.FillAsync("input[name='Bultos[0].Peso']", "2,5");
         await pagina.FillAsync("input[name='Bultos[0].Alto']", "20");
