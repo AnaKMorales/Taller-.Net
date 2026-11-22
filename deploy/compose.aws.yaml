@@ -42,6 +42,9 @@
 
     receptor:
       ports: !reset []
+    # Sin SMTP_SERVIDOR en SSM los avisos quedan en Mailpit (sin web expuesta); con él, salen por el SMTP real.
+    mailpit:
+      ports: !reset []
     lgtm:
       ports: !reset []
       environment:

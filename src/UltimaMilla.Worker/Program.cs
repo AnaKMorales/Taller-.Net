@@ -36,7 +36,9 @@ builder.Services.AgregarConsumoMensajes();
 builder.Services.AgregarEntregaWebhooks(builder.Configuration.GetSection(OpcionesWebhook.Seccion).Get<OpcionesWebhook>());
 // Aviso al destinatario en cada cambio de estado relevante; corre antes de los webhooks (docs/notificaciones-destinatario.md).
 builder.Services.AgregarNotificacionesDestinatario(builder.Configuration.GetSection(OpcionesNotificaciones.Seccion)
-    .Get<OpcionesNotificaciones>());
+    .Get<OpcionesNotificaciones>(),
+    // Correo real: Smtp__Servidor, Smtp__Remitente, Smtp__Usuario y Smtp__Clave (env/user-secrets). Sin servidor, solo log.
+    builder.Configuration.GetSection(OpcionesSmtp.Seccion).Get<OpcionesSmtp>());
 builder.Services.AddSingleton<IManejadorMensajes, ProcesadorAvisos>();
 builder.Services.AddHostedService<ConsumidorAvisosWorker>();
 

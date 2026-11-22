@@ -162,6 +162,16 @@
         Webhooks__PermitirDestinosPrivados: ${WEBHOOKS_PERMITIR_DESTINOS_PRIVADOS:-false}
         # Base del enlace de seguimiento en los avisos al destinatario (en AWS la pone compose.aws.yaml)
         Notificaciones__UrlPublica: ${URL_PUBLICA:-http://localhost:8000}
+        # Correo de los avisos al destinatario. Por defecto a Mailpit (no sale nada a internet; se ven en
+        # http://127.0.0.1:${MAILPIT_PORT:-58025}). Para que lleguen de verdad: SMTP_SERVIDOR, SMTP_USUARIO, SMTP_CLAVE,
+        # SMTP_REMITENTE (en AWS, parámetros de SSM). SMTP_SERVIDOR vacío = solo log, sin correo.
+        Smtp__Servidor: ${SMTP_SERVIDOR-mailpit}
+        Smtp__Puerto: ${SMTP_PUERTO:-1025}
+        Smtp__Seguridad: ${SMTP_SEGURIDAD:-Ninguna}
+        Smtp__Usuario: ${SMTP_USUARIO:-}
+        Smtp__Clave: ${SMTP_CLAVE:-}
+        Smtp__Remitente: ${SMTP_REMITENTE:-avisos@ultimamilla.local}
+        Smtp__NombreRemitente: ${SMTP_NOMBRE_REMITENTE:-UltimaMilla}
         OpenTelemetry__ExportarOtlp: "true"
         OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       mem_limit: 256m
@@ -180,6 +190,21 @@
       ports:
         - "127.0.0.1:${RECEPTOR_PORT:-58080}:8080"
       mem_limit: 128m
+      restart: unless-stopped
+
+    # Mailpit: servidor SMTP de prueba. Recibe los avisos al destinatario y los muestra en una web, sin mandarlos.
+    # SMTP en mailpit:1025 (red interna); bandeja en http://127.0.0.1:${MAILPIT_PORT:-58025}.
+    mailpit:
+      profiles: ["app"]
+      image: axllent/mailpit:v1.34
+      ports:
+        - "127.0.0.1:${MAILPIT_PORT:-58025}:8025"
+      healthcheck:
+        test: ["CMD", "/mailpit", "readyz"]
+        interval: 10s
+        timeout: 3s
+        retries: 10
+      mem_limit: 64m
       restart: unless-stopped
 
     # Observabilidad (6.12): colector OpenTelemetry + Prometheus (métricas) + Tempo (trazas) + Loki (logs) + Grafana,
