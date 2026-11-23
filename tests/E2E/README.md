@@ -17,6 +17,7 @@ levantada y recorren los flujos críticos:
 | `UnTokenInexistenteNoRevelaNada` | Token inválido: 404 con mensaje genérico |
 | `ElBackofficeMuestraElDetallePorBultoDeLaEntregaParcial` | Admin abre el detalle del envío parcial |
 | `UnComercioNoEntraAlBackoffice` | Un comercio no accede a la configuración |
+| `ElRepartidorSoloCambiaSuContrasenaConUnaConfirmacionValidaYDeUnSoloUso` | Registra una passkey, rechaza confirmaciones inválidas o repetidas y cambia la contraseña con WebAuthn virtual |
 
 Cada corrida crea sus datos con `POST /dev/datos-demo`, así que la Web tiene que estar en Development.
 Sin `E2E_BASE_URL` los tests se saltean.

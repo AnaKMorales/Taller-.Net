@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Infrastructure.Persistence.Tenancy;
@@ -33,11 +34,22 @@ internal static class IdentidadWriteGuard
         if (db.CuentaRestringida) throw new AislamientoOperadorException();
         foreach (var entry in cambios)
         {
-            var usuarioId = (Guid)(entry.Entity is CuentaAcceso ? entry.Property("Id") : entry.Property("UserId")).CurrentValue!;
-            if (entry.State != EntityState.Added && entry.Entity is not CuentaAcceso &&
-                !Equals(entry.Property("UserId").OriginalValue, usuarioId)) throw new AislamientoOperadorException();
+            var propietario = entry.Entity is IdentityPasskeyData ? DuenoDeDatosPasskey(db, entry) : entry;
+            var campoUsuario = propietario.Property(propietario.Entity is CuentaAcceso ? "Id" : "UserId");
+            var usuarioId = (Guid)campoUsuario.CurrentValue!;
+            if (propietario.State != EntityState.Added && !Equals(campoUsuario.OriginalValue, usuarioId))
+                throw new AislamientoOperadorException();
             if (await Dueno(db, usuarioId, useAsync, token) != tenant) throw new AislamientoOperadorException();
         }
+    }
+
+    private static EntityEntry DuenoDeDatosPasskey(AppDbContext db, EntityEntry datos)
+    {
+        var propiedad = datos.Metadata.FindOwnership()!.Properties.Single().Name;
+        var clave = (byte[])datos.Property(propiedad).CurrentValue!;
+        return db.ChangeTracker.Entries<IdentityUserPasskey<Guid>>()
+            .SingleOrDefault(p => p.Entity.CredentialId.AsSpan().SequenceEqual(clave))
+            ?? throw new AislamientoOperadorException();
     }
 
     private static async Task<Guid?> Dueno(AppDbContext db, Guid usuarioId, bool useAsync, CancellationToken token)

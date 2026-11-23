@@ -15,8 +15,8 @@ public sealed class ModeloTests
             .Where(t => !t.IsAbstract && typeof(Entidad).IsAssignableFrom(t)).ToArray();
         Assert.Equal(37, domainTypes.Length);
         Assert.All(domainTypes, t => Assert.NotNull(db.Model.FindEntityType(t)));
-        // 40 del modelo previo + 4 de Identity + el resumen técnico diario + las posiciones del vehículo.
-        Assert.Equal(46, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
+        // Incluye la tabla de credenciales WebAuthn de Identity.
+        Assert.Equal(47, db.Model.GetEntityTypes().Select(t => t.GetTableName()).Distinct().Count());
         var resumen = db.Model.FindEntityType(typeof(UltimaMilla.Infrastructure.Persistence.Operacion.ResumenOperativoDiario))!;
         Assert.Equal("ResumenesOperativosDiarios", resumen.GetTableName());
         Assert.Contains(resumen.GetIndexes(), i => i.IsUnique &&
@@ -40,6 +40,7 @@ public sealed class ModeloTests
         var sql = db.Database.GenerateCreateScript();
         Assert.Contains("CREATE TABLE \"Envios\"", sql);
         Assert.Contains("CREATE TABLE \"UsuariosCuentasComerciales\"", sql);
+        Assert.Contains("CREATE TABLE \"AspNetUserPasskeys\"", sql);
         Assert.Contains("jsonb", sql);
         Assert.Contains("integer[]", sql);
         Assert.Contains("timestamp with time zone", sql);

@@ -74,8 +74,8 @@ public sealed partial class PostgresTests : IAsyncLifetime
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'", connection);
-        // 40 del modelo previo + historial de EF + 4 de Identity + resumen técnico diario + posiciones del vehículo.
-        Assert.Equal(47L, await command.ExecuteScalarAsync());
+        // Incluye el historial de EF y la nueva tabla de credenciales WebAuthn.
+        Assert.Equal(48L, await command.ExecuteScalarAsync());
     }
 
     [PostgresFact]

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using System.Text.Json;
 using UltimaMilla.Repartidor.Contratos;
 using UltimaMilla.Repartidor.Sincronizacion;
 
@@ -23,6 +24,12 @@ public sealed class Navegador(IJSRuntime js) : IAlmacenLocal, IUbicacionDisposit
 
     public async Task BloquearAccesoLocalAsync() =>
         await (await Modulo()).InvokeVoidAsync("bloquearAccesoLocal");
+
+    public async Task<bool> BiometriaDisponibleAsync() =>
+        await (await Modulo()).InvokeAsync<bool>("biometriaDisponible");
+
+    public async Task<JsonElement> ConfirmarConDispositivoAsync(string opcionesJson, bool registrar) =>
+        await (await Modulo()).InvokeAsync<JsonElement>("confirmarConDispositivo", opcionesJson, registrar);
 
     public async Task<string?> LeerAsync(string clave) =>
         await (await Modulo()).InvokeAsync<string?>("leer", clave);

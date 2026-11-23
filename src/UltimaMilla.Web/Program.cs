@@ -161,6 +161,7 @@ builder.Services.AddScoped<UltimaMilla.Application.Envios.Importacion.ImportarEn
 builder.Services.AddScoped<IReprogramacionPublicaRepository, ReprogramacionPublicaRepository>();
 builder.Services.AddScoped<ReprogramarPorDestinatarioHandler>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AgregarBiometriaRepartidor();
 builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();
 builder.Services.AddScoped<IDespachoPendientes, DespachoPendientes>();

@@ -17,6 +17,11 @@
     </div>
 </div>
 
+@if (_sesion is not null)
+{
+    <p class="small"><a href="seguridad">Seguridad de mi cuenta</a></p>
+}
+
 @if (_mensaje is not null)
 {
     <div class="alert alert-warning py-2">@_mensaje</div>

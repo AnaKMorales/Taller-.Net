@@ -115,9 +115,52 @@ export function limpiarFirma(lienzo) {
     firmas.get(lienzo).trazada = false;
 }
 
-// --- Escaneo de códigos con la cámara (funciona sin conexión) ---
-// Usa BarcodeDetector si el navegador lo trae (Chrome en Android y Mac). Si no (Windows, iPhone, Firefox), lee
-// los cuadros del video con ZXing, que está en lib/zxing y lo guarda el service worker como el resto de la app.
+export async function biometriaDisponible() {
+    return window.isSecureContext && !!navigator.credentials &&
+        !!(await window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable?.());
+}
+
+function desdeBase64Url(valor) {
+    return Uint8Array.from(atob(valor.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+}
+
+function aBase64Url(valor) {
+    if (valor == null) return undefined;
+    const binario = Array.from(new Uint8Array(valor), byte => String.fromCharCode(byte)).join('');
+    return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export async function confirmarConDispositivo(opcionesJson, registrar) {
+    const opciones = JSON.parse(opcionesJson);
+    opciones.challenge = desdeBase64Url(opciones.challenge);
+    for (const lista of [opciones.excludeCredentials, opciones.allowCredentials]) {
+        for (const credencial of lista ?? []) credencial.id = desdeBase64Url(credencial.id);
+    }
+    if (registrar) opciones.user.id = desdeBase64Url(opciones.user.id);
+    const credencial = registrar
+        ? await navigator.credentials.create({ publicKey: opciones })
+        : await navigator.credentials.get({ publicKey: opciones });
+    if (!credencial) throw new Error('El dispositivo no confirmó la operación.');
+
+    const respuesta = credencial.response;
+    return {
+        id: credencial.id,
+        rawId: aBase64Url(credencial.rawId),
+        type: credencial.type,
+        authenticatorAttachment: credencial.authenticatorAttachment,
+        clientExtensionResults: credencial.getClientExtensionResults(),
+        response: {
+            clientDataJSON: aBase64Url(respuesta.clientDataJSON),
+            attestationObject: aBase64Url(respuesta.attestationObject),
+            transports: respuesta.getTransports?.(),
+            authenticatorData: aBase64Url(respuesta.authenticatorData),
+            signature: aBase64Url(respuesta.signature),
+            userHandle: aBase64Url(respuesta.userHandle)
+        }
+    };
+}
+
+// Escaneo de códigos con la cámara. ZXing está incluido en la PWA para funcionar sin conexión.
 const FORMATOS = ['code_128', 'qr_code', 'code_39', 'ean_13', 'ean_8', 'itf', 'upc_a', 'data_matrix'];
 let escaneo = null;
 let zxing = null;

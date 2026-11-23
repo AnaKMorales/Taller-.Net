@@ -21,3 +21,17 @@ internal sealed class CuentaAccesoConfiguration : IEntityTypeConfiguration<Cuent
         // Misma clave que el Usuario del dominio: una cuenta de acceso por usuario.
         builder.HasOne<Usuario>().WithOne().HasForeignKey<CuentaAcceso>(c => c.Id).OnDelete(DeleteBehavior.Restrict);
 }
+
+internal sealed class CredencialPasskeyConfiguration : IEntityTypeConfiguration<IdentityUserPasskey<Guid>>
+{
+    public void Configure(EntityTypeBuilder<IdentityUserPasskey<Guid>> builder)
+    {
+        // Habilita las passkeys sin cambiar el mapeo de las tablas existentes de Identity.
+        builder.ToTable("AspNetUserPasskeys");
+        builder.HasKey(p => p.CredentialId);
+        builder.Property(p => p.CredentialId).HasMaxLength(1024);
+        builder.HasIndex(p => p.UserId).IsUnique();
+        builder.HasOne<CuentaAcceso>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.OwnsOne(p => p.Data).ToJson();
+    }
+}

@@ -1,0 +1,149 @@
+@page "/seguridad"
+@using System.Net
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject DatosLocales Datos
+@inject Navegador Dispositivo
+@inject NavigationManager Navegacion
+
+<PageTitle>Seguridad de mi cuenta</PageTitle>
+<p><a href="">Volver a la hoja de ruta</a></p>
+<h1 class="h4">Seguridad de mi cuenta</h1>
+
+@if (_listo)
+{
+    <p>Para cambiar tu contraseña, confirmá con la huella, el rostro o el código de desbloqueo del dispositivo.</p>
+    <form class="d-grid gap-2" style="max-width: 26rem" @onsubmit="PrepararAsync" @onsubmit:preventDefault>
+        <fieldset class="d-grid gap-2" disabled="@(_ocupado || _opciones is not null)">
+            <label>Contraseña actual
+                <input type="password" class="form-control" autocomplete="current-password" maxlength="256" required @bind="_actual" />
+            </label>
+            @if (_configurada)
+            {
+                <label>Nueva contraseña
+                    <input type="password" class="form-control" autocomplete="new-password" maxlength="256" minlength="8" required @bind="_nueva" />
+                </label>
+                <button type="submit" class="btn btn-primary">Preparar cambio de contraseña</button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-primary">Configurar passkey</button>
+            }
+        </fieldset>
+    </form>
+    @if (_opciones is not null)
+    {
+        <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-primary" disabled="@_ocupado" @onclick="ConfirmarAsync">Confirmar con el dispositivo</button>
+            <button type="button" class="btn btn-outline-secondary" disabled="@_ocupado" @onclick="Cancelar">Cancelar</button>
+        </div>
+    }
+}
+@if (_error is not null) { <p class="alert alert-warning mt-3" role="alert">@_error</p> }
+@if (_exito is not null) { <p class="alert alert-success mt-3" role="status">@_exito</p> }
+
+@code {
+    private const string RutaApi = "api/repartidor/biometria/";
+    private SesionRepartidor? _sesion;
+    private OpcionesBiometriaDto? _opciones;
+    private string _actual = "", _nueva = "";
+    private string? _error, _exito;
+    private bool _listo, _configurada, _registrar, _ocupado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sesion = await Datos.ObtenerSesionAsync();
+        if (_sesion is null)
+        {
+            Navegacion.NavigateTo("login");
+            return;
+        }
+        await EjecutarAsync(async () =>
+        {
+            if (!await Dispositivo.BiometriaDisponibleAsync())
+            {
+                _error = "Activá un método de desbloqueo en el dispositivo y abrí la app por HTTPS en un navegador compatible con passkeys.";
+                return;
+            }
+            using var respuesta = await EnviarAsync(HttpMethod.Get, "estado");
+            if (!await ComprobarAsync(respuesta)) return;
+            _configurada = (await respuesta.Content.ReadFromJsonAsync(JsonRepartidor.Default.EstadoBiometriaDto))!.Configurada;
+            _listo = true;
+        });
+    }
+
+    private Task PrepararAsync() => EjecutarAsync(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(_actual))
+        {
+            _error = "Ingresá tu contraseña actual.";
+            return;
+        }
+        _registrar = !_configurada;
+        using var respuesta = _registrar
+            ? await EnviarAsync(HttpMethod.Post, "registro/opciones", JsonContent.Create(
+                new PrepararRegistroBiometriaDto(_actual), JsonRepartidor.Default.PrepararRegistroBiometriaDto))
+            : await EnviarAsync(HttpMethod.Post, "contrasena/opciones");
+        if (!await ComprobarAsync(respuesta)) return;
+        _opciones = await respuesta.Content.ReadFromJsonAsync(JsonRepartidor.Default.OpcionesBiometriaDto)
+            ?? throw new HttpRequestException("No se pudo preparar la verificación.");
+        if (_registrar) _actual = "";
+    });
+
+    private Task ConfirmarAsync() => EjecutarAsync(async () =>
+    {
+        if (_opciones is not { } opciones) return;
+        try
+        {
+            // Safari necesita iniciar la verificación desde el clic. Las opciones ya están cargadas.
+            var credencial = await Dispositivo.ConfirmarConDispositivoAsync(opciones.OpcionesJson, _registrar);
+            using var respuesta = _registrar
+                ? await EnviarAsync(HttpMethod.Post, "registro", JsonContent.Create(
+                    new ConfirmarRegistroBiometriaDto(opciones.DesafioId, credencial), JsonRepartidor.Default.ConfirmarRegistroBiometriaDto))
+                : await EnviarAsync(HttpMethod.Post, "contrasena", JsonContent.Create(
+                    new CambioContrasenaBiometriaDto(opciones.DesafioId, credencial, _actual, _nueva),
+                    JsonRepartidor.Default.CambioContrasenaBiometriaDto));
+            if (!await ComprobarAsync(respuesta)) return;
+            _configurada = true;
+            _exito = _registrar ? "Passkey registrada. Ya podés cambiar tu contraseña." : "Cambiaste tu contraseña.";
+        }
+        finally { Cancelar(); }
+    });
+
+    private void Cancelar()
+    {
+        _opciones = null;
+        _actual = _nueva = "";
+    }
+
+    private async Task<HttpResponseMessage> EnviarAsync(HttpMethod metodo, string ruta, HttpContent? contenido = null)
+    {
+        using var pedido = new HttpRequestMessage(metodo, RutaApi + ruta) { Content = contenido };
+        pedido.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _sesion!.Token);
+        return await Http.SendAsync(pedido);
+    }
+
+    private async Task<bool> ComprobarAsync(HttpResponseMessage respuesta)
+    {
+        if (respuesta.IsSuccessStatusCode) return true;
+        _error = respuesta.StatusCode == HttpStatusCode.Unauthorized
+            ? "Volvé a ingresar para verificar tu cuenta."
+            : respuesta.Content.Headers.ContentType?.MediaType == "application/problem+json"
+                ? (await respuesta.Content.ReadFromJsonAsync(JsonRepartidor.Default.ProblemaBiometriaDto))?.Title
+                : "No se pudo completar la operación.";
+        return false;
+    }
+
+    private async Task EjecutarAsync(Func<Task> accion)
+    {
+        if (_ocupado) return;
+        _ocupado = true;
+        _error = _exito = null;
+        try { await accion(); }
+        catch (JSException) { _error = "El dispositivo canceló la confirmación o no pudo completarla."; }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        { _error = "No se pudo completar la operación. Comprobá la conexión y volvé a intentar."; }
+        finally { _ocupado = false; }
+    }
+}

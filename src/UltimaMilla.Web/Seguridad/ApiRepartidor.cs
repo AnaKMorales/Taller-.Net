@@ -22,6 +22,7 @@ public static class ApiRepartidor
     public static void MapApiRepartidor(this IEndpointRouteBuilder app)
     {
         var api = app.MapGroup("/api/repartidor").RequireCors(Cors);
+        api.MapearBiometriaRepartidor();
 
         // Mismo validador que el login de Web: email normalizado, usuario activo y hash PBKDF2.
         api.MapPost("/sesion", async (SolicitudLoginRepartidor solicitud, IBuscadorUsuariosLogin usuarios, CancellationToken ct) =>

@@ -1626,3 +1626,35 @@ VALUES ('20261116025620_PosicionesVehiculo', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+DROP INDEX "IX_MensajesOutbox_CreadoEn_Id";
+
+ALTER TABLE "MensajesOutbox" ADD "CuarentenaEn" timestamp with time zone;
+
+ALTER TABLE "MensajesOutbox" ADD "IntentosFallidos" integer NOT NULL DEFAULT 0;
+
+CREATE INDEX "IX_MensajesOutbox_CreadoEn_Id" ON "MensajesOutbox" ("CreadoEn", "Id") WHERE "PublicadoEn" IS NULL AND "CuarentenaEn" IS NULL;
+
+ALTER TABLE "MensajesOutbox" ADD CONSTRAINT "CK_MensajesOutbox_Cuarentena" CHECK ("IntentosFallidos" >= 0 AND ("CuarentenaEn" IS NULL OR ("PublicadoEn" IS NULL AND "IntentosFallidos" > 0)));
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261123121807_CuarentenaOutbox', '10.0.12');
+
+COMMIT;
+
+START TRANSACTION;
+CREATE TABLE "AspNetUserPasskeys" (
+    "CredentialId" bytea NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Data" jsonb NOT NULL,
+    CONSTRAINT "PK_AspNetUserPasskeys" PRIMARY KEY ("CredentialId"),
+    CONSTRAINT "FK_AspNetUserPasskeys_AspNetUsers_UserId" FOREIGN KEY ("UserId") REFERENCES "AspNetUsers" ("Id") ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX "IX_AspNetUserPasskeys_UserId" ON "AspNetUserPasskeys" ("UserId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261123153936_PasskeysRepartidor', '10.0.12');
+
+COMMIT;
+
