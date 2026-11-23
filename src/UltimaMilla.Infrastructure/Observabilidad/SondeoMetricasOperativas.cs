@@ -11,7 +11,7 @@ public sealed class SondeoMetricasOperativas(string connectionString, ConexionRa
         await connection.OpenAsync(ct);
         // Agregados técnicos globales del proceso interno. No se exportan operadores ni datos personales.
         await using var command = new NpgsqlCommand("""
-            SELECT (SELECT count(*) FROM "MensajesOutbox" WHERE "PublicadoEn" IS NULL),
+            SELECT (SELECT count(*) FROM "MensajesOutbox" WHERE "PublicadoEn" IS NULL AND "CuarentenaEn" IS NULL),
                    (SELECT count(*) FROM "EntregasAviso" WHERE NOT "Exitoso" AND "Intentos" > 0)
             """, connection);
         await using var reader = await command.ExecuteReaderAsync(ct);

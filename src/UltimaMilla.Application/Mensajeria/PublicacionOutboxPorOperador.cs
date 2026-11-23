@@ -4,7 +4,7 @@ namespace UltimaMilla.Application.Mensajeria;
 // deliberada y mínima (igual que ISeguimientoPublico): solo devuelve identificadores.
 public interface IEnumeradorOperadoresOutbox
 {
-    // Operadores con al menos un mensaje del outbox sin publicar. No expone ningún otro dato.
+    // Operadores con al menos un mensaje pendiente de publicación y fuera de cuarentena.
     Task<IReadOnlyList<Guid>> ListarConPendientesAsync(CancellationToken cancellationToken = default);
 }
 

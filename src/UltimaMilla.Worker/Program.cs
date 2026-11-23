@@ -25,7 +25,8 @@ builder.Services.AddHostedService<MetricasWorker>();
 // Cadena de conexión: ConnectionStrings__UltimaMilla (variable de entorno o user-secrets).
 builder.Services.AgregarPublicacionOutboxPorOperador(
     builder.Configuration.GetConnectionString("UltimaMilla")
-    ?? throw new InvalidOperationException("Falta ConnectionStrings:UltimaMilla."));
+    ?? throw new InvalidOperationException("Falta ConnectionStrings:UltimaMilla."),
+    builder.Configuration.GetSection(OpcionesPublicacionPeriodica.Seccion).Get<OpcionesPublicacionOutbox>());
 builder.Services.AddSingleton(builder.Configuration.GetSection(OpcionesPublicacionPeriodica.Seccion)
     .Get<OpcionesPublicacionPeriodica>() ?? new OpcionesPublicacionPeriodica());
 builder.Services.AddHostedService<PublicacionOutboxWorker>();

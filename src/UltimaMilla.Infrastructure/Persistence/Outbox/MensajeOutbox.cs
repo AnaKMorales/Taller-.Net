@@ -29,6 +29,8 @@ public sealed class MensajeOutbox
     public string Contenido { get; private set; }
     public DateTime CreadoEn { get; private set; }
     public DateTime? PublicadoEn { get; private set; }
+    public int IntentosFallidos { get; private set; }
+    public DateTime? CuarentenaEn { get; private set; }
     public string? TraceParent { get; private set; }
     public string? TraceState { get; private set; }
 
@@ -36,5 +38,11 @@ public sealed class MensajeOutbox
     {
         if (fechaUtc.Kind != DateTimeKind.Utc) throw new ArgumentException("La fecha debe ser UTC.", nameof(fechaUtc));
         PublicadoEn ??= fechaUtc;
+    }
+
+    internal void RegistrarFallo(DateTime fechaUtc, int maximoIntentos)
+    {
+        IntentosFallidos++;
+        if (IntentosFallidos >= maximoIntentos) CuarentenaEn = fechaUtc;
     }
 }

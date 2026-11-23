@@ -170,19 +170,22 @@ se consideran éxito. No basta con entregar el mensaje al buffer de un cliente.
    un solo operador. No se acepta un contexto de usuario, seguimiento o mensaje consumidor,
    ni una transacción previa o entidades del negocio ya cargadas.
 2. Por cada mensaje se abre una transacción ReadCommitted y se selecciona un pendiente
-   del operador con FOR UPDATE SKIP LOCKED. Los valores se parametrizan mediante EF.
+   del operador fuera de cuarentena con FOR UPDATE SKIP LOCKED. Los valores se parametrizan mediante EF.
 3. El bloqueo de esa fila permanece durante la llamada al transporte y el marcado. Otra
    instancia puede tomar otra fila sin esperar ni seleccionar simultáneamente la misma.
 4. Después de la confirmación, se asigna PublicadoEn con TimeProvider en UTC, se guarda
    con EF (incluidas sus validaciones de tenancy) y se confirma la transacción.
-5. Ante un error o cancelación, se revierte esa transacción, se libera el bloqueo, se
-   descarta el objeto rastreado y se propaga el error. El registro continúa pendiente.
-   Los mensajes anteriores del lote que ya se confirmaron conservan su marcado.
+5. Si el transporte identifica un fallo atribuible al mensaje, se guarda un intento
+   fallido en la misma transacción. Si alcanza el límite, se marca en cuarentena y el
+   lote puede seguir con el siguiente mensaje del operador. Antes del límite se propaga
+   el error y el Worker lo reintenta en un próximo ciclo.
+6. Si falla la conexión, vence la espera de confirmación, el broker responde con nack,
+   falla PostgreSQL o se cancela la ejecución, se libera el bloqueo y el registro sigue
+   pendiente sin gastar el límite. Los mensajes ya confirmados del lote conservan su marcado.
 
 El tamaño predeterminado del lote es 100, con valores admitidos de 1 a 1000. Se devuelve
-el número confirmado en una ejecución satisfactoria. Si falla un mensaje, el lote se
-interrumpe; el llamador debe consultar los pendientes para una nueva ejecución, sin
-suponer que los mensajes anteriores también se revirtieron.
+el número confirmado en una ejecución satisfactoria. Una cuarentena ocupa un lugar
+del lote, pero no cuenta como confirmación.
 
 `OpcionesPublicacionOutbox.TiempoMaximoConfirmacion` fija la cancelación de la espera del
 transporte (15 segundos por defecto, configurable hasta dos minutos). El adaptador debe
@@ -200,10 +203,28 @@ y podrá enviarse nuevamente **con el mismo MensajeId**. El consumidor deberá d
 La garantía prevista al integrar transporte y ejecución periódica es al menos una vez,
 no exactamente una vez. El publicador no implementa la idempotencia del consumidor.
 
-Una falla detiene el lote: todavía no hay espera creciente, contador persistente de intentos,
-aislamiento de mensajes problemáticos ni cola de fallidos. La política de nuevas ejecuciones
-se integra desde el host. Tampoco se promete entrega al consumidor por el solo hecho de
-marcar publicado: la confirmación requerida corresponde a la aceptación del broker.
+### Cuarentena de publicación
+
+La migración `CuarentenaOutbox` agrega `IntentosFallidos` y `CuarentenaEn` a
+`MensajesOutbox`. Los mensajes existentes arrancan con cero intentos y sin cuarentena.
+Por defecto, el tercer fallo atribuible al mensaje lo aparta. El límite se puede
+configurar con `PublicacionOutbox__MaximoIntentosPorMensaje` (de 1 a 100).
+
+Un ejemplo es un mensaje que RabbitMQ devuelve porque su tipo no tiene una ruta de
+entrega. La fila queda en PostgreSQL con su identificador y contenido, fuera de la
+selección y del conteo de pendientes. El Worker registra el identificador del mensaje,
+el operador y el número de fallos. Esta cuarentena corresponde a la publicación del
+outbox. La cola de fallidos de RabbitMQ corresponde al procesamiento posterior por el
+consumidor.
+
+Para consultar las filas apartadas desde PostgreSQL sin mostrar sus contenidos:
+
+```sql
+SELECT "Id", "TenantId", "Tipo", "IntentosFallidos", "CuarentenaEn"
+FROM "MensajesOutbox"
+WHERE "CuarentenaEn" IS NOT NULL
+ORDER BY "CuarentenaEn" DESC;
+```
 
 ### Cómo integrarlo sin mezclar responsabilidades
 
@@ -213,9 +234,8 @@ No hay implementación ficticia predeterminada: sin transporte registrado, la re
 del publicador falla en lugar de marcar mensajes sin enviarlos.
 
 El componente, la coordinación de la tabla y sus pruebas pertenecen al apartado outbox.
-Quedan para la integración de campo e infraestructura el adaptador RabbitMQ, el arranque
-y planificación del proceso, Worker/consumidores, reintentos/backoff, DLQ y avisos firmados.
-En esta etapa no se modifica Web, Redis, Docker Compose ni la infraestructura de despliegue.
+El Worker programa los ciclos y utiliza el adaptador RabbitMQ. La idempotencia del
+consumo y el reintento de avisos se aplican después de publicar.
 
 ## Verificación
 
@@ -227,5 +247,18 @@ cuenta y contexto público. Las pruebas de esquema verifican la migración actua
 Las pruebas del publicador usan PostgreSQL real y un transporte controlado **solo dentro
 del proyecto de pruebas**: verifican confirmación antes del marcado, límites de lote,
 aislamiento, dos publicadores concurrentes, liberación ante cancelación, fallo del transporte,
-fallo real de PostgreSQL al marcar y reenvío con el mismo identificador. No verifican un broker
-RabbitMQ real ni su configuración, porque el adaptador aún no está implementado.
+fallo real de PostgreSQL al marcar y reenvío con el mismo identificador. También
+verifican que el tercer fallo de un mensaje lo ponga en cuarentena y que el siguiente
+mensaje del mismo operador se publique en ese ciclo. Las pruebas del adaptador contra
+RabbitMQ comprueban por separado que un mensaje sin ruta se distingue de otros fallos.
+
+Para repetir la prueba de cuarentena, configurar `ULTIMAMILLA_TEST_CONNECTION_STRING`
+con un PostgreSQL local que permita crear bases temporales y ejecutar desde la raíz:
+
+```powershell
+dotnet test tests/Integration/UltimaMilla.Infrastructure.IntegrationTests --filter FullyQualifiedName~PublicadorApartaElMensaje
+```
+
+La prueba genera dos eventos del mismo operador y hace fallar solo el primero. Verifica
+el contador después de cada fallo, la cuarentena en el tercero, la confirmación del
+segundo mensaje y que el publicador ya no vuelva a seleccionar el primero.

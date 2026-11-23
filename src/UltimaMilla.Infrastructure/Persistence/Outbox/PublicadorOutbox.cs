@@ -1,6 +1,7 @@
 using System.Data;
 using UltimaMilla.Infrastructure.Observabilidad;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Application.Tenancy;
@@ -9,7 +10,7 @@ namespace UltimaMilla.Infrastructure.Persistence.Outbox;
 
 // Un contexto dedicado por ejecución/operador. No es un BackgroundService ni un consumidor.
 public sealed class PublicadorOutbox(AppDbContext db, ITransporteMensajes transporte,
-    TimeProvider reloj, OpcionesPublicacionOutbox opciones) : IPublicadorOutbox
+    TimeProvider reloj, OpcionesPublicacionOutbox opciones, ILogger<PublicadorOutbox>? logger = null) : IPublicadorOutbox
 {
     public async Task<int> PublicarLoteAsync(int maximoMensajes = 100, CancellationToken cancellationToken = default)
     {
@@ -32,7 +33,7 @@ public sealed class PublicadorOutbox(AppDbContext db, ITransporteMensajes transp
                 // SKIP LOCKED permite que otra instancia tome una fila distinta sin esperar esta publicación.
                 pendiente = await db.Set<MensajeOutbox>().FromSqlInterpolated($"""
                     SELECT * FROM "MensajesOutbox"
-                    WHERE "TenantId" = {db.OperadorIdActual} AND "PublicadoEn" IS NULL
+                    WHERE "TenantId" = {db.OperadorIdActual} AND "PublicadoEn" IS NULL AND "CuarentenaEn" IS NULL
                     ORDER BY "CreadoEn", "Id"
                     LIMIT 1 FOR UPDATE SKIP LOCKED
                     """).AsTracking().SingleOrDefaultAsync(cancellationToken);
@@ -51,6 +52,18 @@ public sealed class PublicadorOutbox(AppDbContext db, ITransporteMensajes transp
                 publicados++;
                 MetricasOperativas.PublicacionConfirmada();
             }
+            catch (MensajeNoPublicableException error) when (pendiente is not null && !cancellationToken.IsCancellationRequested)
+            {
+                MetricasOperativas.PublicacionFallida();
+                pendiente.RegistrarFallo(reloj.GetUtcNow().UtcDateTime, opciones.MaximoIntentosPorMensaje);
+                await db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                if (pendiente.CuarentenaEn is null) throw;
+
+                logger?.LogError(error,
+                    "Mensaje {MensajeId} del operador {OperadorId} en cuarentena tras {Intentos} fallos de publicación.",
+                    pendiente.Id, db.OperadorIdActual, pendiente.IntentosFallidos);
+            }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
                 MetricasOperativas.PublicacionFallida();
@@ -58,8 +71,7 @@ public sealed class PublicadorOutbox(AppDbContext db, ITransporteMensajes transp
             }
             finally
             {
-                // Si hubo error, DisposeAsync revierte la transacción. La fila sigue pendiente.
-                // No se reutiliza un estado local marcado como publicado tras un commit fallido.
+                // Se descarta el estado local también si DisposeAsync debe revertir un guardado fallido.
                 if (pendiente is not null) db.Entry(pendiente).State = EntityState.Detached;
             }
         }

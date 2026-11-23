@@ -40,7 +40,8 @@ public sealed class PublicacionOutboxWorker(IEnumeradorOperadoresOutbox enumerad
         {
             try
             {
-                // Si el lote salió lleno puede haber más: se sigue hasta vaciar o hasta que llegue el apagado.
+                // Si se alcanzó el máximo de publicaciones, se busca otro lote. Una cuarentena también
+                // ocupa un lugar del lote, por lo que puede quedar trabajo para el próximo ciclo.
                 int publicados;
                 do
                 {

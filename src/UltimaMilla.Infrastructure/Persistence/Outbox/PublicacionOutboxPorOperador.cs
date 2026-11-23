@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Application.Tenancy;
 
@@ -6,7 +7,8 @@ namespace UltimaMilla.Infrastructure.Persistence.Outbox;
 
 // Singleton seguro: solo guarda configuración inmutable; cada llamada crea y libera su propio AppDbContext.
 public sealed class PublicacionOutboxPorOperador(DbContextOptions<AppDbContext> opcionesDb, ITransporteMensajes transporte,
-    TimeProvider reloj, OpcionesPublicacionOutbox opciones) : IEnumeradorOperadoresOutbox, IPublicadorOutboxPorOperador
+    TimeProvider reloj, OpcionesPublicacionOutbox opciones, ILogger<PublicadorOutbox>? logger = null)
+    : IEnumeradorOperadoresOutbox, IPublicadorOutboxPorOperador
 {
     public async Task<IReadOnlyList<Guid>> ListarConPendientesAsync(CancellationToken cancellationToken = default)
     {
@@ -14,7 +16,10 @@ public sealed class PublicacionOutboxPorOperador(DbContextOptions<AppDbContext> 
         // y de solo lectura; devuelve únicamente ids de operador. Guardar con este contexto sigue bloqueado.
         await using var db = new AppDbContext(opcionesDb);
         return await db.Database.SqlQuery<Guid>(
-                $"""SELECT DISTINCT "TenantId" AS "Value" FROM "MensajesOutbox" WHERE "PublicadoEn" IS NULL""")
+                $"""
+                SELECT DISTINCT "TenantId" AS "Value" FROM "MensajesOutbox"
+                WHERE "PublicadoEn" IS NULL AND "CuarentenaEn" IS NULL
+                """)
             .ToListAsync(cancellationToken);
     }
 
@@ -22,7 +27,7 @@ public sealed class PublicacionOutboxPorOperador(DbContextOptions<AppDbContext> 
     {
         if (operadorId == Guid.Empty) throw new ArgumentException("El operador es obligatorio.", nameof(operadorId));
         await using var db = new AppDbContext(opcionesDb, TenantActual.ParaOperador(operadorId));
-        return await new PublicadorOutbox(db, transporte, reloj, opciones)
+        return await new PublicadorOutbox(db, transporte, reloj, opciones, logger)
             .PublicarLoteAsync(maximoMensajes, cancellationToken);
     }
 }

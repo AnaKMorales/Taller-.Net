@@ -1,4 +1,5 @@
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using System.Diagnostics;
 using System.Text;
 using UltimaMilla.Application.Mensajeria;
@@ -7,7 +8,7 @@ namespace UltimaMilla.Infrastructure.Mensajeria;
 
 // Publica en el exchange topic con routing key = Tipo, mensajes persistentes y publisher confirms.
 // PublicarConfirmadoAsync termina solo cuando el broker confirma; un nack, un mensaje sin ruta
-// (mandatory + basic.return) o una cancelación lo hacen fallar, y el outbox deja la fila pendiente.
+// (mandatory + basic.return) o una cancelación lo hacen fallar.
 public sealed class TransporteRabbitMq(ConexionRabbitMq conexion, OpcionesRabbitMq opciones)
     : ITransporteMensajes, IAsyncDisposable
 {
@@ -17,7 +18,8 @@ public sealed class TransporteRabbitMq(ConexionRabbitMq conexion, OpcionesRabbit
     public async Task PublicarConfirmadoAsync(MensajeParaPublicar mensaje, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(mensaje);
-        if (string.IsNullOrWhiteSpace(mensaje.Tipo)) throw new ArgumentException("El mensaje no tiene Tipo.", nameof(mensaje));
+        if (string.IsNullOrWhiteSpace(mensaje.Tipo))
+            throw new MensajeNoPublicableException("El mensaje no tiene tipo de publicación.");
 
         var canal = await ObtenerCanalAsync(cancellationToken);
         var propiedades = new BasicProperties
@@ -38,8 +40,15 @@ public sealed class TransporteRabbitMq(ConexionRabbitMq conexion, OpcionesRabbit
         }
         // Con confirmaciones y seguimiento activos, la tarea espera el ack del broker y lanza
         // PublishException ante nack o devolución.
-        await canal.BasicPublishAsync(opciones.Exchange, mensaje.Tipo, mandatory: true, propiedades,
-            Encoding.UTF8.GetBytes(mensaje.Contenido), cancellationToken);
+        try
+        {
+            await canal.BasicPublishAsync(opciones.Exchange, mensaje.Tipo, mandatory: true, propiedades,
+                Encoding.UTF8.GetBytes(mensaje.Contenido), cancellationToken);
+        }
+        catch (PublishException error) when (error.IsReturn)
+        {
+            throw new MensajeNoPublicableException("RabbitMQ devolvió el mensaje porque no tiene una ruta de entrega.", error);
+        }
     }
 
     private async Task<IChannel> ObtenerCanalAsync(CancellationToken cancellationToken)

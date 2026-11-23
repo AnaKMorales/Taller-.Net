@@ -1885,9 +1885,17 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreadoEn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("CuarentenaEn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("EventoKey")
                         .HasColumnType("uuid")
                         .HasColumnName("EventoId");
+
+                    b.Property<int>("IntentosFallidos")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<DateTime?>("PublicadoEn")
                         .HasColumnType("timestamp with time zone");
@@ -1919,11 +1927,14 @@ namespace UltimaMilla.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.HasIndex("CreadoEn", "Id")
-                        .HasFilter("\"PublicadoEn\" IS NULL");
+                        .HasFilter("\"PublicadoEn\" IS NULL AND \"CuarentenaEn\" IS NULL");
 
                     b.HasIndex("EventoKey", "TenantId");
 
-                    b.ToTable("MensajesOutbox", (string)null);
+                    b.ToTable("MensajesOutbox", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MensajesOutbox_Cuarentena", "\"IntentosFallidos\" >= 0 AND (\"CuarentenaEn\" IS NULL OR (\"PublicadoEn\" IS NULL AND \"IntentosFallidos\" > 0))");
+                        });
                 });
 
             modelBuilder.Entity("UsuariosCuentasComerciales", b =>

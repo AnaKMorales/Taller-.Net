@@ -1,52 +1,114 @@
-<!doctype html><meta charset="utf-8"><title>Cifrado en reposo de la PWA</title><pre id="r">corriendo</pre>
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Cifrado en reposo de la PWA</title>
+<pre id="resultado">Ejecutando las verificaciones…</pre>
 <script type="module">
-const r = [];
-const ok = (n, c, extra = '') => r.push(`${c ? 'OK ' : 'FALLA'} ${n} ${extra}`);
-const raw = (version, fn) => new Promise((res, rej) => {
-  const p = indexedDB.open('ultimamilla-repartidor', version);
-  p.onupgradeneeded = () => { if (!p.result.objectStoreNames.contains('datos')) p.result.createObjectStore('datos'); };
-  p.onsuccess = () => { const db = p.result; const tx = db.transaction(db.objectStoreNames.contains('claves') ? ['datos','claves'] : ['datos'], 'readwrite');
-    const out = fn(tx); tx.oncomplete = () => { db.close(); res(out.v); }; tx.onerror = () => rej(tx.error); };
-  p.onerror = () => rej(p.error);
-});
-const get = (store, k) => raw(undefined, tx => { const o = {}; const q = tx.objectStore(store).get(k); q.onsuccess = () => o.v = q.result; return o; });
-const put = (store, k, v) => raw(undefined, tx => { tx.objectStore(store).put(v, k); return {}; });
-const bytes = reg => new TextDecoder('latin1').decode(new Uint8Array(reg.datos));
+const BASE = 'ultimamilla-repartidor';
+const FRASE = 'tres palabras para prueba local';
+const SESION = '{"token":"TOKEN-DE-PRUEBA"}';
+const HOJA = '{"paradas":[{"destinatario":"Persona de prueba"}]}';
+const COLA = JSON.stringify([{ idOperacion: 'visita-pendiente',
+  foto: 'data:image/jpeg;base64,' + 'A'.repeat(200000) }]);
+const texto = new TextEncoder();
+const resultados = [];
+const ok = (nombre, cumple) => resultados.push(`${cumple ? 'OK' : 'FALLA'} ${nombre}`);
+const recarga = location.hash === '#recarga';
+
+function raw(version, operar) {
+  return new Promise((resolver, rechazar) => {
+    const pedido = indexedDB.open(BASE, version);
+    pedido.onupgradeneeded = () => {
+      pedido.result.createObjectStore('datos');
+      pedido.result.createObjectStore('claves');
+    };
+    pedido.onsuccess = () => {
+      const db = pedido.result;
+      const tx = db.transaction([...db.objectStoreNames], 'readwrite');
+      const salida = operar(tx);
+      tx.oncomplete = () => { db.close(); resolver(salida?.result); };
+      tx.onabort = () => { db.close(); rechazar(tx.error); };
+    };
+    pedido.onerror = () => rechazar(pedido.error);
+  });
+}
+
+const get = (almacen, clave) => raw(undefined, tx => tx.objectStore(almacen).get(clave));
+const put = (almacen, clave, valor) => raw(undefined, tx => tx.objectStore(almacen).put(valor, clave));
+
+async function prepararAnterior() {
+  const clave = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  async function cifrarAnterior(nombre, valor) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const datos = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: texto.encode(nombre) },
+      clave, texto.encode(valor));
+    return { formato: 1, iv, datos };
+  }
+  const sesionCifrada = await cifrarAnterior('sesion', SESION);
+  const colaCifrada = await cifrarAnterior('cola', COLA);
+  await raw(2, tx => {
+    const almacen = tx.objectStore('datos');
+    almacen.put(sesionCifrada, 'sesion');
+    almacen.put(colaCifrada, 'cola');
+    almacen.put(HOJA, 'hoja');
+    almacen.put(sesionCifrada, 'registro-no-valido');
+    tx.objectStore('claves').put(clave, 'aes');
+  });
+}
+
 try {
-  const recarga = location.hash === '#recarga';
-  if (!recarga) {
-    // 0. Base vieja (versión 1) con datos en texto plano, como la deja la versión anterior de la PWA.
-    await raw(1, tx => { tx.objectStore('datos').put('{"token":"VIEJO-SECRETO"}', 'cola-acciones'); return {}; });
-  }
+  if (!recarga) await prepararAnterior();
   const m = await import('/src/UltimaMilla.Repartidor/wwwroot/js/repartidor.js');
-  if (recarga) {
-    ok('9 la clave persiste al recargar (se lee lo guardado antes)', await m.leer('persistente') === 'sigue-aca');
-  } else {
-    ok('0a dato viejo se lee igual', await m.leer('cola-acciones') === '{"token":"VIEJO-SECRETO"}');
-    const migrado = await get('datos', 'cola-acciones');
-    ok('0b dato viejo quedó cifrado', typeof migrado === 'object' && !bytes(migrado).includes('VIEJO'));
-    const valor = '{"token":"SECRETO-123","destinatario":"Marta Rodríguez","calle":"18 de Julio 1234"}';
-    await m.guardar('sesion', valor);
-    ok('1 ida y vuelta', await m.leer('sesion') === valor);
-    const reg = await get('datos', 'sesion');
-    ok('2 en disco no está el texto', typeof reg === 'object' && !bytes(reg).includes('SECRETO') && !bytes(reg).includes('Marta'), JSON.stringify(Object.keys(reg)));
-    const clave = await get('claves', 'aes');
-    let exportable = true; try { await crypto.subtle.exportKey('raw', clave); } catch { exportable = false; }
-    ok('3 clave AES-GCM 256 no exportable', clave.algorithm.name === 'AES-GCM' && clave.algorithm.length === 256 && !clave.extractable && !exportable);
-    await m.guardar('sesion', valor); const reg2 = await get('datos', 'sesion');
-    ok('4 IV distinto en cada guardado', bytes(reg2) !== bytes(reg) && reg2.iv.join() !== reg.iv.join());
-    await put('datos', 'otra-clave', reg2);
-    ok('5 registro movido a otra clave no se lee', await m.leer('otra-clave') === null);
-    const alterado = { ...reg2, datos: new Uint8Array(reg2.datos).map((b, i) => i === 3 ? b ^ 1 : b).buffer };
+
+  if (!recarga) {
+    ok('el almacenamiento anterior requiere configurar la frase', await m.estadoAccesoLocal() === 'sinConfigurar');
+    ok('los datos anteriores no se muestran antes de la configuración', await m.leer('sesion') === null);
+    let falloMigracion = false;
+    try { await m.configurarAccesoLocal(FRASE); } catch { falloMigracion = true; }
+    ok('una migración fallida conserva la clave anterior y los registros intactos',
+      falloMigracion && (await get('claves', 'aes')) instanceof CryptoKey &&
+      (await get('datos', 'sesion')).formato === 1 && await get('proteccion', 'acceso') === undefined);
+    await raw(undefined, tx => tx.objectStore('datos').delete('registro-no-valido'));
+
+    ok('la migración conserva sesión, hoja y una visita anterior con foto', await m.configurarAccesoLocal(FRASE) &&
+      await m.leer('sesion') === SESION && await m.leer('hoja') === HOJA && await m.leer('cola') === COLA);
+    const configuracion = await get('proteccion', 'acceso');
+    ok('IndexedDB conserva solo versión, sal y verificador cifrado',
+      (await raw(undefined, tx => tx.objectStore('claves').count())) === 0 &&
+      configuracion.sal.length === 16 && configuracion.verificador.datos instanceof ArrayBuffer &&
+      Object.keys(configuracion).sort().join(',') === 'sal,verificador,version');
+
+    const sesionCifrada = await get('datos', 'sesion');
+    ok('la sesión migrada sigue cifrada', sesionCifrada.formato === 2 &&
+      !new TextDecoder().decode(sesionCifrada.datos).includes('TOKEN-DE-PRUEBA'));
+    await m.guardar('sesion', SESION);
+    const segundaEscritura = await get('datos', 'sesion');
+    ok('un nuevo guardado usa otro IV', sesionCifrada.iv.join() !== segundaEscritura.iv.join());
+    await put('datos', 'otra-clave', segundaEscritura);
+    ok('un registro movido a otro nombre no se puede leer', await m.leer('otra-clave') === null);
+    const alterado = { ...segundaEscritura, datos: new Uint8Array(segundaEscritura.datos).map((b, i) => i === 3 ? b ^ 1 : b).buffer };
     await put('datos', 'sesion', alterado);
-    ok('6 byte alterado no se lee', await m.leer('sesion') === null);
-    await m.guardar('sesion', valor); await m.borrar('sesion');
-    ok('7 borrar', await m.leer('sesion') === null && await get('datos', 'sesion') === undefined);
-    const cola = JSON.stringify([{ foto: 'data:image/jpeg;base64,' + 'A'.repeat(200000) }]);
-    await m.guardar('cola-acciones', cola);
-    ok('8 cola grande con foto', await m.leer('cola-acciones') === cola);
-    await m.guardar('persistente', 'sigue-aca');
+    ok('un registro alterado no se puede leer', await m.leer('sesion') === null);
+    await m.guardar('sesion', SESION);
+    await m.borrar('otra-clave');
+    ok('la visita pendiente con foto queda cifrada en el nuevo formato', (await get('datos', 'cola')).formato === 2);
+  } else {
+    ok('al recargar, la clave ya no está en memoria y la cola no se lee',
+      await m.estadoAccesoLocal() === 'bloqueado' && await m.leer('cola') === null);
+    let escrituraBloqueada = false;
+    try { await m.guardar('cola', 'no debe pisar la cola'); } catch { escrituraBloqueada = true; }
+    ok('el almacén bloqueado rechaza escrituras', escrituraBloqueada);
+    ok('una frase incorrecta mantiene los datos bloqueados',
+      !await m.desbloquearAccesoLocal('frase incorrecta') && await m.leer('cola') === null);
+    ok('la frase correcta recupera sesión, hoja y acción sin depender de la API',
+      await m.desbloquearAccesoLocal(FRASE) && await m.leer('sesion') === SESION &&
+      await m.leer('hoja') === HOJA && await m.leer('cola') === COLA);
+    m.bloquearAccesoLocal();
+    ok('el bloqueo explícito vuelve a retirar la clave de memoria', await m.leer('hoja') === null);
   }
-} catch (e) { r.push('ERROR ' + e); }
-document.getElementById('r').textContent = r.join('\n'); await fetch('/resultado' + (location.hash === '#recarga' ? '2' : '1'), { method: 'POST', body: r.join('\n') });
+} catch (error) {
+  resultados.push('ERROR ' + error);
+}
+document.getElementById('resultado').textContent = resultados.join('\n');
+await fetch('/resultado' + (recarga ? '2' : '1'), { method: 'POST', body: resultados.join('\n') });
 </script>

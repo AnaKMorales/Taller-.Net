@@ -2,6 +2,7 @@ namespace UltimaMilla.Application.Mensajeria;
 
 // El adaptador debe completar la tarea únicamente cuando el broker confirme la publicación
 // y la ruta de entrega sea válida. Un nack, mensaje no enrutable o falta de confirmación falla.
+// MensajeNoPublicableException indica que el fallo se puede registrar contra ese mensaje.
 // Debe respetar la cancelación y propagar MensajeId como identificador del transporte.
 public interface ITransporteMensajes
 {

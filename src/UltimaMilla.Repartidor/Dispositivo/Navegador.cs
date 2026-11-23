@@ -14,6 +14,16 @@ public sealed class Navegador(IJSRuntime js) : IAlmacenLocal, IUbicacionDisposit
     private Task<IJSObjectReference> Modulo() =>
         _modulo ??= js.InvokeAsync<IJSObjectReference>("import", "./js/repartidor.js").AsTask();
 
+    public async Task<string> EstadoAccesoLocalAsync() =>
+        await (await Modulo()).InvokeAsync<string>("estadoAccesoLocal");
+
+    public async Task<bool> AbrirAccesoLocalAsync(string frase, bool configurar) =>
+        await (await Modulo()).InvokeAsync<bool>(
+            configurar ? "configurarAccesoLocal" : "desbloquearAccesoLocal", frase);
+
+    public async Task BloquearAccesoLocalAsync() =>
+        await (await Modulo()).InvokeVoidAsync("bloquearAccesoLocal");
+
     public async Task<string?> LeerAsync(string clave) =>
         await (await Modulo()).InvokeAsync<string?>("leer", clave);
 

@@ -1,52 +1,49 @@
 # Cifrado en reposo de la PWA del repartidor
 
-Letra 6.3: "Cifrado en reposo de los datos personales almacenados en el dispositivo móvil".
+El acceso local de la PWA cifra la sesión y su token, la hoja de ruta, las visitas pendientes
+con sus fotos y firmas, las posiciones sin sincronizar y el identificador del dispositivo.
+El punto 9 de la reentrega (H5) aplica a la ubicación de la clave que protege esos datos.
 
-## Qué se cifra
+## Acceso local
 
-Todo lo que la PWA guarda en IndexedDB pasa por `leer`/`guardar`/`borrar` de
-`src/UltimaMilla.Repartidor/wwwroot/js/repartidor.js`, y ahí se cifra. Eso incluye:
+Al abrir la PWA actualizada por primera vez, el repartidor configura una frase local de al
+menos 12 caracteres. La app vuelve a pedirla tras cerrar, recargar o bloquear el dispositivo.
+El desbloqueo usa Web Crypto y funciona sin red una vez que la PWA publicada quedó disponible
+en la caché del service worker. El inicio de sesión con el servidor sigue siendo necesario
+para autenticar una cuenta o renovar un token vencido.
 
-- la **sesión** (token de acceso y datos del repartidor);
-- la **hoja de ruta** (nombres, direcciones y teléfonos de los destinatarios);
-- la **cola de acciones** sin sincronizar (resultados, nombre y documento de quien recibe, fotos y firmas);
-- el identificador del dispositivo.
+`wwwroot/js/almacen-local.js` deriva una clave AES-GCM de 256 bits con PBKDF2-SHA-256,
+600.000 iteraciones y una sal aleatoria de 16 bytes. En el almacén `proteccion` quedan la
+versión, la sal y un verificador cifrado. La frase y la clave derivada permanecen fuera de
+IndexedDB. La PWA conserva la clave no exportable en memoria mientras está abierta. Cada
+registro tiene un IV aleatorio de 12 bytes y autentica su nombre como dato asociado.
 
-El código C# no cambió: sigue guardando y leyendo texto; el cifrado es transparente.
+## Migración
 
-## Cómo
+IndexedDB pasa a la versión 3 al cargar la PWA actualizada. Al configurar la frase, los
+registros anteriores en texto claro o cifrados se convierten al nuevo formato. Una transacción
+guarda los datos migrados y la configuración a la vez que vacía el almacén anterior de claves.
+Si falla un descifrado o la escritura, los registros anteriores se conservan para reintentar.
+Una base nueva solo contiene `datos` y `proteccion`. Una base migrada puede conservar el
+almacén `claves` vacío.
 
-- **AES-GCM de 256 bits** con Web Crypto (`crypto.subtle`), nativo del navegador y disponible sin conexión. En
-  Blazor WebAssembly el `AesGcm` de .NET no está soportado, por eso se hace en JavaScript.
-- **Clave del dispositivo, no exportable.** Se genera la primera vez con `extractable: false` y se guarda como
-  `CryptoKey` en su propio almacén (`claves`) de la misma base. El código puede usarla, pero ni la app ni un script
-  pueden leer sus bytes (`exportKey` falla).
-- **Un IV aleatorio de 12 bytes por cada guardado.** Se guarda `{ formato, iv, datos }`.
-- **El nombre del dato como dato asociado (AAD).** Un registro cifrado copiado a otro nombre, o con un byte
-  alterado, no se puede descifrar.
-- **Migración sin pérdida.** La base pasa a la versión 2 (agrega `claves`) y conserva los datos. Un valor guardado
-  en texto por la versión anterior se lee igual y se reemplaza por su versión cifrada, **solo si nadie lo cambió
-  entretanto** (para no pisar acciones nuevas de la cola).
-- **Si algo no se puede descifrar** (clave perdida o dato alterado), se trata como ausente y se informa en la
-  consola: la app sigue funcionando (volver a ingresar o a descargar la hoja) en lugar de quedar trabada.
+## Verificación local
 
-## Prueba
+`tests/Navegador/probar-cifrado-pwa.sh` usa Chrome y Python 3. Comprueba el bloqueo al
+recargar, el rechazo de una frase incorrecta, la recuperación de la sesión y una visita
+pendiente con la frase correcta, el borrado de la clave antigua y la conservación de datos
+si falla la migración. También verifica IV distintos y el rechazo de registros cifrados
+movidos de nombre o alterados.
 
-`tests/Navegador/probar-cifrado-pwa.sh` abre Chrome real (headless, perfil temporal) con el `repartidor.js` del
-repositorio y verifica: migración desde una base de la versión anterior, ida y vuelta, que el texto no aparece en
-lo guardado, clave AES-GCM 256 no exportable, IV distinto en cada guardado, rechazo de registros movidos o
-alterados, borrado, una cola grande con foto, y que la clave persiste al recargar.
+Para una demo con la PWA publicada, preparar una hoja de ruta, registrar una visita sin red
+y tocar **Bloquear**. Con la red todavía cortada, intentar una frase incorrecta y después la
+correcta. Al abrirse la app, la misma visita debe seguir pendiente. En las herramientas del
+navegador, inspeccionar `proteccion` y comprobar que `claves` no exista o esté vacío.
 
-## Límites (qué protege y qué no)
+## Alcance
 
-- Protege los datos **copiados del almacenamiento** del navegador (un respaldo, una copia del perfil, otra app o
-  herramienta que lea los archivos de IndexedDB): ahí solo hay datos cifrados.
-- **No** protege de quien usa la propia app con el dispositivo desbloqueado, ni de código malicioso que corra en
-  el mismo origen: ese código puede pedirle a la app que descifre. La clave queda en el almacenamiento del
-  navegador, protegida por él y por el bloqueo del dispositivo, no por una contraseña del usuario.
-- [NO VERIFICADO] la extracción de la clave no exportable copiando los archivos internos del perfil del navegador:
-  depende de cómo cada navegador la persiste.
-- Si se borran los datos del sitio, se pierden la clave y los datos juntos (como antes, se pierden las acciones
-  no sincronizadas).
-- [NO VERIFICADO] el uso simultáneo en dos pestañas durante la migración; la creación de la clave sí contempla la
-  carrera (`add` y relectura).
+La protección depende de la frase elegida y cubre el almacenamiento persistido después de
+la migración. El acceso a una página ya desbloqueada, la ejecución de código en el mismo
+origen y copias hechas con la versión anterior quedan fuera de esa protección. Si se
+olvida la frase o se borran los datos del sitio, las visitas que quedaron solo en el
+dispositivo no se pueden recuperar desde el servidor.

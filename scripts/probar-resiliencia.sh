@@ -29,7 +29,7 @@ sql() { dc exec -T postgres psql -U "$PGUSER_" -d "$PGDB_" -tAc "$1" 2>/dev/null
 json() { python3 -c "import sys,json;print(json.load(sys.stdin)$1)"; }
 # Código HTTP y segundos de una llamada (máximo 15 s).
 medir() { curl -s -o /dev/null -m 15 -w '%{http_code} %{time_total}' "$@" || true; }
-pendientes() { sql 'SELECT count(*) FROM "MensajesOutbox" WHERE "PublicadoEn" IS NULL'; }
+pendientes() { sql 'SELECT count(*) FROM "MensajesOutbox" WHERE "PublicadoEn" IS NULL AND "CuarentenaEn" IS NULL'; }
 # Avisos entregados con éxito a la suscripción /ok de la cuenta de prueba (en la base: el receptor pierde su historial al reiniciarse).
 entregados_ok() { sql "SELECT count(*) FROM \"EntregasAviso\" WHERE \"SuscripcionId\"='$SUB_OK' AND \"Exitoso\""; }
 # Eventos que el receptor recibió con 200 en /ok más de una vez (debe ser 0: idempotencia de punta a punta).

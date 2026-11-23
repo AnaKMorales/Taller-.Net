@@ -122,7 +122,9 @@ public sealed class RabbitMqTests : IAsyncLifetime
     public async Task UnMensajeSinRutaFallaEnVezDePerderseEnSilencio()
     {
         await new TopologiaRabbitMq(_conexion, _opciones).DeclararAsync();
-        await Assert.ThrowsAnyAsync<PublishException>(() => _transporte.PublicarConfirmadoAsync(Mensaje("otro.tipo")));
+        var error = await Assert.ThrowsAsync<MensajeNoPublicableException>(
+            () => _transporte.PublicarConfirmadoAsync(Mensaje("otro.tipo")));
+        Assert.True(Assert.IsAssignableFrom<PublishException>(error.InnerException).IsReturn);
     }
 
     [RabbitMqFact]

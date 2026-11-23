@@ -1,7 +1,7 @@
 # ADR-005: trabajo sin conexión y sincronización de la app del repartidor
 
 Estado: aceptada. La PWA usa el login, la descarga de hoja de ruta y el registro por bulto reales.
-Responsable: Aldana. Actualización: 16/11/2026 (seguimiento periódico de la posición).
+Responsable: Aldana. Actualización: 23/11/2026 (protección de la clave local, reentrega H5).
 
 ## Problema
 
@@ -19,6 +19,32 @@ no puede generar dos intentos de entrega en el servidor.
 - Toda pantalla lee del dispositivo, nunca directamente del servidor: se ve igual con o sin red.
 - El service worker publicado guarda en caché los archivos de la app para que abra sin conexión.
 - El acceso a IndexedDB es un módulo JS propio y chico (`wwwroot/js/repartidor.js`), sin paquetes.
+
+### Protección del almacenamiento local
+
+En la versión anterior la clave AES no exportable se guardaba como `CryptoKey` en IndexedDB.
+Una copia del almacenamiento que incluya esa clave no exige un secreto del repartidor para
+acceder a los datos. Para la reentrega H5, se elige una frase local de al menos 12 caracteres,
+separada del inicio de sesión de la cuenta.
+
+La PWA deriva una clave AES-GCM de 256 bits mediante PBKDF2 con SHA-256, 600.000 iteraciones
+y una sal aleatoria de 16 bytes. IndexedDB conserva la sal, la versión de derivación y un
+verificador cifrado. La clave derivada es no exportable y existe solo en la memoria de la
+página. La frase se ingresa al abrir o recargar la app y el desbloqueo funciona sin red. Se
+puede bloquear el dispositivo sin cerrar la sesión del servidor ni borrar visitas pendientes.
+El router y la sincronización automática arrancan después del desbloqueo.
+
+Al configurar la frase en un dispositivo existente, el navegador vuelve a cifrar los
+registros con la clave derivada. Guarda esos registros, confirma la configuración y elimina
+la clave anterior en una sola transacción. Si la migración falla, conserva los registros y la
+clave anteriores para reintentar. Una segunda pestaña comprueba si otra ya terminó la
+configuración antes de guardar.
+
+Se eligió una frase local en lugar de un PIN corto por su mayor espacio de búsqueda al
+proteger una copia del almacenamiento. Se mantiene separada de la contraseña de la cuenta
+para que una renovación del token o un cambio de credenciales no bloquee los datos offline.
+Sin la frase no es posible recuperar localmente las acciones pendientes. Una copia tomada
+antes de la migración conserva las propiedades del formato anterior. Ver [cifrado local y prueba en navegador](../cifrado-pwa.md).
 
 ### Acciones
 
@@ -156,8 +182,8 @@ equipos de tres al aceptar una PWA.
 - El repartidor trabaja sin red y reenviar nunca duplica intentos.
 - Puede pasar un tiempo hasta que el backoffice vea una entrega (consistencia eventual).
 - Se confía en el reloj del dispositivo para `OcurridoEn`; el servidor puede rechazar fechas futuras.
-- La sesión, la hoja de ruta y la cola en IndexedDB se guardan **cifradas** (AES-GCM de 256 bits, clave
-  no exportable generada en el dispositivo; 15/11/2026, ver `docs/cifrado-pwa.md`). Protege los datos copiados
-  del almacenamiento del navegador, pero no de quien usa la propia app con el dispositivo desbloqueado. Las fotos
-  y las firmas se guardan (cifradas) con la visita para poder capturarlas sin conexión.
+- La sesión, la hoja de ruta y la cola permanecen cifradas con una clave derivada en memoria.
+  Las fotos y las firmas se guardan cifradas con la visita. El cifrado local protege el
+  almacenamiento en reposo y depende de que la frase sea robusta. Una página desbloqueada
+  debe poder mostrar los datos para trabajar, incluso sin conexión.
 - Si el usuario borra los datos del sitio en el navegador, se pierden las acciones no sincronizadas.

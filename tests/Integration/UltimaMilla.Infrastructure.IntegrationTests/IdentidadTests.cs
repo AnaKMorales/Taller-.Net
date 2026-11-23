@@ -318,13 +318,13 @@ public sealed partial class PostgresTests
             Assert.False(await usuarios.CheckPasswordAsync(cuenta, "secreta123"));
         }
 
-        // Base en la migración anterior, con el hash en Usuarios.ContrasenaHash como lo guardaba la versión previa.
+        // Sembrar con el modelo actual y después volver al esquema que guardaba el hash en Usuarios.ContrasenaHash.
         await using (var db = Context())
         {
-            await db.GetService<IMigrator>().MigrateAsync(MigracionAnteriorAIdentidad);
             db.Add(e.Envio);
             db.Entry(e.Admin).Property<string?>(ContrasenasUsuario.Columna).CurrentValue = hashViejo;
             await db.SaveChangesAsync();
+            await db.GetService<IMigrator>().MigrateAsync(MigracionAnteriorAIdentidad);
         }
         await using (var db = Context()) await db.Database.MigrateAsync();
 
@@ -347,9 +347,8 @@ public sealed partial class PostgresTests
     [PostgresFact]
     public async Task IdentidadMigracionConEmailsRepetidosFallaConMensajeClaroYNoDejaNadaAMedias()
     {
-        await using (var db = Context())
-            await db.GetService<IMigrator>().MigrateAsync(MigracionAnteriorAIdentidad);
-        // Antes de Identity el email era único solo por operador: dos operadores con admin@example.com.
+        // Sembrar los usuarios del dominio con el modelo actual. Los duplicados entre operadores
+        // reproducen los datos que podía contener la base anterior a Identity.
         foreach (var _ in new[] { 1, 2 })
         {
             var e = Escenario();
@@ -357,6 +356,9 @@ public sealed partial class PostgresTests
             db.Add(e.Envio);
             await db.SaveChangesAsync();
         }
+
+        await using (var db = Context())
+            await db.GetService<IMigrator>().MigrateAsync(MigracionAnteriorAIdentidad);
 
         await using (var db = Context())
         {

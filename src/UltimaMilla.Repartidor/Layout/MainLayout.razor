@@ -1,10 +1,23 @@
 ﻿@inherits LayoutComponentBase
+@inject Navegador Dispositivo
+@inject NavigationManager Navegacion
 @* Layout de una sola columna: la app se usa en el celular del repartidor. *@
 <header class="barra navbar navbar-dark px-3">
     <a class="navbar-brand mb-0" href="">Repartidor</a>
-    <EstadoSincronizacion />
+    <div class="d-flex align-items-center gap-2">
+        <EstadoSincronizacion />
+        <button type="button" class="btn btn-sm btn-outline-light" @onclick="BloquearAsync">Bloquear</button>
+    </div>
 </header>
 
 <main class="container py-3">
     @Body
 </main>
+
+@code {
+    private async Task BloquearAsync()
+    {
+        await Dispositivo.BloquearAccesoLocalAsync();
+        Navegacion.NavigateTo(Navegacion.Uri, forceLoad: true, replace: true);
+    }
+}

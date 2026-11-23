@@ -1,0 +1,100 @@
+@inject Navegador Dispositivo
+@inject ILogger<AccesoLocal> Log
+
+@if (_estado == "abierto")
+{
+    @ChildContent
+}
+else
+{
+    <PageTitle>Protección del dispositivo</PageTitle>
+    <main class="container py-4">
+        @if (_estado is "bloqueado" or "sinConfigurar")
+        {
+            <h1 class="h4">@(Configurando ? "Protegé los datos de este dispositivo" : "Desbloqueá este dispositivo")</h1>
+            <p>@(Configurando
+                ? "Elegí una frase local distinta de la contraseña de tu cuenta. Guardala en un lugar seguro para poder acceder a tus datos sin conexión."
+                : "Ingresá tu frase local para abrir la hoja de ruta y las acciones guardadas. No necesitás conexión.")</p>
+            <form @onsubmit="AbrirAsync" class="d-grid gap-2" style="max-width: 26rem">
+                <label for="frase-local">Frase local</label>
+                <input id="frase-local" class="form-control" type="password" autocomplete="off"
+                       @bind="_frase" required minlength="12" maxlength="256" disabled="@_procesando" />
+                @if (Configurando)
+                {
+                    <small class="text-muted">Usá al menos 12 caracteres.</small>
+                    <label for="confirmacion-local">Repetí la frase local</label>
+                    <input id="confirmacion-local" class="form-control" type="password" autocomplete="off"
+                           @bind="_confirmacion" required minlength="12" maxlength="256" disabled="@_procesando" />
+                }
+                <button type="submit" class="btn btn-primary" disabled="@_procesando">
+                    @(_procesando ? "Abriendo..." : Configurando ? "Proteger y abrir" : "Desbloquear")
+                </button>
+            </form>
+        }
+        else if (_estado is null)
+        {
+            <h1 class="h4">Comprobando el almacenamiento local…</h1>
+        }
+        else
+        {
+            <h1 class="h4">No se pudo abrir el almacenamiento local</h1>
+            <button type="button" class="btn btn-outline-primary" @onclick="ComprobarAsync">Reintentar</button>
+        }
+        @if (_mensaje is not null)
+        {
+            <p class="alert alert-warning mt-3" role="alert">@_mensaje</p>
+        }
+    </main>
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string? _estado;
+    private string? _mensaje;
+    private string _frase = "";
+    private string _confirmacion = "";
+    private bool _procesando;
+    private bool Configurando => _estado == "sinConfigurar";
+
+    protected override Task OnInitializedAsync() => ComprobarAsync();
+
+    private async Task ComprobarAsync()
+    {
+        _estado = _mensaje = null;
+        try { _estado = await Dispositivo.EstadoAccesoLocalAsync(); }
+        catch (JSException error)
+        {
+            Log.LogWarning(error, "No se pudo acceder al almacenamiento local.");
+            _estado = "error";
+            _mensaje = "Cerrá las otras pestañas de la app y reintentá.";
+        }
+    }
+
+    private async Task AbrirAsync()
+    {
+        if (_procesando) return;
+        _mensaje = null;
+        if (Configurando && (_frase.Trim().Length < 12 || _frase != _confirmacion))
+        {
+            _mensaje = "Las frases deben coincidir y tener al menos 12 caracteres.";
+            return;
+        }
+
+        _procesando = true;
+        var frase = _frase;
+        _frase = _confirmacion = "";
+        try
+        {
+            var abierto = await Dispositivo.AbrirAccesoLocalAsync(frase, Configurando);
+            _estado = abierto ? "abierto" : "bloqueado";
+            if (!abierto) _mensaje = "La frase local no es correcta.";
+        }
+        catch (JSException error)
+        {
+            Log.LogWarning(error, "No se pudo desbloquear el almacenamiento local.");
+            _mensaje = "No se pudieron abrir los datos locales. Se conservaron para que puedas reintentar.";
+        }
+        finally { _procesando = false; }
+    }
+}

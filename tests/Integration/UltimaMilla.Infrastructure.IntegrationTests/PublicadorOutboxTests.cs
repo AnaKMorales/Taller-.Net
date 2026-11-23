@@ -62,13 +62,60 @@ public sealed partial class PostgresTests
             Assert.Empty(writer.ChangeTracker.Entries());
         }
         await using (var reader = Context())
-            Assert.Null((await reader.Set<MensajeOutbox>().SingleAsync()).PublicadoEn);
+        {
+            var mensaje = await reader.Set<MensajeOutbox>().SingleAsync();
+            Assert.Null(mensaje.PublicadoEn);
+            Assert.Null(mensaje.CuarentenaEn);
+            Assert.Equal(0, mensaje.IntentosFallidos);
+        }
         await using var next = Context();
         Assert.Equal(1, await Publicador(next, new TransportePrueba((mensaje, _) =>
         {
             Assert.Equal(fallido, mensaje.MensajeId);
             return Task.CompletedTask;
         })).PublicarLoteAsync());
+    }
+
+    [PostgresFact]
+    public async Task PublicadorApartaElMensajeTrasTresFallosYPublicaElSiguienteDelMismoOperador()
+    {
+        var escenario = await GuardarEscenario(recibido: true);
+        await using var lectura = Context();
+        var ids = await lectura.Set<MensajeOutbox>().OrderBy(m => m.CreadoEn).ThenBy(m => m.Id)
+            .Select(m => m.Id).ToArrayAsync();
+        var enviados = new List<Guid>();
+        var servicio = new PublicacionOutboxPorOperador(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_testConnection).Options,
+            new TransportePrueba((mensaje, _) =>
+            {
+                Assert.Equal(escenario.Operador.Id, mensaje.OperadorId);
+                enviados.Add(mensaje.MensajeId);
+                return mensaje.MensajeId == ids[0]
+                    ? throw new MensajeNoPublicableException("Mensaje sin ruta en el transporte de prueba.")
+                    : Task.CompletedTask;
+            }), new RelojPublicacion(), new OpcionesPublicacionOutbox());
+        var operador = escenario.Operador.Id;
+
+        for (var intento = 1; intento <= 2; intento++)
+        {
+            await Assert.ThrowsAsync<MensajeNoPublicableException>(() => servicio.PublicarLoteAsync(operador));
+            var pendiente = await lectura.Set<MensajeOutbox>().AsNoTracking().SingleAsync(m => m.Id == ids[0]);
+            Assert.Equal(intento, pendiente.IntentosFallidos);
+            Assert.Null(pendiente.CuarentenaEn);
+            Assert.Null(pendiente.PublicadoEn);
+        }
+
+        Assert.Equal(1, await servicio.PublicarLoteAsync(operador));
+        Assert.Equal(new[] { ids[0], ids[0], ids[0], ids[1] }, enviados);
+        var mensajes = await lectura.Set<MensajeOutbox>().ToDictionaryAsync(m => m.Id);
+        Assert.Equal(3, mensajes[ids[0]].IntentosFallidos);
+        Assert.Equal(EscenarioPersistencia.Fecha.AddDays(20), mensajes[ids[0]].CuarentenaEn);
+        Assert.Null(mensajes[ids[0]].PublicadoEn);
+        Assert.NotNull(mensajes[ids[1]].PublicadoEn);
+        Assert.Null(mensajes[ids[1]].CuarentenaEn);
+        Assert.Empty(await servicio.ListarConPendientesAsync());
+        Assert.Equal(0, await servicio.PublicarLoteAsync(operador));
+        Assert.Equal(4, enviados.Count);
     }
 
     [PostgresFact]
@@ -133,7 +180,9 @@ public sealed partial class PostgresTests
         finally { cancelar.Cancel(); }
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ejecucion);
         await using var next = Context();
-        Assert.Null((await next.Set<MensajeOutbox>().AsNoTracking().SingleAsync()).PublicadoEn);
+        var pendiente = await next.Set<MensajeOutbox>().AsNoTracking().SingleAsync();
+        Assert.Null(pendiente.PublicadoEn);
+        Assert.Equal(0, pendiente.IntentosFallidos);
         Assert.Equal(1, await Publicador(next, new TransportePrueba((_, _) => Task.CompletedTask)).PublicarLoteAsync());
     }
 
@@ -146,7 +195,9 @@ public sealed partial class PostgresTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Publicador(writer, transporte,
             new() { TiempoMaximoConfirmacion = TimeSpan.FromMilliseconds(50) }).PublicarLoteAsync());
         await using var reader = Context();
-        Assert.Null((await reader.Set<MensajeOutbox>().SingleAsync()).PublicadoEn);
+        var pendiente = await reader.Set<MensajeOutbox>().SingleAsync();
+        Assert.Null(pendiente.PublicadoEn);
+        Assert.Equal(0, pendiente.IntentosFallidos);
     }
 
     [PostgresFact]
@@ -179,7 +230,9 @@ public sealed partial class PostgresTests
         }
         await using (var setup = Context())
         {
-            Assert.Null((await setup.Set<MensajeOutbox>().AsNoTracking().SingleAsync()).PublicadoEn);
+            var pendiente = await setup.Set<MensajeOutbox>().AsNoTracking().SingleAsync();
+            Assert.Null(pendiente.PublicadoEn);
+            Assert.Equal(0, pendiente.IntentosFallidos);
             await setup.Database.ExecuteSqlRawAsync("ALTER TABLE \"MensajesOutbox\" DROP CONSTRAINT \"FallaMarcadoPrueba\"");
         }
         await using var next = Context();

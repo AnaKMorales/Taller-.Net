@@ -2,7 +2,7 @@ namespace UltimaMilla.Application.Mensajeria;
 
 public interface IPublicadorOutbox
 {
-    // Una ejecución acotada, sin bucle en segundo plano ni política de reintentos.
-    // Cada mensaje confirmado se guarda individualmente. Un error detiene el lote y se propaga.
+    // Una ejecución acotada. Persiste cada confirmación y cada fallo atribuible a un mensaje.
+    // Si el mensaje entra en cuarentena, el lote continúa. Los demás errores se propagan.
     Task<int> PublicarLoteAsync(int maximoMensajes = 100, CancellationToken cancellationToken = default);
 }
