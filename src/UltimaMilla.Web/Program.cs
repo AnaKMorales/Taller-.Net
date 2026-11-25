@@ -162,6 +162,7 @@ builder.Services.AddScoped<IReprogramacionPublicaRepository, ReprogramacionPubli
 builder.Services.AddScoped<ReprogramarPorDestinatarioHandler>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AgregarBiometriaRepartidor();
+builder.Services.AgregarAvisosPushRepartidor(builder.Configuration);
 builder.Services.AddSingleton<EstadoSincronizaciones>();
 builder.Services.AgregarHojasRuta();
 builder.Services.AddScoped<IDespachoPendientes, DespachoPendientes>();

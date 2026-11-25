@@ -9,7 +9,7 @@ using UltimaMilla.Repartidor.Sincronizacion;
 namespace UltimaMilla.Repartidor.Servidor;
 
 // Cliente de sesión, hojas e intentos del repartidor.
-public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simulada, TimeProvider reloj) : IApiRepartidor, IApiPosiciones
+public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simulada, TimeProvider reloj) : IApiRepartidor, IApiPosiciones, IApiAvisos
 {
     private const string RutaSesion = "api/repartidor/sesion";
     private const string RutaHojas = "api/repartidor/rutas";
@@ -161,6 +161,34 @@ public sealed class ApiRepartidorHttp(HttpClient http, ApiRepartidorFalsa simula
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync(JsonRepartidor.Default.PosicionesRegistradasDto, ct)
             ?? new PosicionesRegistradasDto(0, 0, 0);
+    }
+
+    public async Task<string?> ObtenerClavePushAsync(SesionRepartidor sesion, CancellationToken ct = default)
+    {
+        VerificarVigencia(sesion);
+        using var respuesta = await ConsultarAsync("api/repartidor/avisos/clave", sesion.Token, ct);
+        if (respuesta.StatusCode == HttpStatusCode.NotFound) return null;
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.Content.ReadFromJsonAsync(JsonRepartidor.Default.ClavePushDto, ct))?.ClavePublica;
+    }
+
+    public Task RegistrarSuscripcionPushAsync(SesionRepartidor sesion, SuscripcionPushDto suscripcion,
+        CancellationToken ct = default) =>
+        EnviarAvisosAsync(sesion, "api/repartidor/avisos/suscripcion",
+            JsonContent.Create(suscripcion, JsonRepartidor.Default.SuscripcionPushDto), ct);
+
+    public Task QuitarSuscripcionPushAsync(SesionRepartidor sesion, string endpoint, CancellationToken ct = default) =>
+        EnviarAvisosAsync(sesion, "api/repartidor/avisos/suscripcion/baja",
+            JsonContent.Create(new BajaSuscripcionPushDto(endpoint), JsonRepartidor.Default.BajaSuscripcionPushDto), ct);
+
+    private async Task EnviarAvisosAsync(SesionRepartidor sesion, string ruta, HttpContent contenido, CancellationToken ct)
+    {
+        VerificarVigencia(sesion);
+        using var request = new HttpRequestMessage(HttpMethod.Post, ruta) { Content = contenido };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sesion.Token);
+        using var response = await http.SendAsync(request, ct);
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) throw new SesionExpiradaException();
+        response.EnsureSuccessStatusCode();
     }
 
     private static async Task<ProblemaIntentoDto?> LeerProblemaAsync(HttpResponseMessage respuesta, CancellationToken ct)

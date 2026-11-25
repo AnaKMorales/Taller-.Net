@@ -1,0 +1,87 @@
+@* Activa los avisos con la app cerrada: el Backoffice asigna o reasigna un envío y el celular lo muestra
+   aunque la PWA no esté abierta (docs/push-repartidor.md). *@
+@inject Navegador Dispositivo
+@inject IApiAvisos Api
+@inject DatosLocales Datos
+@inject EstadoConexion Conexion
+
+@if (_estado is "inactivo" or "error")
+{
+    <div class="alert alert-info py-2 d-flex justify-content-between align-items-center gap-2" data-avisos="@_estado">
+        <span>@(_estado == "error" ? _mensaje : "Activá los avisos para enterarte de las reasignaciones aunque la app esté cerrada.")</span>
+        <button class="btn btn-sm btn-primary text-nowrap" @onclick="ActivarAsync" disabled="@(_ocupado || !Conexion.EnLinea)">Activar avisos</button>
+    </div>
+}
+else if (_estado == "denegado")
+{
+    <div class="alert alert-warning py-2" data-avisos="denegado">
+        Las notificaciones están bloqueadas para esta app. Habilitalas en los ajustes del navegador para recibir las reasignaciones.
+    </div>
+}
+else if (_estado == "activo")
+{
+    <p class="small text-success mb-2" data-avisos="activo">Avisos activados: te llegan las reasignaciones aunque la app esté cerrada.</p>
+}
+
+@code {
+    private string? _estado;
+    private string? _mensaje;
+    private bool _ocupado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var estado = await Dispositivo.EstadoAvisosAsync();
+            // Si el navegador ya está suscripto, se vuelve a registrar en el servidor (por si cambió el
+            // repartidor de este celular o se borró la suscripción). Sin conexión, se muestra igual como activo.
+            if (estado == "activo" && Conexion.EnLinea) await RegistrarAsync(mostrarError: false);
+            else _estado = estado;
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            _estado = "no-soportado";
+        }
+    }
+
+    private Task ActivarAsync() => RegistrarAsync(mostrarError: true);
+
+    private async Task RegistrarAsync(bool mostrarError)
+    {
+        _ocupado = true;
+        try
+        {
+            if (await Datos.ObtenerSesionAsync() is not { } sesion) return;
+            var clave = await Api.ObtenerClavePushAsync(sesion);
+            if (clave is null)
+            {
+                _estado = mostrarError ? "error" : "no-soportado";
+                _mensaje = "El servidor no tiene los avisos configurados.";
+                return;
+            }
+            var resultado = await Dispositivo.ActivarAvisosAsync(clave);
+            if (resultado is { Endpoint: { } endpoint, P256dh: { } p256dh, Auth: { } auth })
+            {
+                await Api.RegistrarSuscripcionPushAsync(sesion, new SuscripcionPushDto(endpoint, p256dh, auth));
+                _estado = "activo";
+                return;
+            }
+            _estado = resultado.Error switch { "denegado" => "denegado", "no-soportado" => "no-soportado", _ => "error" };
+            _mensaje = "No se pudieron activar los avisos en este dispositivo. Probá de nuevo.";
+        }
+        catch (SesionExpiradaException)
+        {
+            _estado = "error";
+            _mensaje = "Tu sesión venció: ingresá de nuevo para activar los avisos.";
+        }
+        catch (HttpRequestException)
+        {
+            _estado = mostrarError ? "error" : "activo";
+            _mensaje = "No se pudo conectar con el servidor para activar los avisos.";
+        }
+        finally
+        {
+            _ocupado = false;
+        }
+    }
+}

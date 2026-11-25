@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Application.Notificaciones;
 using UltimaMilla.Infrastructure.Avisos;
+using UltimaMilla.Infrastructure.Push;
 
 namespace UltimaMilla.Infrastructure.Notificaciones;
 
@@ -26,8 +27,11 @@ public static class NotificacionesServiceCollectionExtensions
         services.AddSingleton<NotificacionDestinatario>();
         services.TryAddSingleton<EntregaWebhooks>();
         services.RemoveAll<IManejadorEventoEnvio>();
+        // Orden: destinatario, repartidor (push, si se registró con AgregarAvisosPushRepartidor) y webhooks.
         services.AddSingleton<IManejadorEventoEnvio>(sp => new ManejadoresEventoEnvio(
-            [sp.GetRequiredService<NotificacionDestinatario>(), sp.GetRequiredService<EntregaWebhooks>()]));
+            new IManejadorEventoEnvio?[] { sp.GetRequiredService<NotificacionDestinatario>(),
+                    sp.GetService<AvisoPushRepartidor>(), sp.GetRequiredService<EntregaWebhooks>() }
+                .OfType<IManejadorEventoEnvio>().ToArray()));
         return services;
     }
 }

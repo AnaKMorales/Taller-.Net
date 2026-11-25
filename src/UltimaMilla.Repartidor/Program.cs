@@ -33,6 +33,7 @@ builder.Services.AddSingleton<ApiRepartidorFalsa>();
 builder.Services.AddSingleton<ApiRepartidorHttp>();
 builder.Services.AddSingleton<IApiRepartidor>(sp => sp.GetRequiredService<ApiRepartidorHttp>());
 builder.Services.AddSingleton<IApiPosiciones>(sp => sp.GetRequiredService<ApiRepartidorHttp>());
+builder.Services.AddSingleton<IApiAvisos>(sp => sp.GetRequiredService<ApiRepartidorHttp>());
 builder.Services.AddSingleton<IUbicacionDispositivo>(sp => sp.GetRequiredService<Navegador>());
 
 await builder.Build().RunAsync();

@@ -1,6 +1,7 @@
 using UltimaMilla.Infrastructure.Notificaciones;
 using UltimaMilla.Application.Mensajeria;
 using UltimaMilla.Infrastructure.Avisos;
+using UltimaMilla.Infrastructure.Push;
 using UltimaMilla.Infrastructure.Mensajeria;
 using UltimaMilla.Infrastructure.Persistence.Outbox;
 using UltimaMilla.Worker;
@@ -40,6 +41,9 @@ builder.Services.AgregarNotificacionesDestinatario(builder.Configuration.GetSect
     .Get<OpcionesNotificaciones>(),
     // Correo real: Smtp__Servidor, Smtp__Remitente, Smtp__Usuario y Smtp__Clave (env/user-secrets). Sin servidor, solo log.
     builder.Configuration.GetSection(OpcionesSmtp.Seccion).Get<OpcionesSmtp>());
+// Aviso push al celular del repartidor cuando el Backoffice le asigna o reasigna un envío (docs/push-repartidor.md).
+// Claves VAPID: WebPush__ClavePublica y WebPush__ClavePrivada (env/SSM). Sin claves, no se envía nada.
+builder.Services.AgregarAvisosPushRepartidor(builder.Configuration.GetSection(OpcionesWebPush.Seccion).Get<OpcionesWebPush>());
 builder.Services.AddSingleton<IManejadorMensajes, ProcesadorAvisos>();
 builder.Services.AddHostedService<ConsumidorAvisosWorker>();
 

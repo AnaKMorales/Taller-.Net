@@ -123,6 +123,8 @@
         RabbitMq__Clave: ${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD en deploy/.env}
         # Web solo confía en X-Forwarded-* si vienen de esta red (Traefik); ver CabecerasReenviadas.cs.
         ForwardedHeaders__RedConfiable: ${RED_INTERNA_SUBNET:-172.28.0.0/16}
+        # Avisos push al repartidor (docs/push-repartidor.md): Web solo necesita la clave pública VAPID.
+        WebPush__ClavePublica: ${WEBPUSH_CLAVE_PUBLICA:-}
         # Claves de cookies/antiforgery: en el volumen, para que las sesiones sobrevivan a un reinicio.
         DataProtection__RutaClaves: /claves
         # Límite del seguimiento por IP; se sube solo durante la prueba de carga (tests/carga)
@@ -172,6 +174,11 @@
         Smtp__Clave: ${SMTP_CLAVE:-}
         Smtp__Remitente: ${SMTP_REMITENTE:-avisos@ultimamilla.local}
         Smtp__NombreRemitente: ${SMTP_NOMBRE_REMITENTE:-UltimaMilla}
+        # Avisos push al celular del repartidor cuando el Backoffice le asigna/reasigna un envío. Sin claves no se
+        # envían (queda en el log). Generar con scripts/generar-claves-webpush.sh; en AWS, parámetros de SSM.
+        WebPush__ClavePublica: ${WEBPUSH_CLAVE_PUBLICA:-}
+        WebPush__ClavePrivada: ${WEBPUSH_CLAVE_PRIVADA:-}
+        WebPush__Asunto: ${WEBPUSH_ASUNTO:-mailto:soporte@ultimamilla.local}
         OpenTelemetry__ExportarOtlp: "true"
         OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       mem_limit: 256m

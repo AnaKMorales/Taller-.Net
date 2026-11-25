@@ -1658,3 +1658,30 @@ VALUES ('20261123153936_PasskeysRepartidor', '10.0.12');
 
 COMMIT;
 
+START TRANSACTION;
+CREATE TABLE "SuscripcionesPush" (
+    "Id" uuid NOT NULL,
+    "UsuarioId" uuid NOT NULL,
+    "TenantId" uuid NOT NULL,
+    "Endpoint" character varying(2048) NOT NULL,
+    "P256dh" character varying(128) NOT NULL,
+    "Auth" character varying(64) NOT NULL,
+    "CreadaEn" timestamp with time zone NOT NULL,
+    "ActualizadaEn" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_SuscripcionesPush" PRIMARY KEY ("Id"),
+    CONSTRAINT "AK_SuscripcionesPush_Id_TenantId" UNIQUE ("Id", "TenantId"),
+    CONSTRAINT "FK_SuscripcionesPush_Operadores_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Operadores" ("Id") ON DELETE RESTRICT,
+    CONSTRAINT "FK_SuscripcionesPush_Usuarios_UsuarioId_TenantId" FOREIGN KEY ("UsuarioId", "TenantId") REFERENCES "Usuarios" ("Id", "TenantId") ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX "IX_SuscripcionesPush_Endpoint_TenantId" ON "SuscripcionesPush" ("Endpoint", "TenantId");
+
+CREATE INDEX "IX_SuscripcionesPush_TenantId" ON "SuscripcionesPush" ("TenantId");
+
+CREATE INDEX "IX_SuscripcionesPush_UsuarioId_TenantId" ON "SuscripcionesPush" ("UsuarioId", "TenantId");
+
+INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+VALUES ('20261125012031_SuscripcionesPushRepartidor', '10.0.12');
+
+COMMIT;
+

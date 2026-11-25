@@ -22,6 +22,10 @@ public sealed partial class PostgresTests
         // MensajesProcesados también es dato por operador: se siembra una fila para cada uno.
         await Registro().EjecutarUnaVezAsync(TenantDe(a), Guid.NewGuid(), "avisos", _ => Task.CompletedTask);
         await Registro().EjecutarUnaVezAsync(TenantDe(b), Guid.NewGuid(), "avisos", _ => Task.CompletedTask);
+        // Y una suscripción Web Push del repartidor de cada operador (mismo endpoint: es único por operador).
+        var claves = ClavesPush();
+        await SuscripcionesDe(a, claves).GuardarAsync(Dispositivo("https://fcm.googleapis.com/fcm/send/compartido"));
+        await SuscripcionesDe(b, claves).GuardarAsync(Dispositivo("https://fcm.googleapis.com/fcm/send/compartido"));
         await using var first = Context(a.Operador.Id);
         await using var second = Context(b.Operador.Id);
         Assert.Same(first.Model, second.Model);

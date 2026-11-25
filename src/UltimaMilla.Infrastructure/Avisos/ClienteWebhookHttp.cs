@@ -47,7 +47,8 @@ public sealed class ClienteWebhookHttp : IClienteWebhook, IDisposable
         catch (HttpRequestException error) { return ResultadoWebhook.Fallo(error.InnerException is DestinoNoPermitidoException ? "Destino no permitido" : "Error de conexión"); }
     }
 
-    private static async ValueTask<Stream> ConectarAsync(SocketsHttpConnectionContext contexto, bool permitirPrivados, CancellationToken token)
+    // También lo usa el cliente de Web Push (Push/ClienteWebPush.cs).
+    internal static async ValueTask<Stream> ConectarAsync(SocketsHttpConnectionContext contexto, bool permitirPrivados, CancellationToken token)
     {
         var host = contexto.DnsEndPoint.Host;
         // Se resuelve aquí y se conecta a la IP ya validada: evita que el DNS cambie entre la validación y la conexión.

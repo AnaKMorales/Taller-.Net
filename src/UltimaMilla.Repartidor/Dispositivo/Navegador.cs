@@ -31,6 +31,17 @@ public sealed class Navegador(IJSRuntime js) : IAlmacenLocal, IUbicacionDisposit
     public async Task<JsonElement> ConfirmarConDispositivoAsync(string opcionesJson, bool registrar) =>
         await (await Modulo()).InvokeAsync<JsonElement>("confirmarConDispositivo", opcionesJson, registrar);
 
+    // Avisos push con la app cerrada: "no-soportado" | "denegado" | "activo" | "inactivo".
+    public async Task<string> EstadoAvisosAsync() =>
+        await (await Modulo()).InvokeAsync<string>("estadoAvisos");
+
+    public async Task<ResultadoSuscripcionPush> ActivarAvisosAsync(string clavePublica) =>
+        await (await Modulo()).InvokeAsync<ResultadoSuscripcionPush>("activarAvisos", clavePublica);
+
+    // Devuelve el endpoint dado de baja (para borrarlo en el servidor) o null si no había suscripción.
+    public async Task<string?> DesactivarAvisosAsync() =>
+        await (await Modulo()).InvokeAsync<string?>("desactivarAvisos");
+
     public async Task<string?> LeerAsync(string clave) =>
         await (await Modulo()).InvokeAsync<string?>("leer", clave);
 

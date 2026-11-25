@@ -1345,3 +1345,20 @@ antes de seguir). Límite que se mantiene: con la pantalla apagada la PWA no pue
 Validación: pruebas nuevas de Domain (8), PWA (9) e integración con PostgreSQL real (4, más el escenario de
 aislamiento entre operadores con la tabla nueva). Prueba manual contra la API local: lote aceptado, reenvío marcado
 como repetido, 401 sin token, 400 con lote vacío, y el mapa del tablero mostrando la última lectura con su vehículo.
+
+### 24/11/2026: aviso al repartidor con la app cerrada (reentrega)
+
+Responsable: Aldana. Se usó Claude Code para implementar Web Push: tabla `SuscripcionesPush` (migración
+`SuscripcionesPushRepartidor`), endpoints `/api/repartidor/avisos/*`, componente `AvisosPush` y manejadores `push` /
+`notificationclick` en los dos service workers de la PWA, y `AvisoPushRepartidor` en el Worker para los eventos
+`Asignar`/`Reasignar` (ver `docs/push-repartidor.md`).
+
+Decisiones revisadas: cifrado RFC 8291 y firma VAPID con las primitivas de .NET (sin paquete externo); el Worker solo envía
+a servicios push conocidos e IPs públicas (el endpoint lo manda el dispositivo); la clave privada solo está en el Worker;
+idempotencia propia para no repetir el aviso si fallan los webhooks; 404/410 borran la suscripción. Terraform no se tocó:
+las claves se cargan en SSM con el comando de la doc. También se actualizó `TenancyTests`, que fallaba desde el commit de
+passkeys (no contemplaba `AspNetUserPasskeys`).
+
+Validación: el cifrado reproduce byte a byte el vector del apéndice A del RFC 8291; la firma VAPID se verifica con la
+clave pública; pruebas de configuración y destinos permitidos; integración con PostgreSQL real (asignación → un aviso por
+dispositivo, sin repetir en la reentrega, suscripción vencida borrada, solo el repartidor registra dispositivos). Sin commit.

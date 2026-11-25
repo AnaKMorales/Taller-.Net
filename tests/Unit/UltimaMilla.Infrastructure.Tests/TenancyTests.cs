@@ -13,7 +13,8 @@ public sealed class TenancyTests
         var todas = db.Model.GetEntityTypes().Where(t => t.BaseType is null).ToArray();
         // Única excepción deliberada: las tablas de ASP.NET Identity (el login busca antes de conocer el operador).
         var identidad = todas.Where(t => EsIdentidad(t.ClrType)).ToArray();
-        Assert.Equal(["AspNetUserClaims", "AspNetUserLogins", "AspNetUserTokens", "AspNetUsers"],
+        // AspNetUserPasskeys aparece dos veces: la credencial y sus datos (tipo propio en la misma tabla).
+        Assert.Equal(["AspNetUserClaims", "AspNetUserLogins", "AspNetUserPasskeys", "AspNetUserPasskeys", "AspNetUserTokens", "AspNetUsers"],
             identidad.Select(t => t.GetTableName()).Order(StringComparer.Ordinal));
         Assert.All(identidad, type =>
         {

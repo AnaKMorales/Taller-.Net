@@ -6,6 +6,8 @@
 @inject EstadoConexion Conexion
 @inject NavigationManager Navegacion
 @inject TimeProvider Reloj
+@inject Navegador Dispositivo
+@inject IApiAvisos ApiAvisos
 
 <PageTitle>Hoja de ruta</PageTitle>
 
@@ -20,6 +22,7 @@
 @if (_sesion is not null)
 {
     <p class="small"><a href="seguridad">Seguridad de mi cuenta</a></p>
+    <AvisosPush />
 }
 
 @if (_mensaje is not null)
@@ -161,8 +164,23 @@ else
             return;
         }
 
+        // Los avisos son de este repartidor: si otro usa el celular, no tienen que llegarle.
+        await QuitarAvisosAsync(_sesion);
         await Datos.CerrarSesionAsync();
         Navegacion.NavigateTo("login");
+    }
+
+    private async Task QuitarAvisosAsync(SesionRepartidor? sesion)
+    {
+        try
+        {
+            var endpoint = await Dispositivo.DesactivarAvisosAsync();
+            if (endpoint is not null && sesion is not null && Conexion.EnLinea)
+                await ApiAvisos.QuitarSuscripcionPushAsync(sesion, endpoint);
+        }
+        // Sin conexión o con la sesión vencida queda en el servidor; el servicio push responde 410 la próxima vez
+        // que se intente avisar y el Worker la borra.
+        catch (Exception error) when (error is HttpRequestException or SesionExpiradaException or JSException) { }
     }
 
     public void Dispose()

@@ -258,3 +258,61 @@ export function detenerEscaneo() {
     escaneo.stream.getTracks().forEach(t => t.stop());
     escaneo = null;
 }
+
+// Avisos con la app cerrada (Web Push). La suscripción vive en el service worker: el celular despierta al
+// service worker cuando llega un aviso y este muestra la notificación (service-worker.js, evento "push").
+// Estados: "no-soportado" | "denegado" | "activo" | "inactivo".
+export async function estadoAvisos() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window))
+        return 'no-soportado';
+    if (Notification.permission === 'denied') return 'denegado';
+    const registro = await navigator.serviceWorker.getRegistration();
+    const suscripcion = await registro?.pushManager.getSubscription();
+    return suscripcion && Notification.permission === 'granted' ? 'activo' : 'inactivo';
+}
+
+// Pide permiso y se suscribe con la clave pública VAPID del servidor. Devuelve { endpoint, p256dh, auth }
+// para registrarla en la API, o { error } ("no-soportado" | "denegado" | "fallo").
+export async function activarAvisos(clavePublica) {
+    if ((await estadoAvisos()) === 'no-soportado') return { error: 'no-soportado' };
+    if ((await Notification.requestPermission()) !== 'granted') return { error: 'denegado' };
+    try {
+        const registro = await navigator.serviceWorker.ready;
+        let suscripcion = await registro.pushManager.getSubscription();
+        const clave = base64UrlABytes(clavePublica);
+        // Si el servidor cambió de clave, la suscripción vieja ya no sirve: se rehace.
+        const actual = suscripcion?.options?.applicationServerKey;
+        if (suscripcion && actual && !mismosBytes(new Uint8Array(actual), clave)) {
+            await suscripcion.unsubscribe();
+            suscripcion = null;
+        }
+        suscripcion ??= await registro.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: clave });
+        const datos = suscripcion.toJSON();
+        return { endpoint: datos.endpoint, p256dh: datos.keys.p256dh, auth: datos.keys.auth };
+    } catch {
+        return { error: 'fallo' };
+    }
+}
+
+// Se da de baja en el navegador (al cerrar sesión) y devuelve el endpoint para borrarlo en el servidor.
+export async function desactivarAvisos() {
+    try {
+        const registro = await navigator.serviceWorker?.getRegistration();
+        const suscripcion = await registro?.pushManager.getSubscription();
+        if (!suscripcion) return null;
+        const endpoint = suscripcion.endpoint;
+        await suscripcion.unsubscribe();
+        return endpoint;
+    } catch {
+        return null;
+    }
+}
+
+function base64UrlABytes(texto) {
+    const b64 = (texto + '='.repeat((4 - texto.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+function mismosBytes(a, b) {
+    return a.length === b.length && a.every((v, i) => v === b[i]);
+}
