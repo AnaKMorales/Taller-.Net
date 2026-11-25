@@ -17,7 +17,12 @@ puede ser una PWA).
   funciona **sin conexión**. Lee Code 128, QR, Code 39, EAN,
   ITF, UPC y Data Matrix. Cada código leído hace lo mismo que escribirlo y confirmarlo: marca el bulto como entregado
   si pertenece a la visita, o avisa que no pertenece. El mismo código no se repite antes de 2 s y el teléfono vibra
-  al leer. La cámara se apaga al cerrar o al salir de la pantalla.
+  al leer.
+- **Faltantes y sobrantes.** Desde la primera lectura, la pantalla muestra «Escaneados X de N» y dos avisos que se
+  actualizan con cada código (`Dispositivo/ControlEscaneo.cs`): **faltan escanear** (los códigos de los bultos de la
+  visita que todavía no se leyeron) y **sobrantes** (los códigos leídos que no son de esta visita, una sola vez cada
+  uno). Si un bulto se lee de nuevo, avisa que ya estaba escaneado. Cuando no falta ninguno, lo confirma en verde.
+  Es informativo: no bloquea registrar la visita (puede haber bultos no entregados o marcados a mano). La cámara se apaga al cerrar o al salir de la pantalla.
 - **Permiso de cámara.** La cabecera `Permissions-Policy` permite `camera=(self)` solo bajo `/repartidor`; el resto
   del sitio sigue con `camera=()` y el micrófono bloqueado en todos lados.
 - Se mantienen el ingreso manual y los lectores externos (que tipean el código).

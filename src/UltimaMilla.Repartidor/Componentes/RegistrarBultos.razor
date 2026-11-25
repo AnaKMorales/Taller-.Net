@@ -20,6 +20,30 @@
     {
         <div class="small mt-1" role="status">@_mensajeCodigo</div>
     }
+    @if (_escaneo.HuboLecturas)
+    {
+        @* Faltantes y sobrantes a la vista mientras se escanea (req. 19). *@
+        <div class="mt-2" data-control-escaneo>
+            <div class="small fw-semibold">Escaneados @_escaneo.Escaneados.Count de @_escaneo.Total</div>
+            @if (_escaneo.Faltantes is { Count: > 0 } faltantes)
+            {
+                <div class="alert alert-warning py-1 px-2 mt-1 mb-0 small" data-faltantes="@faltantes.Count">
+                    Faltan escanear @faltantes.Count @(faltantes.Count == 1 ? "bulto" : "bultos"):
+                    @string.Join(", ", faltantes.Select(b => b.Codigo))
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success py-1 px-2 mt-1 mb-0 small" data-faltantes="0">Están todos los bultos de la visita.</div>
+            }
+            @if (_escaneo.Sobrantes.Count > 0)
+            {
+                <div class="alert alert-danger py-1 px-2 mt-1 mb-0 small" data-sobrantes="@_escaneo.Sobrantes.Count">
+                    Sobrantes (no son de esta visita): @string.Join(", ", _escaneo.Sobrantes)
+                </div>
+            }
+        </div>
+    }
 </form>
 
 <form @onsubmit="RegistrarAsync" @onsubmit:preventDefault>
@@ -110,20 +134,33 @@
     private CapturaFirma? _firma;
     private bool _procesando;
 
-    protected override void OnInitialized() =>
+    private ControlEscaneo _escaneo = null!;
+
+    protected override void OnInitialized()
+    {
         _capturas = Parada.Bultos!.ToDictionary(b => b.BultoId, _ => new CapturaBulto());
+        _escaneo = new ControlEscaneo(Parada.Bultos!.ToList());
+    }
 
     private void ConfirmarCodigo()
     {
         if (_procesando) return;
-        var bulto = LecturaCodigo.Buscar(Parada.Bultos!, _codigo);
-        if (bulto is null)
+        var (resultado, bulto) = _escaneo.Leer(_codigo);
+        switch (resultado)
         {
-            _mensajeCodigo = "Ese código no pertenece a la visita.";
-            return;
+            case ResultadoLectura.Vacio:
+                return;
+            case ResultadoLectura.Sobrante:
+                _mensajeCodigo = $"El código {_codigo.Trim()} no pertenece a la visita (sobrante).";
+                break;
+            case ResultadoLectura.Repetido:
+                _mensajeCodigo = $"El bulto {bulto!.Codigo} ya estaba escaneado.";
+                break;
+            default:
+                _capturas[bulto!.BultoId].Resultado = ResultadoIntento.Entregado;
+                _mensajeCodigo = $"Bulto {bulto.Codigo} marcado como entregado.";
+                break;
         }
-        _capturas[bulto.BultoId].Resultado = ResultadoIntento.Entregado;
-        _mensajeCodigo = $"Bulto {bulto.Codigo} marcado como entregado.";
         _codigo = "";
     }
 
