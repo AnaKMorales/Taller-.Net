@@ -231,7 +231,8 @@ public sealed partial class PostgresTests
         }
         using var servidor = ServidorComercios(new() { Ahora = EscenarioPersistencia.Fecha });
         using var cliente = servidor.Cliente();
-        for (var i = 0; i < 10; i++)
+        // Límite común de los logins: 20 por minuto e IP (ProteccionLogin).
+        for (var i = 0; i < 20; i++)
             Assert.Equal(HttpStatusCode.Unauthorized, (await cliente.PostAsJsonAsync("/api/comercios/sesion", new LoginComercio("usuario@example.com", ClaveApiComercio))).StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, (await cliente.PostAsJsonAsync("/api/comercios/sesion", new LoginComercio("usuario@example.com", ClaveApiComercio))).StatusCode);
     }

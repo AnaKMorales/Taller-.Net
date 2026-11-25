@@ -120,11 +120,17 @@ public sealed partial class PostgresTests
         var inexistente = await Intento("nadie@example.com", ClaveIdentidad);
         var incorrecta = await Intento(e.Admin.Email, "Otra-clave-1!");
         Assert.Equal(inexistente, incorrecta);
-        // Cuatro fallos más (cinco en total) bloquean la cuenta 5 minutos.
+        // Cuatro fallos más (cinco en total) bloquean ESTE origen para ese correo (hallazgo H6, ProteccionLogin):
+        // ni con la clave correcta entra, y la respuesta es la misma. La cuenta en sí no queda bloqueada.
         for (var i = 0; i < 4; i++) await Intento(e.Admin.Email, "Otra-clave-1!");
-        // Bloqueada: ni con la clave correcta entra, y la respuesta es la misma.
         Assert.Equal(inexistente, await Intento(e.Admin.Email, ClaveIdentidad));
+        await using (var db = SinTenant())
+            Assert.Null((await db.Set<CuentaAcceso>().AsNoTracking().SingleAsync(c => c.Id == e.Admin.Id)).LockoutEnd);
 
+        // Respaldo de Identity ante un ataque desde muchas IPs: 20 fallos de la cuenta la bloquean 5 minutos.
+        var login = new BuscadorUsuariosLogin(Options());
+        for (var i = 0; i < 15; i++) Assert.Null(await login.ValidarAsync(e.Admin.Email, "Otra-clave-1!"));
+        Assert.Null(await login.ValidarAsync(e.Admin.Email, ClaveIdentidad));
         await using (var db = SinTenant())
         {
             var cuenta = await db.Set<CuentaAcceso>().AsNoTracking().SingleAsync(c => c.Id == e.Admin.Id);

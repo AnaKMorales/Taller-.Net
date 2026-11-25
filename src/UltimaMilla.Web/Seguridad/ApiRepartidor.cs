@@ -26,9 +26,11 @@ public static class ApiRepartidor
         api.MapearAvisosPushRepartidor();
 
         // Mismo validador que el login de Web: email normalizado, usuario activo y hash PBKDF2.
-        api.MapPost("/sesion", async (SolicitudLoginRepartidor solicitud, IBuscadorUsuariosLogin usuarios, CancellationToken ct) =>
+        api.MapPost("/sesion", async (SolicitudLoginRepartidor solicitud, IBuscadorUsuariosLogin usuarios,
+            IntentosLogin intentos, HttpContext contexto, CancellationToken ct) =>
         {
-            var usuario = await usuarios.ValidarAsync(solicitud.Email ?? "", solicitud.Contrasena ?? "", ct);
+            // Límite por IP y bloqueo por (correo, IP): ver ProteccionLogin.
+            var usuario = await usuarios.ValidarAsync(intentos, contexto, solicitud.Email, solicitud.Contrasena, ct);
             // Credenciales inválidas y rol distinto dan la misma respuesta: no se revela qué cuentas existen.
             if (usuario is null || usuario.Rol != RolUsuario.Repartidor) return Results.Unauthorized();
 
@@ -43,7 +45,7 @@ public static class ApiRepartidor
 
             // El manejador Bearer responde { tokenType, accessToken, expiresIn, refreshToken }.
             return Results.SignIn(new ClaimsPrincipal(identidad), authenticationScheme: Esquema);
-        }).AllowAnonymous();
+        }).AllowAnonymous().RequireRateLimiting(ProteccionLogin.PoliticaTasa);
 
         // Confirma que el token sigue vigente y que el usuario continúa activo. TenantResolver lo verifica
         // contra la base en cada pedido (middleware de Program.cs). La política vuelve a leer el token, así que

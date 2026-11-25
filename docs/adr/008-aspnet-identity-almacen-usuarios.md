@@ -32,8 +32,11 @@ login ocurre antes de que exista un `TenantContext`.
   emitiendo Web con los mismos claims.
 - **Email único global.** `UserName` = email; `RequireUniqueEmail`. Un email que ya usa otro operador se
   rechaza con un mensaje genérico ("No se pudo crear el usuario con ese email.").
-- **Bloqueo:** 5 intentos fallidos bloquean 5 minutos. Email inexistente, usuario inactivo, clave incorrecta
-  y cuenta bloqueada dan la misma respuesta.
+- **Bloqueo:** 5 intentos fallidos desde un mismo origen (IP, o prefijo /64 en IPv6) bloquean **ese origen** para ese
+  correo 5 minutos; Identity bloquea la **cuenta** recién a los 20 fallos, como respaldo ante un ataque desde muchas IPs.
+  Además, cada login acepta 20 intentos por minuto e IP. Email inexistente, usuario inactivo, clave incorrecta y cuenta u
+  origen bloqueados dan la misma respuesta. *Actualizado en la reentrega (hallazgo H6):* con el bloqueo de 5 fallos por
+  cuenta, conocer el correo de un repartidor alcanzaba para dejarlo afuera. Ver `docs/proteccion-login.md`.
 - **Política de contraseña:** mínimo 8, con mayúscula, minúscula, número y símbolo (`Demo1234!` es válida).
   Excepción: la clave propia de `POST /dev/datos-demo` se sigue validando como antes (mínimo 12, sin exigir
   símbolos), porque `deploy/aws/sembrar-demo.sh` genera claves alfanuméricas; la cuenta igual se crea con

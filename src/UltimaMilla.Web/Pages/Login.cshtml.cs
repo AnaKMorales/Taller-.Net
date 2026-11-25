@@ -4,14 +4,17 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Web.Seguridad;
 
 namespace UltimaMilla.Web.Pages;
 
 // Login único: cada rol va a su página de inicio.
+// Límite por IP solo en los POST y bloqueo por (correo, IP): ver Seguridad/ProteccionLogin.cs.
 [AllowAnonymous]
-public sealed class LoginModel(IBuscadorUsuariosLogin usuarios, IWebHostEnvironment entorno) : PageModel
+[EnableRateLimiting(ProteccionLogin.PoliticaTasa)]
+public sealed class LoginModel(IBuscadorUsuariosLogin usuarios, IntentosLogin intentos, IWebHostEnvironment entorno) : PageModel
 {
     [BindProperty]
     public string Email { get; set; } = "";
@@ -28,7 +31,7 @@ public sealed class LoginModel(IBuscadorUsuariosLogin usuarios, IWebHostEnvironm
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
-        var usuario = await usuarios.ValidarAsync(Email, Contrasena, cancellationToken);
+        var usuario = await usuarios.ValidarAsync(intentos, HttpContext, Email, Contrasena, cancellationToken);
         if (usuario is null)
         {
             // Mismo mensaje en los dos casos para no revelar qué emails existen.

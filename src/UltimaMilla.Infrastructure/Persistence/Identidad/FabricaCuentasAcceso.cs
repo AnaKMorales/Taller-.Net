@@ -53,7 +53,9 @@ public sealed class FabricaCuentasAcceso
         o.Password.RequireNonAlphanumeric = true;
         o.Password.RequiredUniqueChars = 1;
         o.Lockout.AllowedForNewUsers = true;
-        o.Lockout.MaxFailedAccessAttempts = 5;
+        // Respaldo ante un ataque desde muchas IPs. El bloqueo de 5 fallos lo hace Web por (correo, IP)
+        // (Seguridad/ProteccionLogin.cs): con 5 por cuenta, conocer el correo alcanzaba para dejar afuera a alguien.
+        o.Lockout.MaxFailedAccessAttempts = 20;
         o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
         // UserName = email; el formato del email lo validan los casos de uso.
         o.User.AllowedUserNameCharacters = "";

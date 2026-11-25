@@ -41,7 +41,8 @@ public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options
         {
             if (!await usuarios.CheckPasswordAsync(cuenta, contrasena))
             {
-                // Al quinto fallo Identity fija LockoutEnd (5 minutos) y reinicia el contador.
+                // Al fallo 20 Identity fija LockoutEnd (5 minutos) y reinicia el contador. Es el respaldo: el bloqueo
+                // de 5 fallos lo hace Web por (correo, IP), para que conocer el correo no alcance para dejar a alguien afuera.
                 await usuarios.AccessFailedAsync(cuenta);
                 return null;
             }

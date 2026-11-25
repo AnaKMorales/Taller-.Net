@@ -189,6 +189,8 @@ builder.Services.AgregarCacheUltimaMilla(builder.Configuration.GetConnectionStri
 
 // Seguimiento público: limitación de tasa por IP contra la enumeración de envíos.
 builder.Services.AgregarLimitesSeguimiento(builder.Configuration);
+// Logins: límite por IP y bloqueo por (correo, IP), hallazgo H6 (Seguridad/ProteccionLogin.cs).
+builder.Services.AgregarProteccionLogin(builder.Configuration);
 
 var app = builder.Build();
 app.Services.GetRequiredService<EstadoSincronizaciones>().Iniciar();
