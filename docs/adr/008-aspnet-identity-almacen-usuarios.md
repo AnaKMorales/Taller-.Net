@@ -26,14 +26,18 @@ login ocurre antes de que exista un `TenantContext`.
 - **`UserManager` sobre `UserOnlyStore`.** `FabricaCuentasAcceso` arma el `UserManager` con los servicios de
   `AddIdentityCore` (opciones, hasher, validadores, normalizador) sobre el `AppDbContext` del caso de uso, para
   que el alta del `Usuario` y la de su `CuentaAcceso` vayan en el mismo `SaveChanges`.
-- **Login** (`BuscadorUsuariosLogin`): `FindByNameAsync` → `IsLockedOutAsync` → `CheckPasswordAsync` →
-  `AccessFailedAsync` o `ResetAccessFailedCountAsync`. Es lo que hace `SignInManager.CheckPasswordSignInAsync`;
-  no se usa `SignInManager` para no meter el framework de ASP.NET Core en Infrastructure. La sesión la sigue
-  emitiendo Web con los mismos claims.
+- **Login** (`BuscadorUsuariosLogin`): `FindByNameAsync` → `CheckPasswordAsync`. No se usa `SignInManager`
+  para no meter el framework de ASP.NET Core en Infrastructure. La sesión la sigue emitiendo Web con los mismos
+  claims.
 - **Email único global.** `UserName` = email; `RequireUniqueEmail`. Un email que ya usa otro operador se
   rechaza con un mensaje genérico ("No se pudo crear el usuario con ese email.").
-- **Bloqueo:** 5 intentos fallidos bloquean 5 minutos. Email inexistente, usuario inactivo, clave incorrecta
-  y cuenta bloqueada dan la misma respuesta.
+- **Sin bloqueo de cuenta; límite por IP** (cambio del 24/11/2026, hallazgo H6 de la revisión). Al principio,
+  5 intentos fallidos bloqueaban la cuenta 5 minutos, pero así cualquiera que supiera el correo de un repartidor
+  podía dejarlo afuera. Ahora los tres logins (Web, PWA y API de comercios) comparten un límite de 20 intentos
+  por minuto por IP (`Web/Seguridad/LimiteLogin.cs`, configurable con `Login:IntentosPorMinuto`); del 21 en
+  adelante responden 429. Email inexistente, usuario inactivo y clave incorrecta dan la misma respuesta.
+  Límite aceptado: un ataque repartido entre muchas IP no se frena por cuenta; lo encarecen el hash PBKDF2 y la
+  política de contraseña.
 - **Política de contraseña:** mínimo 8, con mayúscula, minúscula, número y símbolo (`Demo1234!` es válida).
   Excepción: la clave propia de `POST /dev/datos-demo` se sigue validando como antes (mínimo 12, sin exigir
   símbolos), porque `deploy/aws/sembrar-demo.sh` genera claves alfanuméricas; la cuenta igual se crea con
@@ -74,9 +78,9 @@ login ocurre antes de que exista un `TenantContext`.
 - Si `CheckPasswordAsync` pidiera rehash (cambio futuro de las opciones del hasher), el login sin tenant no
   podría guardar el hash nuevo y fallaría: la excepción del interceptor no incluye `PasswordHash` a propósito.
   Con las opciones actuales no ocurre (lo comprueba una prueba). Si se cambian, revisar este punto.
-- Dos logins concurrentes del mismo usuario pueden chocar en el `ConcurrencyStamp`; el perdedor se rechaza
-  como intento fallido sin contarse. [NO VERIFICADO con una prueba de concurrencia; sale de leer el código.]
-- El costo de hash para email inexistente o cuenta bloqueada es una verificación contra un hash ficticio; que el
+- El login ya no escribe en `AspNetUsers` (no cuenta intentos), así que dos logins simultáneos del mismo usuario
+  no chocan.
+- El costo de hash para email inexistente o usuario inactivo es una verificación contra un hash ficticio; que el
   tiempo sea indistinguible del caso real es [NO VERIFICADO: no se midió].
 - La base de AWS no se migró ni se probó en este cambio: se probó en bases temporales locales (vacía y con
   datos demo sembrados por la versión anterior, migrando dos veces). Sus emails demo llevan sufijo aleatorio,

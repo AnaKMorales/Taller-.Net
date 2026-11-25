@@ -42,7 +42,7 @@ public static class ApiRepartidor
 
             // El manejador Bearer responde { tokenType, accessToken, expiresIn, refreshToken }.
             return Results.SignIn(new ClaimsPrincipal(identidad), authenticationScheme: Esquema);
-        }).AllowAnonymous();
+        }).AllowAnonymous().RequireRateLimiting(LimiteLogin.Politica);
 
         // Confirma que el token sigue vigente y que el usuario continúa activo. TenantResolver lo verifica
         // contra la base en cada pedido (middleware de Program.cs). La política vuelve a leer el token, así que

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Web.Seguridad;
 
@@ -11,6 +12,7 @@ namespace UltimaMilla.Web.Pages;
 
 // Login único: cada rol va a su página de inicio.
 [AllowAnonymous]
+[EnableRateLimiting(LimiteLogin.Politica)]
 public sealed class LoginModel(IBuscadorUsuariosLogin usuarios, IWebHostEnvironment entorno) : PageModel
 {
     [BindProperty]

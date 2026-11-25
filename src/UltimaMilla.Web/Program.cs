@@ -86,7 +86,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 // Razor Pages para el Backoffice y Blazor para el Portal
 builder.Services.AddRazorPages();
 builder.Services.AddAntiforgery(o => o.HeaderName = ApiOperativa.CabeceraAntiforgery);
-builder.Services.AgregarApiComercios();
+builder.Services.AgregarLimiteLogin(builder.Configuration);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Sesión con cookie para backoffice y portal; token Bearer para la PWA del repartidor.

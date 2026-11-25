@@ -1,6 +1,4 @@
 using System.Security.Claims;
-using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
 using UltimaMilla.Application.Envios.AltaPortal;
 using UltimaMilla.Application.Envios.Importacion;
 using UltimaMilla.Application.Tenancy;
@@ -16,20 +14,6 @@ public sealed record ResultadoAltaComercio(string Referencia, bool Repetido, Alt
 
 public static class ApiComercios
 {
-    private const string LimiteLogin = "LoginComercios";
-
-    public static IServiceCollection AgregarApiComercios(this IServiceCollection services)
-    {
-        services.AddRateLimiter(o =>
-        {
-            o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            o.AddPolicy(LimiteLogin, context => RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "sin-ip",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-        });
-        return services;
-    }
-
     public static IEndpointRouteBuilder MapearApiComercios(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/comercios/sesion", async (LoginComercio solicitud, HttpContext context, IBuscadorUsuariosLogin usuarios, CancellationToken ct) =>
@@ -44,7 +28,7 @@ public static class ApiComercios
                 new Claim(ClaimsUltimaMilla.Operador, usuario.OperadorId.ToString()),
                 new Claim(ClaimsUltimaMilla.CuentaComercial, cuenta.ToString())], ApiRepartidor.Esquema);
             return Results.SignIn(new ClaimsPrincipal(identidad), authenticationScheme: ApiRepartidor.Esquema);
-        }).AllowAnonymous().RequireRateLimiting(LimiteLogin).WithMetadata(new ApiOperativaMetadata());
+        }).AllowAnonymous().RequireRateLimiting(LimiteLogin.Politica).WithMetadata(new ApiOperativaMetadata());
 
         var api = app.MapGroup("/api/comercios")
             .WithMetadata(new ApiOperativaMetadata())

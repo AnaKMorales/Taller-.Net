@@ -1,12 +1,10 @@
-using UltimaMilla.Application.Abstractions;
 using UltimaMilla.Application.Tenancy;
 using UltimaMilla.Infrastructure.Persistence.Identidad;
 
 namespace UltimaMilla.Infrastructure.Persistence.Tenancy;
 
-// Login con ASP.NET Identity: UserManager sobre el store de EF Core (AspNetUsers). Hace lo mismo que
-// SignInManager.CheckPasswordSignInAsync (bloqueo, intentos fallidos) sin emitir la sesión: la cookie o el Bearer
-// los emite Web con los claims de siempre.
+// Login con ASP.NET Identity: UserManager sobre el store de EF Core (AspNetUsers). Verifica la contraseña sin
+// emitir la sesión: la cookie o el Bearer los emite Web con los claims de siempre.
 public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options, FabricaCuentasAcceso? fabrica = null) : IBuscadorUsuariosLogin
 {
     private readonly FabricaCuentasAcceso _fabrica = fabrica ?? FabricaCuentasAcceso.Predeterminada;
@@ -30,28 +28,16 @@ public sealed class BuscadorUsuariosLogin(DbContextOptions<AppDbContext> options
             })
             .SingleOrDefaultAsync(cancellationToken);
 
-        // Email inexistente, usuario inactivo o cuenta bloqueada: misma respuesta y un costo de hash parecido.
-        if (cuenta is null || usuario is null || await usuarios.IsLockedOutAsync(cuenta))
+        // Email inexistente o usuario inactivo: misma respuesta y un costo de hash parecido.
+        if (cuenta is null || usuario is null)
         {
             _fabrica.VerificarFicticio(contrasena);
             return null;
         }
 
-        try
-        {
-            if (!await usuarios.CheckPasswordAsync(cuenta, contrasena))
-            {
-                // Al quinto fallo Identity fija LockoutEnd (5 minutos) y reinicia el contador.
-                await usuarios.AccessFailedAsync(cuenta);
-                return null;
-            }
-            await usuarios.ResetAccessFailedCountAsync(cuenta);
-        }
-        catch (ConflictoConcurrenciaException)
-        {
-            // Otro login del mismo usuario guardó antes (ConcurrencyStamp): se rechaza este intento sin dar detalles.
-            return null;
-        }
+        // Sin bloqueo por intentos fallidos: dejaba que cualquiera que supiera un correo dejara afuera a ese usuario.
+        // Contra probar contraseñas en serie está el límite de intentos por IP (Web/Seguridad/LimiteLogin.cs).
+        if (!await usuarios.CheckPasswordAsync(cuenta, contrasena)) return null;
 
         return new UsuarioLogin(usuario.Id, usuario.OperadorId, usuario.Email, usuario.Rol,
             usuario.Cuentas.Count == 1 ? usuario.Cuentas[0] : null);

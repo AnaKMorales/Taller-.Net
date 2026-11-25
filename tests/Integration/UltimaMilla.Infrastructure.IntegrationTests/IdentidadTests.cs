@@ -103,7 +103,7 @@ public sealed partial class PostgresTests
     }
 
     [PostgresFact]
-    public async Task IdentidadClaveIncorrectaEmailInexistenteYCuentaBloqueadaDanLaMismaRespuesta()
+    public async Task IdentidadClaveIncorrectaYEmailInexistenteDanLaMismaRespuestaYNoBloqueanLaCuenta()
     {
         var e = await PrepararIdentidad();
         using var servidor = new ServidorApi(_testConnection, usarIdentidadPrueba: false);
@@ -120,44 +120,35 @@ public sealed partial class PostgresTests
         var inexistente = await Intento("nadie@example.com", ClaveIdentidad);
         var incorrecta = await Intento(e.Admin.Email, "Otra-clave-1!");
         Assert.Equal(inexistente, incorrecta);
-        // Cuatro fallos más (cinco en total) bloquean la cuenta 5 minutos.
-        for (var i = 0; i < 4; i++) await Intento(e.Admin.Email, "Otra-clave-1!");
-        // Bloqueada: ni con la clave correcta entra, y la respuesta es la misma.
-        Assert.Equal(inexistente, await Intento(e.Admin.Email, ClaveIdentidad));
+        // Seis fallos más no bloquean la cuenta: nadie puede dejar afuera a otro sabiendo solo su correo.
+        for (var i = 0; i < 6; i++) await Intento(e.Admin.Email, "Otra-clave-1!");
+        Assert.NotNull(await new BuscadorUsuariosLogin(Options()).ValidarAsync(e.Admin.Email, ClaveIdentidad));
 
         await using (var db = SinTenant())
         {
             var cuenta = await db.Set<CuentaAcceso>().AsNoTracking().SingleAsync(c => c.Id == e.Admin.Id);
-            Assert.NotNull(cuenta.LockoutEnd);
-            var resta = cuenta.LockoutEnd!.Value - DateTimeOffset.UtcNow;
-            Assert.InRange(resta, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(5));
+            Assert.Null(cuenta.LockoutEnd);
             Assert.Equal(0, cuenta.AccessFailedCount);
         }
-        // La API del repartidor también responde igual (401) para los tres casos.
+        // La API del repartidor también responde igual (401) para los dos casos.
         using var pwa = servidor.Cliente();
         foreach (var (email, clave) in new[] { ("nadie@example.com", ClaveIdentidad), (e.Repartidor.Email, "Otra-clave-1!") })
             Assert.Equal(HttpStatusCode.Unauthorized,
                 (await pwa.PostAsJsonAsync("/api/repartidor/sesion", new SolicitudLoginRepartidor(email, clave))).StatusCode);
-
-        // Pasado el bloqueo, la clave correcta vuelve a entrar y el contador queda en cero.
-        await using (var db = Context())
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE \"AspNetUsers\" SET \"LockoutEnd\" = {DateTimeOffset.UtcNow.AddSeconds(-1)} WHERE \"Id\" = {e.Admin.Id}");
-        Assert.NotNull(await new BuscadorUsuariosLogin(Options()).ValidarAsync(e.Admin.Email, ClaveIdentidad));
     }
 
     [PostgresFact]
-    public async Task IdentidadUnFalloSeCuentaYUnLoginCorrectoReiniciaElContador()
+    public async Task LoginMasDeVeinteIntentosPorMinutoDesdeLaMismaIpRecibe429()
     {
-        var e = await PrepararIdentidad();
-        var login = new BuscadorUsuariosLogin(Options());
-        Assert.Null(await login.ValidarAsync(e.Admin.Email, "Otra-clave-1!"));
-        Assert.Null(await login.ValidarAsync(e.Admin.Email, "Otra-clave-1!"));
-        await using (var db = SinTenant())
-            Assert.Equal(2, (await db.Set<CuentaAcceso>().AsNoTracking().SingleAsync(c => c.Id == e.Admin.Id)).AccessFailedCount);
-        Assert.NotNull(await login.ValidarAsync(e.Admin.Email, ClaveIdentidad));
-        await using (var db = SinTenant())
-            Assert.Equal(0, (await db.Set<CuentaAcceso>().AsNoTracking().SingleAsync(c => c.Id == e.Admin.Id)).AccessFailedCount);
+        await PrepararIdentidad();
+        using var servidor = new ServidorApi(_testConnection, usarIdentidadPrueba: false);
+        using var pwa = servidor.Cliente();
+        var estados = new List<HttpStatusCode>();
+        for (var i = 0; i < 21; i++)
+            estados.Add((await pwa.PostAsJsonAsync("/api/repartidor/sesion",
+                new SolicitudLoginRepartidor("nadie@example.com", "Otra-clave-1!"))).StatusCode);
+        Assert.All(estados.Take(20), s => Assert.Equal(HttpStatusCode.Unauthorized, s));
+        Assert.Equal(HttpStatusCode.TooManyRequests, estados[20]);
     }
 
     [PostgresFact]

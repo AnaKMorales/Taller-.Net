@@ -164,6 +164,8 @@ jobs:
         env:
           ASPNETCORE_ENVIRONMENT: Development
           ASPNETCORE_URLS: http://127.0.0.1:5299
+          # Todas las pruebas entran desde la misma IP: sin esto chocan con el límite de logins por minuto
+          Login__IntentosPorMinuto: "1000"
         run: |
           nohup dotnet src/UltimaMilla.Web/bin/Release/net10.0/UltimaMilla.Web.dll > web.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:5299/live && exit 0; sleep 2; done
