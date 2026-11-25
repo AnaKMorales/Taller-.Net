@@ -18,6 +18,11 @@ public sealed class RutaModel(RegistrarCargaRutaHandler carga, DespacharRutaHand
     public EstadoCargaRutaDto? Ruta { get; private set; }
     public RutaAsignacionDto? Datos { get; private set; }
 
+    // Bultos escaneados que no son de esta ruta. Quedan a la vista hasta despachar (TempData por ruta).
+    public IReadOnlyList<string> Sobrantes => (TempData.Peek(ClaveSobrantes) as string ?? "")
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+    private string ClaveSobrantes => $"sobrantes:{Id:N}";
+
     public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
         try { await CargarAsync(ct); }
@@ -27,10 +32,20 @@ public sealed class RutaModel(RegistrarCargaRutaHandler carga, DespacharRutaHand
 
     public Task<IActionResult> OnPostCargarAsync(CancellationToken ct) => EjecutarAsync(async () =>
     {
-        var r = await carga.Handle(Id, new RegistrarCargaRutaCommand(Codigo ?? "", Version), ct);
-        return r.Repetido
-            ? $"El bulto {Codigo} ya estaba cargado."
-            : $"Bulto {Codigo} cargado ({r.Cargados} de {r.Esperados}).";
+        try
+        {
+            var r = await carga.Handle(Id, new RegistrarCargaRutaCommand(Codigo ?? "", Version), ct);
+            var faltan = r.Faltantes == 0 ? " Está todo cargado." : $" Faltan {r.Faltantes}.";
+            return (r.Repetido
+                ? $"El bulto {Codigo} ya estaba cargado."
+                : $"Bulto {Codigo} cargado ({r.Cargados} de {r.Esperados}).") + faltan;
+        }
+        catch (BultoSobranteException e)
+        {
+            if (!Sobrantes.Contains(e.Codigo, StringComparer.OrdinalIgnoreCase))
+                TempData[ClaveSobrantes] = string.Join('\n', Sobrantes.Append(e.Codigo));
+            throw;
+        }
     }, ct);
 
     public async Task<IActionResult> OnPostDespacharAsync(CancellationToken ct)
@@ -39,6 +54,7 @@ public sealed class RutaModel(RegistrarCargaRutaHandler carga, DespacharRutaHand
         return await EjecutarAsync(async () =>
         {
             var r = await despacho.Handle(Id, new DespacharRutaCommand(Version), ct);
+            TempData.Remove(ClaveSobrantes);
             return $"Ruta despachada a las {r.DespachadaEn.ToLocalTime():HH:mm}. El repartidor ya la ve en su app.";
         }, ct, "/backoffice/deposito");
     }

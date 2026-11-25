@@ -6,21 +6,44 @@
     ViewData["Seccion"] = "deposito";
     Layout = "_Layout";
     var despachada = r.DespachadaEn is not null;
+    var faltantes = r.Bultos.Where(b => !b.Cargado).Select(b => b.Codigo).ToList();
 }
 
 <p><a href="/backoffice/deposito">← Depósito y rutas</a></p>
 <h1>Ruta @(Model.Datos is { } d ? $"de {d.Repartidor} · {d.Matricula}" : "")</h1>
 <p>Cargados <strong>@r.Cargados de @r.Esperados</strong> bultos@(despachada ? " · ya despachada" : "")</p>
 @if (Model.Exito is not null) { <p class="exito">@Model.Exito</p> }
-@if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+@if (Model.Error is not null) { <p class="error alerta" role="alert">@Model.Error</p> }
 
 @if (!despachada)
 {
-    <form method="post" asp-page-handler="Cargar" class="formulario">
+    <form method="post" asp-page-handler="Cargar" class="formulario" id="form-carga">
         <input type="hidden" name="Version" value="@r.Version" />
+        <div class="escaner">
+            @* Lo muestra escaner-carga.js si el navegador puede usar la cámara (HTTPS o localhost) *@
+            <button type="button" id="escanear" hidden>Escanear con la cámara</button>
+            <video id="camara" hidden muted playsinline></video>
+            <span id="aviso-camara" class="error" role="status"></span>
+        </div>
         <label>Código del bulto <input name="Codigo" autofocus autocomplete="off" required /></label>
         <div><button type="submit">Registrar carga</button></div>
     </form>
+}
+
+@if (Model.Sobrantes.Count > 0 && !despachada)
+{
+    <section class="sobrantes" role="alert">
+        <strong>Sobrantes (@Model.Sobrantes.Count):</strong> se escanearon y no están en esta hoja de ruta. No los subas al vehículo.
+        <ul>@foreach (var s in Model.Sobrantes) { <li><code>@s</code></li> }</ul>
+    </section>
+}
+
+@if (!despachada && faltantes.Count > 0 && r.Cargados > 0)
+{
+    <section class="faltantes">
+        <strong>Faltantes (@faltantes.Count):</strong> están en la hoja de ruta y todavía no se cargaron.
+        <ul>@foreach (var f in faltantes) { <li><code>@f</code></li> }</ul>
+    </section>
 }
 
 <table>
@@ -28,7 +51,7 @@
     <tbody>
         @foreach (var b in r.Bultos)
         {
-            <tr><td><code>@b.Codigo</code></td><td>@(b.Cargado ? "✓" : "—")</td></tr>
+            <tr class="@(b.Cargado || despachada ? "" : "pendiente")"><td><code>@b.Codigo</code></td><td>@(b.Cargado ? "✓" : "—")</td></tr>
         }
         @if (r.Bultos.Count == 0) { <tr><td colspan="2" class="vacio">La ruta todavía no tiene envíos asignados.</td></tr> }
     </tbody>
@@ -38,7 +61,11 @@
 {
     <form method="post" asp-page-handler="Despachar">
         <input type="hidden" name="Version" value="@r.Version" />
-        @if (r.Faltantes > 0) { <p class="nota">Faltan cargar @r.Faltantes bultos.</p> }
+        @if (r.Faltantes > 0) { <p class="nota">Faltan cargar @r.Faltantes bultos: @string.Join(", ", faltantes).</p> }
         <button type="submit">Despachar ruta</button>
     </form>
+}
+
+@section Scripts {
+    <script src="/js/escaner-carga.js" asp-append-version="true"></script>
 }
