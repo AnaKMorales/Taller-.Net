@@ -148,6 +148,11 @@ public sealed class FlujosCriticosTests(Entorno entorno)
 
         // Carga y despacho
         await admin.GotoAsync($"/backoffice/deposito/rutas/{ruta}");
+        // Un bulto que no es de la ruta: aviso de sobrante y queda en la lista
+        await admin.FillAsync("input[name='Codigo']", "AJENO-E2E");
+        await admin.ClickAsync("button:has-text('Registrar carga')");
+        await Expect(admin.Locator(".error")).ToContainTextAsync("Sobrante");
+        await Expect(admin.Locator(".sobrantes")).ToContainTextAsync("AJENO-E2E");
         await admin.FillAsync("input[name='Codigo']", bulto);
         await admin.ClickAsync("button:has-text('Registrar carga')");
         await Expect(admin.Locator(".exito")).ToContainTextAsync("1 de 1");

@@ -23,8 +23,8 @@ puede ser una PWA).
   visita que todavía no se leyeron) y **sobrantes** (los códigos leídos que no son de esta visita, una sola vez cada
   uno). Si un bulto se lee de nuevo, avisa que ya estaba escaneado. Cuando no falta ninguno, lo confirma en verde.
   Es informativo: no bloquea registrar la visita (puede haber bultos no entregados o marcados a mano). La cámara se apaga al cerrar o al salir de la pantalla.
-- **Permiso de cámara.** La cabecera `Permissions-Policy` permite `camera=(self)` solo bajo `/repartidor`; el resto
-  del sitio sigue con `camera=()` y el micrófono bloqueado en todos lados.
+- **Permiso de cámara.** La cabecera `Permissions-Policy` permite `camera=(self)` solo bajo `/repartidor` y
+  `/backoffice/deposito`; el resto del sitio sigue con `camera=()` y el micrófono bloqueado en todos lados.
 - Se mantienen el ingreso manual y los lectores externos (que tipean el código).
 
 ## Límites
@@ -32,8 +32,25 @@ puede ser una PWA).
 - La cámara exige HTTPS (o `localhost`). Sin cámara o con el permiso denegado queda el ingreso manual o un lector
   externo.
 - ZXing es más lento que `BarcodeDetector` (lee unos 4 cuadros por segundo a 640 px): conviene acercar bien el código.
-- La PWA escanea al **entregar**. La carga del vehículo se registra desde el backoffice (Depósito → Ruta), con
-  lector externo o tipeo; esa pantalla no usa la cámara.
+- La PWA escanea al **entregar**. La carga del vehículo se escanea en el backoffice (ver abajo), que se abre desde
+  el celular o la tablet del depósito.
+
+## Escaneo al cargar el vehículo (requisito 19)
+
+En **Depósito → Ruta** (`/backoffice/deposito/rutas/{id}`), el operario escanea cada bulto al subirlo al vehículo y
+el sistema lo verifica contra la hoja de ruta:
+
+- **Escanear con la cámara** usa el mismo lector que la PWA (`wwwroot/js/escaner-carga.js`: `BarcodeDetector` o
+  ZXing). Cada código leído se registra solo; después de cada bulto la cámara se vuelve a abrir y el mismo código se
+  ignora unos segundos para no registrarlo dos veces. También sirven el lector externo y el tipeo.
+- **Sobrante:** si el bulto no está en la hoja de ruta, `RegistrarCargaRutaHandler` lanza `BultoSobranteException`
+  y no registra nada. La pantalla muestra el aviso y suma el código a la lista de **Sobrantes**, que queda a la vista
+  hasta despachar.
+- **Faltantes:** la pantalla lista los bultos de la hoja de ruta que todavía no se cargaron, con su código, y los
+  repite al despachar ("Faltan cargar 2 bultos: …").
+- La cabecera `Permissions-Policy` permite `camera=(self)` también en `/backoffice/deposito`.
+- Pruebas: `CargaDeUnBultoQueNoEstaEnLaHojaDeRutaAvisaSobrante` (unitaria), el paso del sobrante en
+  `ElDepositoRecibeAsignaCargaYDespacha` (E2E) y `SoloLaPwaYElDepositoPuedenUsarLaCamara` (cabeceras).
 - Verificación: tests del estándar (tabla de 107 símbolos, sumas, paridad, dígito de control), del SVG y de la
   búsqueda del bulto; y una etiqueta real renderizada a imagen y leída de nuevo desde sus píxeles ("EXP-ADM-01",
   control correcto). [NO VERIFICADO] con un decodificador independiente ni con un celular real: probar en la demo.

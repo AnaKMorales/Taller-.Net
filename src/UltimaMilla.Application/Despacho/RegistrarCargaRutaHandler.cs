@@ -13,6 +13,13 @@ public sealed record EstadoCargaRutaDto(Guid RutaId, Guid Version, DateTime? Des
     public int Cargados => Bultos.Count(b => b.Cargado);
     public int Faltantes => Esperados - Cargados;
 }
+// Se escaneó al cargar un bulto que no está en la hoja de ruta: no hay que subirlo al vehículo.
+public sealed class BultoSobranteException(string codigo)
+    : ArgumentException($"Sobrante: el bulto {codigo} no está en la hoja de ruta de este vehículo. Separalo y no lo cargues.")
+{
+    public string Codigo { get; } = codigo;
+}
+
 public sealed record CargaRegistradaDto(Guid RutaId, Guid BultoId, Guid Version, bool Repetido,
     int Esperados, int Cargados, int Faltantes);
 
@@ -42,7 +49,7 @@ public sealed class RegistrarCargaRutaHandler(IRegistroCargaRutaRepository repos
         var candidatos = op.Ruta.Paradas.Where(p => p.Activa).SelectMany(p => p.Bultos)
             .Select(b => b.Bulto).Where(b => string.Equals(b.Codigo, solicitud.Codigo.Trim(), StringComparison.OrdinalIgnoreCase) &&
                 (solicitud.BultoId is null || b.Id == solicitud.BultoId)).ToArray();
-        if (candidatos.Length == 0) throw new ArgumentException("El bulto no pertenece a las paradas activas de esta ruta.");
+        if (candidatos.Length == 0) throw new BultoSobranteException(solicitud.Codigo.Trim());
         if (candidatos.Length > 1) throw new InvalidOperationException("El código aparece en varios envíos. Indicá también el BultoId de la consulta.");
         var bulto = candidatos[0];
         var estado = Estado(op);

@@ -47,6 +47,18 @@ public sealed class DespacharRutaTests
     }
 
     [Fact]
+    public async Task CargaDeUnBultoQueNoEstaEnLaHojaDeRutaAvisaSobrante()
+    {
+        var caso = new Caso(cargar: false);
+        var handler = new RegistrarCargaRutaHandler(caso, new Reloj());
+        var error = await Assert.ThrowsAsync<BultoSobranteException>(() =>
+            handler.Handle(caso.Ruta.Id, new RegistrarCargaRutaCommand(" AJENO-1 ", caso.Version)));
+        Assert.Equal("AJENO-1", error.Codigo);
+        Assert.StartsWith("Sobrante", error.Message);
+        Assert.Empty(caso.Ruta.Escaneos);
+    }
+
+    [Fact]
     public async Task CargaRechazaCamposVaciosAntesDeAbrirLaPersistencia()
     {
         var caso = new Caso(false);
